@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <title>Шаблони — Групирани по клиент</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <style>
+    :root {
+      --c-peach:#fec196; --c-coral:#ffa686; --c-clay:#d6a184; --c-mauve:#aa767c; --c-plum:#63474d;
+      --sidebar-width:240px; --sidebar-bg:var(--c-plum); --sidebar-brand-bg:#4a343a;
+      --nav-text:rgba(255,255,255,.82); --nav-text-hover:rgba(255,255,255,.97); --nav-text-active:var(--c-peach);
+      --nav-bg-hover:#74565c; --nav-bg-active:#7d5f66; --nav-accent-active:var(--c-coral);
+      --nav-label-text:rgba(255,255,255,.35); --version-text:#7d5f66;
+      --content-bg:#f6efe9; --card-bg:#fff; --text-primary:#3d2b2f; --text-muted:#9a7a80;
+      --border-subtle:rgba(170,118,124,.15);
+      --radius-sm:4px; --radius-md:6px; --t-fast:140ms ease; --t-med:220ms ease;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px}
+    a{text-decoration:none;cursor:pointer}
+    button{border:none;background:none;cursor:pointer;font:inherit;text-align:left}
+
+    .app-layout{display:flex;height:100vh;overflow:hidden}
+    .sidebar{width:var(--sidebar-width);min-width:var(--sidebar-width);background:var(--sidebar-bg);display:flex;flex-direction:column;height:100vh}
+    .sidebar-brand{background:var(--sidebar-brand-bg);padding:18px 16px 16px;display:flex;flex-direction:column;gap:3px}
+    .brand-appname{font-size:17px;font-weight:700;color:var(--c-peach)}
+    .brand-company{font-size:12px;color:rgba(255,255,255,.6)}
+    .sidebar-nav{flex:1;padding:8px 0}
+    .sidebar-management{flex-shrink:0;padding:6px 0 4px;border-top:1px solid rgba(255,255,255,.08)}
+    .sidebar-version{flex-shrink:0;padding:8px 16px 12px;font-size:11px;color:var(--version-text)}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;color:var(--nav-text);border-left:3px solid transparent;border-radius:0 var(--radius-sm) var(--radius-sm) 0;transition:background var(--t-fast),color var(--t-fast);width:100%}
+    .nav-item:hover{background:var(--nav-bg-hover);color:var(--nav-text-hover)}
+    .nav-item.active{background:var(--nav-bg-active);color:var(--nav-text-active);border-left-color:var(--nav-accent-active);font-weight:500}
+    .nav-text{flex:1;font-size:13.5px}
+    .nav-section-label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--nav-label-text);padding:6px 18px 2px}
+
+    .main-content{flex:1;background:var(--content-bg);display:flex;flex-direction:column;overflow:hidden}
+    .topbar{background:var(--card-bg);border-bottom:1px solid var(--border-subtle);padding:0 28px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .topbar-title{font-size:16px;font-weight:600;color:var(--text-primary)}
+    .page-body{flex:1;overflow-y:auto;padding:24px 28px}
+
+    .toolbar{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+    .search-wrap{position:relative;flex:1;max-width:320px}
+    .search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);width:15px;height:15px}
+    .search-input{width:100%;padding:8px 12px 8px 32px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);background:var(--card-bg);font-size:13px;color:var(--text-primary);outline:none;transition:border-color var(--t-fast)}
+    .search-input:focus{border-color:var(--c-clay)}
+    .btn-primary{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--c-coral);color:#fff;font-size:13.5px;font-weight:500;border-radius:var(--radius-sm);transition:background var(--t-fast);cursor:pointer}
+    .btn-primary:hover{background:#f09070}
+    .btn-outline{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--card-bg);color:var(--text-muted);font-size:13px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);transition:background var(--t-fast),color var(--t-fast);cursor:pointer}
+    .btn-outline:hover{color:var(--text-primary);border-color:var(--c-clay)}
+
+    .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--radius-sm);font-size:11px;font-weight:500;white-space:nowrap}
+    .badge-di{background:rgba(255,166,134,.14);color:#b85530;border:1px solid rgba(255,166,134,.4)}
+    .badge-dr{background:rgba(170,118,124,.14);color:#6e3d44;border:1px solid rgba(170,118,124,.4)}
+    .badge-dn{background:rgba(214,161,132,.14);color:#8a5530;border:1px solid rgba(214,161,132,.4)}
+
+    /* ══════════════════════════════════
+       TEMPLATE GROUPS
+    ══════════════════════════════════ */
+    .groups{display:flex;flex-direction:column;gap:12px}
+
+    /* Client group block */
+    .client-group{
+      background:var(--card-bg);
+      border:1px solid var(--border-subtle);
+      border-radius:var(--radius-md);
+      overflow:hidden;
+    }
+
+    /* Client header row — clickable, acts as accordion toggle */
+    .client-header{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:14px 20px;
+      cursor:pointer;
+      transition:background var(--t-fast);
+      user-select:none;
+    }
+    .client-header:hover{background:#fdf7f2}
+
+    .client-avatar{
+      width:34px;height:34px;
+      border-radius:var(--radius-sm);
+      background:rgba(170,118,124,.14);
+      display:flex;align-items:center;justify-content:center;
+      font-size:14px;font-weight:700;
+      color:var(--c-mauve);
+      flex-shrink:0;
+    }
+    .client-info{flex:1;min-width:0}
+    .client-name{font-size:14px;font-weight:600;color:var(--text-primary)}
+    .client-meta{font-size:12px;color:var(--text-muted);margin-top:2px}
+
+    /* Count badge */
+    .count-badge{
+      font-size:11px;font-weight:600;
+      padding:3px 9px;
+      border-radius:12px;
+      background:rgba(170,118,124,.12);
+      color:var(--c-mauve);
+      flex-shrink:0;
+    }
+
+    /* Chevron */
+    .chevron{
+      width:16px;height:16px;
+      color:var(--text-muted);
+      transition:transform var(--t-med);
+      flex-shrink:0;
+    }
+    .chevron-open{transform:rotate(90deg)}
+
+    /* Template rows container */
+    .templates-body{border-top:1px solid var(--border-subtle)}
+
+    /* Individual template row */
+    .template-row{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      padding:12px 20px 12px 68px; /* 68px = indent to align with client name */
+      border-bottom:1px solid var(--border-subtle);
+      transition:background var(--t-fast);
+    }
+    .template-row:last-child{border-bottom:none}
+    .template-row:hover{background:#fdf7f2}
+
+    .trow-info{flex:1;min-width:0}
+    .trow-name{font-size:13.5px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .trow-site{font-size:12px;color:var(--text-muted);margin-top:2px}
+
+    .trow-services{display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0}
+
+    .trow-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+    .btn-use{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:6px 14px;
+      background:var(--c-coral);color:#fff;
+      font-size:12.5px;font-weight:500;
+      border-radius:var(--radius-sm);
+      transition:background var(--t-fast);
+      cursor:pointer;
+    }
+    .btn-use:hover{background:#f09070}
+    .btn-more{
+      display:inline-flex;align-items:center;justify-content:center;
+      width:30px;height:30px;
+      border-radius:var(--radius-sm);
+      color:var(--text-muted);
+      border:1px solid var(--border-subtle);
+      transition:background var(--t-fast),color var(--t-fast);
+      cursor:pointer;
+      font-size:16px;letter-spacing:.05em;
+    }
+    .btn-more:hover{background:var(--content-bg);color:var(--text-primary)}
+
+    /* Expand-all / collapse-all link */
+    .expand-link{font-size:12px;color:var(--c-mauve);cursor:pointer;margin-left:auto;text-decoration:underline;text-underline-offset:2px}
+    .expand-link:hover{color:var(--c-plum)}
+  </style>
+</head>
+<body>
+<div class="app-layout" x-data="{
+  groups:[
+    {
+      id:1, name:'Транс Ком ООД', open:false,
+      initial:'Т',
+      templates:[
+        {name:'Месечна ДИ+ДР', site:'Склад Банишора', services:['di','dr']},
+        {name:'Тримесечна ДИ+ДР+ДН', site:'Офис Люлин', services:['di','dr','dn']},
+        {name:'Дератизация', site:'Гараж', services:['dr']}
+      ]
+    },
+    {
+      id:2, name:'ХранМаг ЕООД', open:false,
+      initial:'Х',
+      templates:[
+        {name:'Хранителни обекти', site:'Магазин №3', services:['di','dn']},
+        {name:'Профилактика №5', site:'Магазин №5', services:['di']}
+      ]
+    },
+    {
+      id:3, name:'Строй ООД', open:false,
+      initial:'С',
+      templates:[
+        {name:'Дератизация склад', site:'Склад №2', services:['dr']}
+      ]
+    }
+  ],
+  badgeClass(s){return{di:'badge-di',dr:'badge-dr',dn:'badge-dn'}[s]},
+  badgeLabel(s){return{di:'Дезинс.',dr:'Дерат.',dn:'Дезинф.'}[s]},
+  expandAll(){ this.groups.forEach(g => g.open = true) },
+  collapseAll(){ this.groups.forEach(g => g.open = false) }
+}">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand"><span class="brand-appname">PDForge</span><span class="brand-company">ДДД Про ЕООД</span></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item"><span class="nav-text">Табло</span></a>
+      <a class="nav-item"><span class="nav-text">Протоколи</span></a>
+      <a class="nav-item active"><span class="nav-text">Шаблони</span></a>
+      <a class="nav-item"><span class="nav-text">Еднократни обработки</span></a>
+      <a class="nav-item"><span class="nav-text">Справки</span></a>
+      <a class="nav-item"><span class="nav-text">Клиенти</span></a>
+      <a class="nav-item"><span class="nav-text">Обекти</span></a>
+      <a class="nav-item"><span class="nav-text">Етикети</span></a>
+    </nav>
+    <div class="sidebar-management">
+      <span class="nav-section-label">Управление</span>
+      <a class="nav-item"><span class="nav-text">Справочници</span></a>
+      <a class="nav-item"><span class="nav-text">База данни</span></a>
+      <a class="nav-item"><span class="nav-text">Настройки</span></a>
+    </div>
+    <div class="sidebar-version">v1.0.0 Beta</div>
+  </aside>
+
+  <main class="main-content">
+    <div class="topbar">
+      <span class="topbar-title">Шаблони</span>
+      <button class="btn-primary">+ Нов шаблон</button>
+    </div>
+
+    <div class="page-body">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0Z"/></svg>
+          <input class="search-input" type="text" placeholder="Търси по клиент или шаблон…">
+        </div>
+        <span class="expand-link" @click="expandAll()">Разгъни всички</span>
+        <span class="expand-link" @click="collapseAll()">Свий всички</span>
+      </div>
+
+      <div class="groups">
+        <template x-for="group in groups" :key="group.id">
+          <div class="client-group">
+
+            <!-- Client header -->
+            <div class="client-header" @click="group.open = !group.open">
+              <div class="client-avatar" x-text="group.initial"></div>
+              <div class="client-info">
+                <div class="client-name" x-text="group.name"></div>
+                <div class="client-meta" x-text="group.templates.length + (group.templates.length === 1 ? ' шаблона' : ' шаблона')"></div>
+              </div>
+              <span class="count-badge" x-text="group.templates.length"></span>
+              <svg class="chevron" :class="{'chevron-open': group.open}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+            </div>
+
+            <!-- Template rows -->
+            <div class="templates-body" x-show="group.open" x-transition>
+              <template x-for="t in group.templates" :key="t.name">
+                <div class="template-row">
+                  <div class="trow-info">
+                    <div class="trow-name" x-text="t.name"></div>
+                    <div class="trow-site" x-text="t.site"></div>
+                  </div>
+                  <div class="trow-services">
+                    <template x-for="s in t.services" :key="s">
+                      <span class="badge" :class="badgeClass(s)" x-text="badgeLabel(s)"></span>
+                    </template>
+                  </div>
+                  <div class="trow-actions">
+                    <button class="btn-use">Използвай</button>
+                    <button class="btn-more">⋯</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+          </div>
+        </template>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

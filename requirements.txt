@@ -1,0 +1,29 @@
+asgiref==3.11.1
+brotli==1.2.0
+cffi==2.0.0
+cssselect2==0.9.0
+Django==5.2.13
+fonttools==4.62.1
+pillow==12.2.0
+pycparser==3.0
+pydyf==0.12.1
+pyphen==0.17.2
+# pysqlite3  -- optional, for ICU-enabled case-insensitive Cyrillic search
+#   macOS:  brew install sqlite && pip install pysqlite3
+#   Linux:  pip install pysqlite3-binary
+sqlparse==0.5.5
+tinycss2==1.5.1
+tinyhtml5==2.1.0
+waitress==3.0.2
+weasyprint==68.1
+webencodings==0.5.1
+zopfli==0.4.1
+
+# Desktop app (Mac packaging, Stage 6c-2)
+pywebview==6.2.1
+pyobjc-core==12.2
+pyobjc-framework-Cocoa==12.2
+pyobjc-framework-Quartz==12.2
+pyobjc-framework-Security==12.2
+pyobjc-framework-UniformTypeIdentifiers==12.2
+pyobjc-framework-WebKit==12.2

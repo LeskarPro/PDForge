@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% load core_tags %}
+
+{% block title %}Обекти — PDForge{% endblock %}
+{% block topbar_title %}Обекти{% endblock %}
+
+{% block topbar_actions %}
+  <button class="btn-primary"
+          hx-get="{% url 'core:site_create_full' %}"
+          hx-target="#modal-content"
+          hx-swap="innerHTML">
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none"
+         viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+    </svg>
+    Нов обект
+  </button>
+{% endblock %}
+
+{% block content %}
+<style>
+  .toolbar{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+  .search-wrap{position:relative;flex:1;max-width:320px}
+  .search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);
+    color:var(--text-muted);width:15px;height:15px;pointer-events:none}
+  .search-input{width:100%;padding:8px 12px 8px 32px;border:1px solid var(--border-subtle);
+    border-radius:var(--radius-sm);background:#fff;font-size:13px;
+    color:var(--text-primary);outline:none}
+  .search-input:focus{border-color:var(--c-clay)}
+  .records-count{margin-left:auto;font-size:12px;color:var(--text-muted)}
+
+  .sites-card{background:#fff;border:1px solid var(--border-subtle);
+    border-radius:var(--radius-md);overflow:hidden}
+  .sites-full-table{width:100%;border-collapse:collapse}
+  .sites-full-table th{font-size:10px;font-weight:600;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--text-muted);padding:11px 12px;
+    border-bottom:1px solid var(--border-subtle);text-align:left;white-space:nowrap;
+    background:#fdf9f6}
+  .sites-full-table td{padding:10px 12px;border-bottom:1px solid var(--border-subtle);
+    vertical-align:middle;font-size:13px;color:var(--text-primary)}
+  .sites-full-table tr:last-child td{border-bottom:none}
+  .sites-full-table tr:hover td{background:#fdf9f6}
+
+  .site-name-cell{font-weight:600;color:var(--text-primary)}
+  .site-client-cell{font-size:12.5px;color:var(--text-muted)}
+  .site-addr-cell{font-size:12.5px;color:var(--text-muted)}
+  .site-area-cell{color:var(--text-muted);font-size:12.5px;white-space:nowrap}
+  .site-contact-name{font-size:12.5px;color:var(--text-primary);font-weight:500}
+  .site-contact-phone{font-size:11.5px;color:var(--text-muted);margin-top:1px}
+  .site-contact-empty{font-size:12px;color:var(--text-muted);font-style:italic}
+  .site-notes-cell{font-size:12.5px;color:var(--text-muted);
+    display:inline-block;max-width:280px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+
+  .tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;
+    font-size:10.5px;font-weight:500;margin:1px 2px 1px 0}
+
+  .row-actions{display:flex;align-items:center;gap:4px;justify-content:flex-end;white-space:nowrap}
+  .site-notes-icon{width:15px;height:15px;color:var(--border-subtle);transition:color var(--t-fast);flex-shrink:0}
+  .site-notes-icon--active{color:var(--c-coral)}
+  .site-btn{display:flex;align-items:center;justify-content:center;
+    width:28px;height:28px;border-radius:var(--radius-sm);
+    color:var(--text-muted);border:1px solid transparent;
+    transition:background var(--t-fast),color var(--t-fast),border-color var(--t-fast)}
+  .site-btn svg{width:13px;height:13px}
+  .site-btn:hover{background:var(--content-bg);border-color:var(--border-subtle);color:var(--text-primary)}
+  .site-btn.contacts:hover{color:#2d7a4a;background:rgba(74,160,100,.1);border-color:rgba(74,160,100,.3)}
+  .site-btn.edit:hover{color:#b05030;background:rgba(255,166,134,.1);border-color:rgba(255,166,134,.3)}
+  .site-btn.del:hover{color:#b03030;background:rgba(200,80,80,.08);border-color:rgba(200,80,80,.25)}
+
+  .no-sites-row td{text-align:center;padding:40px;color:var(--text-muted);font-style:italic}
+
+  /* Modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(61,43,47,.38);
+    display:flex;align-items:center;justify-content:center;z-index:200}
+  .modal-overlay.hidden{display:none}
+  .modal-box{background:#fff;border-radius:var(--radius-lg);padding:28px;
+    min-width:480px;max-width:560px;max-height:90vh;overflow-y:auto;
+    box-shadow:0 8px 40px rgba(0,0,0,.18)}
+
+  /* Forms */
+  .modal-title{font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:22px}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .form-row.single{grid-template-columns:1fr}
+  .form-group{margin-bottom:14px}
+  .form-label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--text-muted);margin-bottom:5px}
+  .form-label .req{color:var(--c-coral)}
+  .form-input{width:100%;padding:9px 12px;border:1px solid var(--border-subtle);
+    border-radius:var(--radius-sm);font:inherit;font-size:13.5px;
+    color:var(--text-primary);background:#fff;outline:none;
+    transition:border-color var(--t-fast)}
+  .form-input:focus{border-color:var(--c-clay)}
+  textarea.form-input{resize:vertical;min-height:72px}
+  .form-error{color:#c0392b;font-size:11.5px;margin-top:4px}
+  .modal-footer{display:flex;justify-content:flex-end;gap:8px;
+    margin-top:22px;border-top:1px solid var(--border-subtle);padding-top:18px}
+  .btn-cancel{padding:8px 18px;font-size:13px;color:var(--text-muted);
+    border:1px solid var(--border-subtle);border-radius:var(--radius-sm);
+    background:#fff;transition:background var(--t-fast),color var(--t-fast)}
+  .btn-cancel:hover{background:var(--content-bg);color:var(--text-primary)}
+  .btn-save{padding:8px 20px;font-size:13px;font-weight:500;
+    background:var(--c-coral);color:#fff;border-radius:var(--radius-sm);
+    transition:background var(--t-fast)}
+  .btn-save:hover{background:#f09070}
+  .tag-checks{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0}
+  .tag-check-label{display:inline-flex;align-items:center;gap:6px;
+    padding:5px 12px;border-radius:10px;border:1px solid var(--border-subtle);
+    cursor:pointer;font-size:12.5px;font-weight:500;color:var(--text-muted);
+    background:#fff;transition:all var(--t-fast)}
+  .tag-check-label:has(input:checked){background:rgba(170,118,124,.12);
+    border-color:rgba(170,118,124,.35);color:var(--c-plum)}
+  .tag-check-label input{display:none}
+  .contacts-title{font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:4px}
+  .contacts-subtitle{font-size:12px;color:var(--text-muted);margin-bottom:18px}
+  .contact-row{display:flex;align-items:center;gap:8px;padding:8px 0;
+    border-bottom:1px solid var(--border-subtle)}
+  .contact-row:last-child{border-bottom:none}
+  .contact-info{flex:1;min-width:0}
+  .contact-name{font-size:13.5px;font-weight:600;color:var(--text-primary)}
+  .contact-detail{font-size:12px;color:var(--text-muted);margin-top:1px}
+  .contact-actions{display:flex;align-items:center;gap:3px;flex-shrink:0}
+  .contact-btn{display:flex;align-items:center;justify-content:center;
+    width:26px;height:26px;border-radius:var(--radius-sm);
+    color:var(--text-muted);border:1px solid transparent;
+    transition:all var(--t-fast)}
+  .contact-btn svg{width:13px;height:13px}
+  .contact-btn:hover{background:var(--content-bg);border-color:var(--border-subtle);color:var(--text-primary)}
+  .contact-btn.del:hover{color:#b03030;background:rgba(200,80,80,.08);border-color:rgba(200,80,80,.25)}
+  .contacts-add-title{font-size:11px;font-weight:600;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--text-muted);margin:18px 0 10px}
+  .contacts-add-row{display:flex;gap:8px;align-items:flex-end}
+  .contacts-add-row .form-group{flex:1;margin-bottom:0}
+  .no-contacts{font-size:12.5px;color:var(--text-muted);font-style:italic;padding:10px 0}
+</style>
+
+<!-- Modal -->
+<div id="modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div id="modal-content"
+         hx-on::after-swap="document.getElementById('modal').classList.remove('hidden')">
+    </div>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <div class="search-wrap">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+         stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="m21 21-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0Z"/>
+    </svg>
+    <input id="site-search" class="search-input"
+           placeholder="Търси по обект, клиент, адрес…"
+           oninput="filterSites(this.value)">
+  </div>
+  <span class="records-count" id="site-count">{{ sites|length }} обекта</span>
+</div>
+
+<!-- Table -->
+<div class="sites-card">
+  <table class="sites-full-table">
+    <thead>
+      <tr>
+        <th>Обект</th>
+        <th>Клиент</th>
+        <th>Адрес</th>
+        <th>Бележки</th>
+        <th>Етикети</th>
+        <th style="text-align:right"></th>
+      </tr>
+    </thead>
+    <tbody id="site-list">
+      {% include "sites/_list_body.html" %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  /* ── HTMX CSRF ── */
+  document.addEventListener('htmx:configRequest', function(e) {
+    e.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+  });
+
+  /* ── Modal + pending refresh ── */
+  window._pendingRefresh = null;
+
+  function setPendingRefresh(btn) {
+    window._pendingRefresh = {
+      url:    btn.dataset.refreshUrl,
+      target: btn.dataset.refreshTarget,
+    };
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.add('hidden');
+    document.getElementById('modal-content').innerHTML = '';
+    if (window._pendingRefresh) {
+      const { url, target } = window._pendingRefresh;
+      window._pendingRefresh = null;
+      htmx.ajax('GET', url, { target: target, swap: 'innerHTML' });
+    }
+  }
+  document.body.addEventListener('closeModal', closeModal);
+
+  /* ── Search ── */
+  function filterSites(q) {
+    q = q.toLowerCase();
+    let visible = 0;
+    document.querySelectorAll('.site-row').forEach(row => {
+      const show = row.dataset.search.toLowerCase().includes(q);
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    const el = document.getElementById('site-count');
+    if (el) el.textContent = visible + ' обекта';
+  }
+</script>
+{% endblock %}

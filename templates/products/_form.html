@@ -1,0 +1,127 @@
+<form method="post"
+      hx-post="{% if product %}{% url 'core:product_edit' product.pk %}{% else %}{% url 'core:product_create' %}{% endif %}"
+      hx-target="#modal-content"
+      hx-swap="innerHTML">
+  {% csrf_token %}
+
+  <div class="modal-title">
+    {% if product %}Редактирай препарат{% else %}Нов препарат{% endif %}
+  </div>
+
+  <!-- ── Идентификация ── -->
+  <div class="form-section-label">Идентификация</div>
+  <div class="form-inner">
+    <div class="form-row cols2">
+      <div class="form-group">
+        <label class="form-label">Псевдоним</label>
+        {{ form.pseudonym }}
+        <span class="form-hint">Показва се при избор в протокол</span>
+        {% if form.pseudonym.errors %}
+          <span class="form-error">{{ form.pseudonym.errors.0 }}</span>
+        {% endif %}
+      </div>
+      <div class="form-group">
+        <label class="form-label">Официално наименование <span class="req">*</span></label>
+        {{ form.name }}
+        {% if form.name.errors %}
+          <span class="form-error">{{ form.name.errors.0 }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="form-row cols2">
+      <div class="form-group">
+        <label class="form-label">Категория <span class="req">*</span></label>
+        {{ form.category }}
+        {% if form.category.errors %}
+          <span class="form-error">{{ form.category.errors.0 }}</span>
+        {% endif %}
+      </div>
+      <div class="form-group">
+        <label class="form-label">Рег. № на разрешението <span class="req">*</span></label>
+        {{ form.authorization_no }}
+      </div>
+    </div>
+    <div class="form-row cols2">
+      <div class="form-group">
+        <label class="form-label">Формулация <span class="req">*</span></label>
+        {{ form.formulation }}
+      </div>
+      <div class="form-group">
+        <label class="form-label">Активни вещества <span class="req">*</span></label>
+        {{ form.active_substances }}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Употреба ── -->
+  <div class="form-section-label">Употреба</div>
+  <div class="form-inner">
+    <div class="form-row cols2">
+      <div class="form-group">
+        <label class="form-label">Работен разтвор <span class="req">*</span></label>
+        {{ form.working_solution }}
+      </div>
+      <div class="form-group">
+        <label class="form-label">Време на въздействие</label>
+        {{ form.action_time }}
+      </div>
+    </div>
+    <div class="form-row cols1">
+      <div class="form-group">
+        <label class="form-label">Текст за дератизационна примамка</label>
+        {{ form.bait_descriptor }}
+        <span class="form-hint">Попълва се само за дератизационни продукти</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Безопасност ── -->
+  <div class="form-section-label">Безопасност</div>
+  <div class="form-inner">
+    <div class="form-row cols2">
+      <div class="form-group">
+        <label class="form-label">Антидот</label>
+        {{ form.antidote }}
+      </div>
+      <div class="form-group">
+        <label class="form-label">Повърхности за забърсване</label>
+        {{ form.surfaces_to_wipe }}
+      </div>
+    </div>
+    <div class="form-row cols1">
+      <div class="form-group">
+        <label class="form-label">Мерки за безопасност</label>
+        {{ form.safety_instructions }}
+      </div>
+    </div>
+    <div class="form-row cols1">
+      <div class="form-group">
+        <label class="form-label">Достъп до обработените площи</label>
+        {{ form.access_info }}
+      </div>
+    </div>
+    <div class="form-row cols1">
+      <div class="form-group">
+        <label class="form-label">Бележки</label>
+        {{ form.notes }}
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn-cancel" onclick="closeModal()">Отказ</button>
+    <button type="submit" class="btn-save">Запази</button>
+  </div>
+</form>
+
+<script>
+  document.addEventListener('htmx:afterRequest', function(e) {
+    if (e.detail.xhr.status === 204) {
+      document.body.dispatchEvent(new Event('productsChanged'));
+    }
+  });
+
+  /* Apply form-input class to all Django-rendered inputs */
+  document.querySelectorAll('#modal-content input, #modal-content select, #modal-content textarea')
+    .forEach(el => el.classList.add('form-input'));
+</script>

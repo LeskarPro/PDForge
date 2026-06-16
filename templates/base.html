@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  {% load static %}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}PDForge{% endblock %}</title>
+
+  <!-- HTMX — ready for Stage 1b onwards -->
+  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+  <!-- Alpine.js — used for Справочници accordion + future interactions -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+
+  <style>
+    /* ═══════════════════════════════════════════════════
+       CSS CUSTOM PROPERTIES
+       All colours live here. To change a theme, only
+       these variables need to change — nothing else.
+    ═══════════════════════════════════════════════════ */
+    :root {
+      /* Brand palette */
+      --c-peach:  #fec196;
+      --c-coral:  #ffa686;
+      --c-clay:   #d6a184;
+      --c-mauve:  #aa767c;
+      --c-plum:   #63474d;
+
+      /* Sidebar */
+      --sidebar-width:      240px;
+      --sidebar-bg:         var(--c-plum);
+      --sidebar-brand-bg:   #4a343a;
+
+      /* Nav item states */
+      --nav-text:           rgba(255, 255, 255, 0.82);
+      --nav-text-hover:     rgba(255, 255, 255, 0.97);
+      --nav-text-active:    var(--c-peach);
+      --nav-bg-hover:       #74565c;
+      --nav-bg-active:      #7d5f66;
+      --nav-accent-active:  var(--c-coral);
+
+      /* Sub-items (Справочници children) */
+      --nav-sub-bg:         #4a343a;
+      --nav-sub-text:       rgba(255, 255, 255, 0.68);
+      --nav-sub-text-hover: rgba(255, 255, 255, 0.92);
+      --nav-sub-bg-hover:   #574048;
+
+      /* Section label */
+      --nav-label-text:     rgba(255, 255, 255, 0.35);
+
+      /* Version */
+      --version-text:       #7d5f66;
+
+      /* Content area */
+      --content-bg:         #f6efe9;
+      --card-bg:            #ffffff;
+      --text-primary:       #3d2b2f;
+      --text-muted:         #9a7a80;
+      --border-subtle:      rgba(170, 118, 124, 0.15);
+
+      /* Buttons (page-level, not nav) */
+      --btn-primary-bg:     var(--c-coral);
+      --btn-primary-text:   #ffffff;
+      --btn-primary-hover:  #f09070;
+
+      /* Radius — minimal, never sharp */
+      --radius-xs: 3px;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+
+      /* Transitions */
+      --t-fast: 140ms ease;
+      --t-med:  200ms ease;
+    }
+
+    /* Active theme override — injected after defaults so it wins */
+    {% if app_settings and app_settings.theme != 'coral' %}
+    :root { {{ app_settings.theme_css_vars|safe }} }
+    {% endif %}
+
+    /* ═══════════════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      color: var(--text-primary);
+      background: var(--content-bg);
+    }
+    a { text-decoration: none; cursor: pointer; }
+    button { border: none; background: none; cursor: pointer; font: inherit; text-align: left;}
+
+    /* ═══════════════════════════════════════════════════
+       APP LAYOUT
+    ═══════════════════════════════════════════════════ */
+    .app-layout {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       SIDEBAR
+    ═══════════════════════════════════════════════════ */
+    .sidebar {
+      width: var(--sidebar-width);
+      min-width: var(--sidebar-width);
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Block A — Branding */
+    .sidebar-brand {
+      background: var(--sidebar-brand-bg);
+      padding: 18px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+    .brand-appname {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--c-peach);
+      letter-spacing: 0.01em;
+    }
+    .brand-company {
+      font-size: 12px;
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.60);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Block B — Main navigation */
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+      scrollbar-width: thin;
+      scrollbar-color: #7d5f66 transparent;
+    }
+    .sidebar-nav::-webkit-scrollbar { width: 4px; }
+    .sidebar-nav::-webkit-scrollbar-thumb {
+      background: #7d5f66;
+      border-radius: var(--radius-sm);
+    }
+
+    /* Block C — Management */
+    .sidebar-management {
+      flex-shrink: 0;
+      padding: 6px 0 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Block D — Version */
+    .sidebar-version {
+      flex-shrink: 0;
+      padding: 8px 16px 12px;
+      font-size: 11px;
+      color: var(--version-text);
+      letter-spacing: 0.03em;
+    }
+
+    /* ── Nav item (shared by Block B and C) ── */
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;                            /* gap only renders when icon is present */
+      padding: 9px 16px;
+      color: var(--nav-text);
+      border-left: 3px solid transparent;   /* space reserved — no layout shift on active */
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+      user-select: none;
+      width: 100%;
+    }
+    .nav-item:hover {
+      background: var(--nav-bg-hover);
+      color: var(--nav-text-hover);
+    }
+    .nav-item:active {
+      background: var(--nav-bg-active);
+    }
+    .nav-item.active {
+      background: var(--nav-bg-active);
+      color: var(--nav-text-active);
+      border-left-color: var(--nav-accent-active);
+      font-weight: 500;
+    }
+    .nav-text {
+      flex: 1;
+      font-size: 13.5px;
+      line-height: 1.3;
+    }
+
+    /* ── Sync status dot (Stage 6a) ── */
+    .sync-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      flex-shrink: 0; background: var(--text-muted, #9a7a80);
+      opacity: 0.45;
+    }
+    .sync-dot--ok        { background: #2d9a5a; opacity: 0.9; }
+    .sync-dot--offline   { background: #d99a2b; opacity: 0.9; }
+    .sync-dot--conflict  { background: #d6433a; opacity: 1;
+      animation: sync-dot-pulse 1.4s ease-in-out infinite; }
+    .sync-dot--not_configured { background: var(--text-muted, #9a7a80); opacity: 0.35; }
+
+    @keyframes sync-dot-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    /*
+      Icon slot — HOW TO ADD ICONS LATER:
+      <a class="nav-item">
+        <svg class="nav-icon" ...>...</svg>   ← add this
+        <span class="nav-text">Протоколи</span>
+      </a>
+      Without the svg, gap: 10px has no effect — text stays left-aligned.
+    */
+    .nav-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      opacity: 0.82;
+    }
+    .nav-item:hover  .nav-icon,
+    .nav-item.active .nav-icon { opacity: 1; }
+
+    /* ── Section label (Управление) ── */
+    .nav-section-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.10em;
+      color: var(--nav-label-text);
+      padding: 6px 18px 2px;
+    }
+
+    /* ── Collapsible group header (Справочници) ── */
+    .nav-group-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 16px;
+      width: 100%;
+      color: var(--nav-text);
+      border-left: 3px solid transparent;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+      user-select: none;
+    }
+    .nav-group-header:hover {
+      background: var(--nav-bg-hover);
+      color: var(--nav-text-hover);
+    }
+    .nav-group-header.active {
+      background: var(--nav-bg-active);
+      color: var(--nav-text-active);
+      border-left-color: var(--nav-accent-active);
+      font-weight: 500;
+    }
+    .nav-arrow {
+      margin-left: auto;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.40);
+      transition: transform var(--t-med);
+      line-height: 1;
+    }
+    .nav-arrow--open { transform: rotate(90deg); }
+
+    /* ── Sub-items (inside Справочници) ── */
+    .nav-subitems { background: var(--nav-sub-bg); overflow: hidden; }
+    .nav-subitem {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 16px 7px 26px;
+      color: var(--nav-sub-text);
+      font-size: 13px;
+      border-left: 3px solid transparent;
+      transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+      cursor: pointer;
+      user-select: none;
+    }
+    .nav-subitem:hover {
+      background: var(--nav-sub-bg-hover);
+      color: var(--nav-sub-text-hover);
+    }
+    .nav-subitem.active {
+      color: var(--c-peach);
+      border-left-color: var(--c-coral);
+      font-weight: 500;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       MAIN CONTENT
+    ═══════════════════════════════════════════════════ */
+    .main-content {
+      flex: 1;
+      background: var(--content-bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Top bar */
+    .topbar {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 28px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .topbar-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Scrollable page body */
+    .page-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       SHARED PAGE COMPONENTS (used across all stages)
+    ═══════════════════════════════════════════════════ */
+
+    /* Card */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      padding: 20px 24px;
+    }
+
+    /* Primary button */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--btn-primary-bg);
+      color: var(--btn-primary-text);
+      font-size: 13.5px;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      transition: background var(--t-fast);
+      cursor: pointer;
+    }
+    .btn-primary:hover { background: var(--btn-primary-hover); }
+
+    /* Secondary button */
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 13.5px;
+      font-weight: 500;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      transition: background var(--t-fast), color var(--t-fast);
+      cursor: pointer;
+    }
+    .btn-secondary:hover {
+      background: var(--card-bg);
+      color: var(--text-primary);
+    }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+<div
+  class="app-layout"
+  x-data="{
+    catalogOpen: {% if active_nav in catalog_nav_items %}true{% else %}false{% endif %}
+  }"
+>
+
+  <!-- ════════════════════ SIDEBAR ════════════════════ -->
+  {% if not embed %}
+  <aside class="sidebar">
+
+    <!-- Block A: Branding -->
+    <div class="sidebar-brand">
+      <span class="brand-appname">PDForge</span>
+      <span class="brand-company">
+        {{ site_company.name|default:"—" }}
+      </span>
+    </div>
+
+    <!-- Block B: Main navigation -->
+    <nav class="sidebar-nav">
+
+      <a href="{% url 'core:dashboard' %}"
+         class="nav-item {% if active_nav == 'dashboard' %}active{% endif %}">
+        <span class="nav-text">Табло</span>
+      </a>
+
+      <a href="{% url 'core:protocol_list' %}"
+         class="nav-item {% if active_nav == 'protokoli' %}active{% endif %}">
+        <span class="nav-text">Протоколи</span>
+      </a>
+
+      <a href="{% url 'core:template_list' %}"
+         class="nav-item {% if active_nav == 'shabloni' %}active{% endif %}">
+        <span class="nav-text">Шаблони</span>
+      </a>
+
+      <a href="{% url 'core:one_time_list' %}"
+         class="nav-item {% if active_nav == 'ednokratni' %}active{% endif %}">
+        <span class="nav-text">Еднократни обработки</span>
+      </a>
+
+      <a href="#"
+         class="nav-item {% if active_nav == 'spravki' %}active{% endif %}">
+        <span class="nav-text">Справки</span>
+      </a>
+
+      <a href="{% url 'core:client_list' %}"
+         class="nav-item {% if active_nav == 'klienti' %}active{% endif %}">
+        <span class="nav-text">Клиенти</span>
+      </a>
+
+      <a href="{% url 'core:site_list' %}"
+         class="nav-item {% if active_nav == 'obekti' %}active{% endif %}">
+        <span class="nav-text">Обекти</span>
+      </a>
+
+      <a href="{% url 'core:tag_list' %}"
+         class="nav-item {% if active_nav == 'etiketi' %}active{% endif %}">
+        <span class="nav-text">Етикети</span>
+      </a>
+
+    </nav>
+
+    <!-- Block C: Management -->
+    <div class="sidebar-management">
+
+      <span class="nav-section-label">Управление</span>
+
+      <!-- Collapsible: Справочници -->
+      <div>
+        <button
+          class="nav-group-header {% if active_nav in catalog_nav_items %}active{% endif %}"
+          @click="catalogOpen = !catalogOpen"
+        >
+          <span class="nav-text">Справочници</span>
+          <span class="nav-arrow" :class="{ 'nav-arrow--open': catalogOpen }">›</span>
+        </button>
+
+        <div class="nav-subitems" x-show="catalogOpen" x-transition>
+          <a href="{% url 'core:product_list' %}" class="nav-subitem {% if active_nav == 'preparati' %}active{% endif %}">
+            Препарати
+          </a>
+          <a href="{% url 'core:worker_list' %}" class="nav-subitem {% if active_nav == 'rabotnici' %}active{% endif %}">
+            Работници
+          </a>
+          <a href="{% url 'core:company_list' %}" class="nav-subitem {% if active_nav == 'firmi' %}active{% endif %}">
+            Фирми
+          </a>
+          <a href="{% url 'core:pest_list' %}" class="nav-subitem {% if active_nav == 'vrediteli' %}active{% endif %}">
+            Вредители
+          </a>
+          <a href="{% url 'core:nonchemical_list' %}" class="nav-subitem {% if active_nav == 'nehim' %}active{% endif %}">
+            Нехим. средства
+          </a>
+        </div>
+      </div>
+
+      <a href="{% url 'core:database' %}"
+         class="nav-item {% if active_nav == 'baza' %}active{% endif %}"
+         title="{% if sync_status.last_sync_status == 'ok' %}Синхронизирано
+                {% elif sync_status.last_sync_status == 'offline' %}Няма връзка с папката за резервно копие
+                {% elif sync_status.conflict %}Засечен е конфликт между локалните данни и резервното копие
+                {% else %}Резервното копие не е настроено{% endif %}">
+        <span class="nav-text">База данни</span>
+        <span class="sync-dot {% if sync_status.conflict %}sync-dot--conflict{% else %}sync-dot--{{ sync_status.last_sync_status }}{% endif %}"></span>
+      </a>
+
+      <a href="{% url 'core:settings' %}"
+         class="nav-item {% if active_nav == 'nastroiki' %}active{% endif %}">
+        <span class="nav-text">Настройки</span>
+      </a>
+
+    </div>
+
+    <!-- Block D: Version -->
+    <div class="sidebar-version">v{{ site_app_version }}</div>
+
+  </aside>
+  {% endif %}
+
+  <!-- ════════════════════ MAIN CONTENT ════════════════════ -->
+  <main class="main-content">
+
+    {% if not embed %}
+    <div class="topbar">
+      <span class="topbar-title">{% block topbar_title %}{% endblock %}</span>
+      <div class="topbar-actions">
+        {% block topbar_actions %}{% endblock %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="page-body">
+      {% block content %}{% endblock %}
+    </div>
+
+  </main>
+
+</div>
+
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

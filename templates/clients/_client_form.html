@@ -1,0 +1,59 @@
+<div class="modal-title">
+  {% if mode == 'edit' %}Редактирай клиент{% else %}Нов клиент{% endif %}
+</div>
+
+<form hx-post="{% if mode == 'edit' %}{% url 'core:client_edit' client.pk %}{% else %}{% url 'core:client_create' %}{% endif %}"
+      hx-target="#modal-content"
+      hx-swap="innerHTML">
+  {% csrf_token %}
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Фирма <span class="req">*</span></label>
+      <input class="form-input" name="firm" value="{{ form.firm.value|default:'' }}"
+             placeholder="„Виктория Нутс" ЕООД" required>
+      {% for e in form.firm.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Кратко наименование <span class="req">*</span></label>
+      <input class="form-input" name="name" value="{{ form.name.value|default:'' }}"
+             placeholder="Виктория Нутс" required>
+      {% for e in form.name.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">ЕИК <span class="req">*</span></label>
+      <input class="form-input" name="eik" value="{{ form.eik.value|default:'' }}"
+             placeholder="123456789" maxlength="9" required>
+      {% for e in form.eik.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Телефон</label>
+      <input class="form-input" name="phone" value="{{ form.phone.value|default:'' }}"
+             placeholder="02 123 4567">
+      {% for e in form.phone.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Адрес</label>
+    <input class="form-input" name="address" value="{{ form.address.value|default:'' }}"
+           placeholder="гр. Sofia, бул. Дондуков 22">
+    {% for e in form.address.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Бележки</label>
+    <textarea class="form-input" name="notes" placeholder="Бележки…">{{ form.notes.value|default:'' }}</textarea>
+    {% for e in form.notes.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn-cancel" onclick="closeModal()">Откажи</button>
+    <button type="submit" class="btn-save">
+      {% if mode == 'edit' %}Запази{% else %}Създай клиент{% endif %}
+    </button>
+  </div>
+</form>

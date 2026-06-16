@@ -1,0 +1,25 @@
+.venv/
+__pycache__/
+*.pyc
+db.sqlite3
+db.sqlite3-journal
+*.sqlite3-journal
+sync_meta.json
+local_settings.py
+pdforge/local_settings.py
+.DS_Store
+.idea/
+*.log
+local_backups/
+
+# PyInstaller build output
+dist/
+build/
+
+# User media (company logos etc.)
+media/
+
+# Temp seed-build files
+_seed_build.sqlite3
+_seed_build.sqlite3-journal
+_seed_build_settings.py

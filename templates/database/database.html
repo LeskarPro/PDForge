@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+
+{% block title %}База данни — PDForge{% endblock %}
+{% block topbar_title %}База данни{% endblock %}
+
+{% block content %}
+<style>
+  .settings-wrap { max-width: 720px; display: flex; flex-direction: column; gap: 28px; }
+
+  .settings-section { background: #fff; border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg); overflow: hidden; }
+  .section-head { padding: 16px 20px 14px; border-bottom: 1px solid var(--border-subtle);
+    background: #fdf9f6; }
+  .section-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+  .section-desc  { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .section-body  { padding: 20px; }
+
+  .field-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+  .field-row:last-child { margin-bottom: 0; }
+  .field-label { font-size: 12.5px; font-weight: 600; color: var(--text-primary); }
+  .field-input, .field-select {
+    padding: 9px 12px; font-size: 13px; border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm); color: var(--text-primary); background: #fff;
+    font-family: inherit;
+  }
+  .field-input:focus, .field-select:focus { outline: none; border-color: var(--c-clay); }
+  .field-input { width: 100%; }
+  .field-select { max-width: 220px; }
+
+  /* Native folder picker (desktop app only) */
+  .field-input-row { display: flex; gap: 8px; align-items: stretch; }
+  .field-input-row .field-input { flex: 1; }
+  .btn-browse { display: none; padding: 9px 16px; font-size: 13px; font-weight: 600;
+    background: #fff; color: var(--text-primary); border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm); cursor: pointer; white-space: nowrap;
+    transition: border-color var(--t-fast); }
+  .btn-browse:hover { border-color: var(--c-clay); }
+  .field-hint  { font-size: 11.5px; color: var(--text-muted); }
+  .field-error { font-size: 11.5px; color: #d6433a; min-height: 14px; }
+
+  /* Auto-sync toggle */
+  .field-row-inline { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .field-row-inline .field-label { margin: 0; }
+  .toggle-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; cursor: pointer; inset: 0;
+    background-color: var(--border-subtle); transition: background var(--t-fast);
+    border-radius: 22px;
+  }
+  .toggle-slider::before {
+    position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+    background-color: #fff; transition: transform var(--t-fast); border-radius: 50%;
+  }
+  .toggle-switch input:checked + .toggle-slider { background-color: var(--c-coral); }
+  .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+  /* Status panel */
+  .status-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .status-item { display: flex; flex-direction: column; gap: 6px; }
+  .status-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+  .status-value { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+
+  .status-pill { display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px;
+    width: fit-content; }
+  .status-pill .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .status-pill--ok { background: rgba(45,154,90,.12); color: #2d9a5a; }
+  .status-pill--ok .dot { background: #2d9a5a; }
+  .status-pill--offline { background: rgba(217,154,43,.12); color: #b27a1f; }
+  .status-pill--offline .dot { background: #d99a2b; }
+  .status-pill--conflict { background: rgba(214,67,58,.12); color: #d6433a; }
+  .status-pill--conflict .dot { background: #d6433a; animation: sync-dot-pulse 1.4s ease-in-out infinite; }
+  .status-pill--not_configured { background: rgba(154,122,128,.12); color: var(--text-muted); }
+  .status-pill--not_configured .dot { background: var(--text-muted); }
+
+  .conflict-note { margin-top: 14px; font-size: 12.5px; color: #d6433a; }
+  .conflict-note a { color: inherit; font-weight: 600; }
+
+  /* Backup history */
+  .backup-list { display: flex; flex-direction: column; gap: 8px; }
+  .backup-item { display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+    font-size: 12.5px; }
+  .backup-name { font-weight: 600; color: var(--text-primary); }
+  .backup-time { color: var(--text-muted); }
+  .backup-empty { font-size: 12.5px; color: var(--text-muted); padding: 4px 0; }
+
+  /* Buttons */
+  .save-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 14px 20px; background: #fff;
+    border: 1px solid var(--border-subtle); border-radius: var(--radius-md); }
+  .btn-save { padding: 9px 22px; font-size: 13px; font-weight: 600;
+    background: var(--c-coral); color: #fff; border-radius: var(--radius-sm);
+    border: none; cursor: pointer; transition: background var(--t-fast); }
+  .btn-save:hover { background: var(--btn-primary-hover, #f09070); }
+  .btn-secondary { padding: 9px 22px; font-size: 13px; font-weight: 600;
+    background: #fff; color: var(--text-primary); border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm); cursor: pointer; transition: border-color var(--t-fast); }
+  .btn-secondary:hover { border-color: var(--c-clay); }
+  .save-status { font-size: 12.5px; color: var(--text-muted); }
+  .save-status.ok  { color: #2d7a4a; font-weight: 500; }
+  .save-status.err { color: #d6433a; font-weight: 500; }
+
+  @keyframes sync-dot-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+</style>
+
+<div class="settings-wrap">
+
+  <!-- ── Backup folder ── -->
+  <div class="settings-section">
+    <div class="section-head">
+      <div class="section-title">Папка за резервно копие</div>
+      <div class="section-desc">Локална папка или папка, синхронизирана с OneDrive</div>
+    </div>
+    <div class="section-body">
+      <div class="field-row">
+        <label class="field-label">Път до папката</label>
+        <div class="field-input-row">
+          <input type="text" class="field-input" id="sync-folder-path"
+                 value="{{ settings.sync_folder_path }}"
+                 placeholder="/Users/.../OneDrive/PDForge backup">
+          <button type="button" class="btn-browse" id="browse-folder-btn" onclick="browseFolder()">Избери папка</button>
+        </div>
+        <div class="field-hint">Пълен път до папка на този Mac (може да е папка в OneDrive).</div>
+        <div class="field-error" id="folder-error"></div>
+      </div>
+
+      <div class="field-row">
+        <label class="field-label">Интервал на синхронизация</label>
+        <select class="field-select" id="sync-interval">
+          {% for value, label in interval_choices %}
+            <option value="{{ value }}" {% if settings.sync_interval_minutes == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <div class="field-hint">През какъв интервал приложението да запазва автоматично резервно копие, докато работи.</div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-row-inline">
+          <label class="field-label">Автоматична синхронизация</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="sync-auto-enabled" {% if settings.sync_auto_enabled %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="field-hint">
+          Когато е изключена, приложението спира периодичните автоматични копия. Папката остава запазена
+          и можете да синхронизирате ръчно с бутона „Синхронизирай сега“.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Status ── -->
+  <div class="settings-section">
+    <div class="section-head">
+      <div class="section-title">Статус на синхронизацията</div>
+      <div class="section-desc">Текущо състояние на връзката с папката за резервно копие</div>
+    </div>
+    <div class="section-body">
+      <div class="status-grid">
+        <div class="status-item">
+          <span class="status-label">Състояние</span>
+          <span class="status-pill status-pill--{% if status.conflict %}conflict{% else %}{{ status.last_sync_status }}{% endif %}" id="status-pill">
+            <span class="dot"></span>
+            <span id="status-pill-text">
+              {% if status.conflict %}Конфликт
+              {% elif status.last_sync_status == 'ok' %}Синхронизирано
+              {% elif status.last_sync_status == 'offline' %}Няма връзка
+              {% else %}Не е настроено{% endif %}
+            </span>
+          </span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Последна синхронизация</span>
+          <span class="status-value" id="last-sync-at">
+            {% if last_sync_dt %}{{ last_sync_dt|date:"d.m.Y H:i" }}{% else %}—{% endif %}
+          </span>
+        </div>
+      </div>
+      {% if status.conflict %}
+        <p class="conflict-note">
+          Локалните данни и резервното копие са се променили независимо едно от друго.
+          <a href="{% url 'core:sync_conflict' %}">Разреши конфликта</a>
+        </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Backup history ── -->
+  <div class="settings-section">
+    <div class="section-head">
+      <div class="section-title">История на резервните копия</div>
+      <div class="section-desc">Последните до 3 запазени копия (най-новото отгоре)</div>
+    </div>
+    <div class="section-body">
+      <div class="backup-list" id="backup-list">
+        {% for b in backups %}
+          <div class="backup-item">
+            <span class="backup-name">{{ b.name }}</span>
+            <span class="backup-time">{{ b.mtime|date:"d.m.Y H:i" }}</span>
+          </div>
+        {% empty %}
+          <div class="backup-empty" id="backup-empty">Все още няма запазени резервни копия.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Actions ── -->
+  <div class="save-bar">
+    <button class="btn-save" onclick="saveDatabaseSettings()">Запази настройките</button>
+    <button class="btn-secondary" onclick="syncNow()">Синхронизирай сега</button>
+    <span class="save-status" id="save-status"></span>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // ── Native folder picker (desktop app only) ─────────────────────────
+  // window.pywebview is injected asynchronously by the desktop shell, so
+  // poll briefly for it instead of relying on a single ready event. In a
+  // plain browser it never appears and the button stays hidden — manual
+  // typing keeps working as before.
+  (function pollForDesktopApi() {
+    let tries = 0;
+    const interval = setInterval(() => {
+      tries++;
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.pick_folder) {
+        const btn = document.getElementById('browse-folder-btn');
+        if (btn) btn.style.display = 'inline-block';
+        clearInterval(interval);
+      } else if (tries > 50) { // ~10s
+        clearInterval(interval);
+      }
+    }, 200);
+  })();
+
+  function browseFolder() {
+    if (!window.pywebview || !window.pywebview.api || !window.pywebview.api.pick_folder) return;
+    const input = document.getElementById('sync-folder-path');
+    window.pywebview.api.pick_folder(input.value.trim()).then(path => {
+      if (path) input.value = path;
+    });
+  }
+
+  function showStatus(msg, cls) {
+    const el = document.getElementById('save-status');
+    el.textContent = msg;
+    el.className = 'save-status' + (cls ? ' ' + cls : '');
+  }
+
+  function saveDatabaseSettings() {
+    const path = document.getElementById('sync-folder-path').value.trim();
+    const interval = document.getElementById('sync-interval').value;
+    const errEl = document.getElementById('folder-error');
+    errEl.textContent = '';
+    showStatus('');
+
+    const autoEnabled = document.getElementById('sync-auto-enabled').checked;
+
+    const form = new FormData();
+    form.append('sync_folder_path', path);
+    form.append('sync_interval_minutes', interval);
+    if (autoEnabled) form.append('sync_auto_enabled', 'on');
+    form.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch('{% url "core:database_save" %}', { method: 'POST', body: form })
+      .then(r => r.json().then(data => ({ ok: r.ok, data })))
+      .then(({ ok, data }) => {
+        if (ok && data.ok) {
+          showStatus('Запазено успешно.', 'ok');
+        } else {
+          errEl.textContent = data.error || 'Грешка при запазване.';
+        }
+      })
+      .catch(() => showStatus('Грешка при запазване.', 'err'));
+  }
+
+  function syncNow() {
+    showStatus('Синхронизиране...');
+    const form = new FormData();
+    form.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    fetch('{% url "core:database_sync_now" %}', { method: 'POST', body: form })
+      .then(r => r.json())
+      .then(data => {
+        const result = data.result || {};
+        if (result.status === 'ok') {
+          showStatus('Синхронизирано успешно.', 'ok');
+        } else if (result.status === 'no_changes') {
+          showStatus('Няма промени за синхронизация.', 'ok');
+        } else if (result.status === 'offline') {
+          showStatus('Няма връзка с папката за резервно копие.', 'err');
+        } else if (result.status === 'not_configured') {
+          showStatus('Първо запазете папка за резервно копие.', 'err');
+        } else {
+          showStatus('Грешка при синхронизация.', 'err');
+        }
+        setTimeout(() => window.location.reload(), 700);
+      })
+      .catch(() => showStatus('Грешка при синхронизация.', 'err'));
+  }
+</script>
+{% endblock %}

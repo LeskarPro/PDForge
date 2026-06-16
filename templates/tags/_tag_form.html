@@ -1,0 +1,66 @@
+<div class="modal-title">
+  {% if mode == 'edit' %}Редактирай етикет{% else %}Нов етикет{% endif %}
+</div>
+
+<form hx-post="{% if mode == 'edit' %}{% url 'core:tag_edit' tag.pk %}{% else %}{% url 'core:tag_create' %}{% endif %}"
+      hx-target="#modal-content"
+      hx-swap="innerHTML">
+  {% csrf_token %}
+
+  <div class="form-group">
+    <label class="form-label">Наименование <span class="req">*</span></label>
+    <input class="form-input" name="name" value="{{ form.name.value|default:'' }}"
+           placeholder="напр. Договор, VIP клиент…" required>
+    {% for e in form.name.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Цвят</label>
+    <div class="color-picker-row">
+      <input type="color" name="color" id="tagColorPicker"
+             value="{{ form.color.value|default:'#6b7280' }}"
+             class="color-native-input">
+      <div class="color-presets">
+        <div class="color-preset-dot" style="background:#ffa686" data-hex="#ffa686" onclick="tagPickColor(this)"></div>
+        <div class="color-preset-dot" style="background:#e74c3c" data-hex="#e74c3c" onclick="tagPickColor(this)"></div>
+        <div class="color-preset-dot" style="background:#e67e22" data-hex="#e67e22" onclick="tagPickColor(this)"></div>
+        <div class="color-preset-dot" style="background:#f1c40f" data-hex="#f1c40f" onclick="tagPickColor(this)"></div>
+        <div class="color-preset-dot" style="background:#27ae60" data-hex="#27ae60" onclick="tagPickColor(this)"></div>
+        <div class="color-preset-dot" style="background:#16a085" data-hex="#16a085" onclick="tagPickColor(this)"></div>
+        <div class="color-preset-dot" style="background:#2980b9" data-hex="#2980b9" onclick="tagPickColor(this)"></div>
+        <div class="color-preset-dot" style="background:#8e44ad" data-hex="#8e44ad" onclick="tagPickColor(this)"></div>
+        <div class="color-preset-dot" style="background:#aa767c" data-hex="#aa767c" onclick="tagPickColor(this)"></div>
+        <div class="color-preset-dot" style="background:#63474d" data-hex="#63474d" onclick="tagPickColor(this)"></div>
+        <div class="color-preset-dot" style="background:#6b7280" data-hex="#6b7280" onclick="tagPickColor(this)"></div>
+      </div>
+    </div>
+    {% for e in form.color.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Описание <span class="opt">(по желание)</span></label>
+    <textarea class="form-input" name="description"
+              placeholder="Кратко описание за какво се използва…">{{ form.description.value|default:'' }}</textarea>
+    {% for e in form.description.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn-cancel" onclick="closeModal()">Откажи</button>
+    <button type="submit" class="btn-save">
+      {% if mode == 'edit' %}Запази{% else %}Създай{% endif %}
+    </button>
+  </div>
+</form>
+
+<script>
+  function tagPickColor(el) {
+    document.querySelectorAll('.color-preset-dot').forEach(p => p.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('tagColorPicker').value = el.dataset.hex;
+  }
+  // Highlight the matching preset on load
+  const cur = document.getElementById('tagColorPicker').value.toLowerCase();
+  document.querySelectorAll('.color-preset-dot').forEach(p => {
+    if (p.dataset.hex.toLowerCase() === cur) p.classList.add('selected');
+  });
+</script>

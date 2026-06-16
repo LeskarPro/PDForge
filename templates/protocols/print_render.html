@@ -1,0 +1,133 @@
+{% extends "protocol/base.html" %}
+
+{% comment %}
+  Stage 2b — Print page.
+
+  Renders the protocol via the same partials as the PDF view and triggers
+  the browser print dialog as soon as the page is ready.
+
+  This page is normally opened in a POP-UP window from the preview page.
+  In that case, on `afterprint` the popup self-closes (window.close()),
+  and the parent preview window has already navigated to the protocols
+  list — so when the dialog closes, the user is on /protocols/ with the
+  popup gone.
+
+  If the page was opened directly (no opener — e.g. user pasted the URL),
+  we fall back to navigating to {{ return_url }} on `afterprint`.
+
+  Format currently always renders the A5-two-up layout (fmt 'a5').  When
+  the A5→A4 пейзаж and A4 портрет formats are built in a later stage, this
+  template branches on {{ fmt }}.
+{% endcomment %}
+
+{% block title %}Печат — {{ protocol.display_name }}{% endblock %}
+
+{# ════════════════════════════════════════════════════════════════
+   PRINT-ONLY OVERRIDES — injected via the extra_head block so they
+   land in <head>.  Safari and other strict browsers IGNORE @page
+   rules placed inside body <style> tags; head is mandatory.
+
+   The PDF view at /protocols/<id>.pdf uses protocol/protocol.html
+   through WeasyPrint and is unaffected by these rules (WeasyPrint
+   reads the original @page rule in protocol/base.html's head style).
+   ════════════════════════════════════════════════════════════════ #}
+{% block extra_head %}
+<style>
+  /* ── Minimal print-only overrides ──
+     We DO NOT override the panel's height/width/padding from
+     protocol/base.html — those (height: 147mm, width: 100%,
+     padding: 3mm 1mm) are what make WeasyPrint render correctly,
+     and Chrome respects them too as long as @page margin is 0.
+
+     Overriding height to `auto` (a previous attempt) broke Chrome
+     pagination: content-sized panels confused the page-break
+     algorithm and only page 1 rendered.  Lesson: trust the
+     existing 147mm × 2 = 294mm geometry. */
+
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white;
+  }
+
+  /* Add only box-sizing + page-break rules to the existing .a5-panel.
+     Modern `break-*` properties alongside legacy `page-break-*` so
+     both old and new browsers honor the breaks. */
+  .a5-panel {
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+  }
+
+  /* After panel 2 (2nd FRONT copy): force a page break so the
+     BACK panels always start on page 2. */
+  .a5-panel:nth-of-type(2) {
+    page-break-after: always !important;
+    break-after: page !important;
+    border-bottom: none;
+  }
+  .a5-panel:last-child { border-bottom: none; }
+
+  .page-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  /* Tables fixed-layout so columns can't bust horizontally. */
+  .protocol-table,
+  .header-table,
+  .footer-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed;
+  }
+
+  /* Hide the dashed inter-panel separator in actual print mode. */
+  @media print {
+    .a5-panel { border-bottom: none; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+{# --- Page 1: two FRONT copies --- #}
+<div class="a5-panel">{% include "protocol/_protocol_front.html" %}</div>
+<div class="a5-panel">{% include "protocol/_protocol_front.html" %}</div>
+
+{# --- Page 2: two BACK copies --- #}
+<div class="a5-panel page-break-before">{% include "protocol/_protocol_back.html" %}</div>
+<div class="a5-panel">{% include "protocol/_protocol_back.html" %}</div>
+
+<script>
+  // Trigger the browser print dialog as soon as the DOM is fully painted.
+  // We use a double-rAF so the layout (incl. A4 page sizing) is settled
+  // before window.print() — some browsers reject the call too early.
+  function _firePrint() {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try { window.print(); } catch (e) { console.error('window.print failed:', e); }
+      });
+    });
+  }
+  if (document.readyState === 'complete') _firePrint();
+  else window.addEventListener('load', _firePrint);
+
+  // When the print dialog closes (whether the user printed, saved as PDF,
+  // or cancelled), wrap up:
+  //  • In a popup (window.opener exists): close ourselves.  The parent
+  //    preview window has already navigated to the protocols list.
+  //  • Otherwise (direct nav): redirect to {{ return_url }}.
+  window.addEventListener('afterprint', () => {
+    if (window.opener && !window.opener.closed) {
+      window.close();
+    } else {
+      window.location.href = "{{ return_url|escapejs }}";
+    }
+  });
+</script>
+{% endblock %}

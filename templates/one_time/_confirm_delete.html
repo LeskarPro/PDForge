@@ -1,0 +1,21 @@
+<div class="modal-hdr">
+  <div class="modal-title">Изтрий обработка</div>
+</div>
+
+<div style="padding:16px 22px 4px;font-size:13.5px;color:var(--text-primary);line-height:1.7">
+  Сигурни ли сте, че искате да изтриете
+  <strong>„{{ treatment.pseudonym }}"</strong>{% if treatment.address %}
+  на адрес <em>{{ treatment.address }}</em>{% endif %}?
+  <br>
+  <span style="font-size:12px;color:var(--text-muted)">Действието не може да бъде отменено.</span>
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn-cancel" onclick="closeModal()">Откажи</button>
+  <button class="btn-delete"
+          hx-delete="{% url 'core:one_time_delete' treatment.pk %}"
+          hx-target="#treatment-list"
+          hx-swap="innerHTML">
+    Изтрий
+  </button>
+</div>

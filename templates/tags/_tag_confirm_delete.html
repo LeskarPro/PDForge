@@ -1,0 +1,18 @@
+<div class="modal-title">Изтриване на етикет</div>
+
+<p style="font-size:13.5px;color:var(--text-primary);line-height:1.6;margin-bottom:8px;">
+  Сигурен ли си, че искаш да изтриеш етикет <strong>{{ tag.name }}</strong>?
+</p>
+<p style="font-size:12.5px;color:var(--text-muted);line-height:1.55;">
+  Действието не може да бъде отменено. Етикетът ще бъде премахнат от всички обекти и протоколи.
+</p>
+
+<div class="modal-footer">
+  <button type="button" class="btn-cancel" onclick="closeModal()">Откажи</button>
+  <button type="button" class="btn-delete"
+          hx-delete="{% url 'core:tag_delete' tag.pk %}"
+          hx-target="#tag-list"
+          hx-swap="innerHTML">
+    Изтрий
+  </button>
+</div>

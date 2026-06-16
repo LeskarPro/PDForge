@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Нов протокол — Stage 2b Mockup v3</title>
+  <style>
+    /* ════════════════════════════════════════════
+       APP THEME VARIABLES  (matches app's dark theme)
+       In production these come from base.html CSS vars
+       ════════════════════════════════════════════ */
+    :root {
+      /* Chrome / shell */
+      --app-bg:        #0f1117;
+      --app-surface:   #1a1d27;
+      --app-surface2:  #22263a;
+      --app-border:    #2d3148;
+      --app-borderL:   #3d4268;
+      --app-text:      #e8eaf6;
+      --app-textM:     #8890b5;
+      --app-primary:   #7c6ef0;
+      --app-primaryD:  #2e2a5c;
+      --app-warning:   #f0a44c;
+
+      /* Protocol paper (always white-ish for readability) */
+      --p-bg:          #ffffff;
+      --p-surface:     #f4f5f8;   /* row-label, col-num */
+      --p-border:      #c8cdd6;
+      --p-borderL:     #dde1ea;
+      --p-text:        #1a1e2e;
+      --p-textM:       #636b82;
+
+      /* Service column palette */
+      --dis:           #1d4ed8;
+      --dis-bg:        #dbeafe;
+      --dis-hdr:       #eff6ff;
+      --dis-on:        #bfdbfe;
+      --der:           #b45309;
+      --der-bg:        #fef3c7;
+      --der-hdr:       #fffbeb;
+      --der-on:        #fde68a;
+      --dinf:          #065f46;
+      --dinf-bg:       #d1fae5;
+      --dinf-hdr:      #ecfdf5;
+      --dinf-on:       #a7f3d0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--app-bg);
+      color: var(--app-text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 13px; line-height: 1.4;
+    }
+
+    /* ════ EDITOR — page chrome ════ */
+    .page-wrap { max-width: 1380px; margin: 0 auto; padding: 20px 16px 40px; }
+
+    .page-header {
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 16px; margin-bottom: 16px;
+    }
+    .page-title   { font-size: 18px; font-weight: 700; }
+    .page-subtitle { font-size: 11px; color: var(--app-textM); margin-top: 3px; }
+
+    /* ════ HEADER PANELS ════ */
+    .header-wrap {
+      background: var(--p-bg); border: 1px solid var(--app-border);
+      border-radius: 8px 8px 0 0; box-shadow: 0 1px 6px rgba(0,0,0,.35);
+    }
+    .header-panels { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+    .panel { padding: 11px 14px; border-right: 1px solid var(--p-border); }
+    .panel:last-child { border-right: none; }
+    .panel-title {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--p-text);
+      background: var(--p-surface);
+      margin: -11px -14px 10px; padding: 7px 14px;
+      border-bottom: 1px solid var(--p-border);
+    }
+
+    .field-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; min-height: 18px; }
+    .field-lbl  { font-weight: 600; color: var(--p-textM); font-size: 11px; white-space: nowrap; min-width: 48px; }
+    .field-val  { color: var(--p-text); font-size: 12px; }
+
+    /* ════ FORM INPUTS ════ */
+    input[type=text], input[type=date], input[type=time],
+    input[type=number], select, textarea {
+      background: var(--p-bg); border: 1px solid var(--p-border);
+      border-radius: 4px; color: var(--p-text);
+      padding: 5px 8px; font-size: 12px; width: 100%;
+      outline: none; font-family: inherit; transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--app-primary);
+      box-shadow: 0 0 0 3px rgba(124,110,240,.15);
+    }
+    input:disabled, select:disabled, textarea:disabled {
+      background: var(--p-surface); color: var(--p-textM);
+    }
+    textarea { resize: vertical; }
+
+    /* Client search dropdown */
+    .search-wrap  { position: relative; margin-bottom: 8px; }
+    .client-dd {
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: var(--p-bg); border: 1px solid var(--p-border);
+      border-top: none; border-radius: 0 0 6px 6px;
+      z-index: 200; max-height: 200px; overflow-y: auto;
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+    }
+    .c-opt        { padding: 7px 11px; cursor: pointer; border-bottom: 1px solid var(--p-borderL); }
+    .c-opt:last-child { border-bottom: none; }
+    .c-opt:hover  { background: var(--p-surface); }
+    .c-firm       { font-weight: 600; font-size: 12px; color: var(--p-text); }
+    .c-meta       { font-size: 10px; color: var(--p-textM); margin-top: 1px; }
+
+    /* Clear (×) buttons on client/site rows */
+    .btn-clear {
+      background: none; border: none; cursor: pointer;
+      color: var(--p-textM); font-size: 16px; line-height: 1;
+      padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+      transition: all .12s;
+    }
+    .btn-clear:hover { color: #dc2626; background: #fee2e2; }
+
+    /* Contract type */
+    .contract-opts { display: flex; gap: 14px; margin-top: 6px; }
+    .contract-opt  { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 12px; user-select: none; }
+    .mcb {
+      width: 14px; height: 14px;
+      border: 1.5px solid var(--p-border); border-radius: 2px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 900; flex-shrink: 0; transition: all .12s;
+    }
+    .mcb.on { background: var(--app-primary); border-color: var(--app-primary); color: white; }
+
+    /* ════ PROTOCOL TABLE ════ */
+    .table-wrap {
+      overflow-x: auto; border: 1px solid var(--app-border); border-top: none;
+      background: var(--p-bg); box-shadow: 0 1px 6px rgba(0,0,0,.25);
+    }
+    .ptable { width: 100%; min-width: 1060px; border-collapse: collapse; }
+    .ptable th, .ptable td { border: 1px solid var(--p-border); padding: 4px 6px; vertical-align: top; background: var(--p-bg); }
+
+    .ptable thead th {
+      background: var(--p-surface); font-size: 10px; font-weight: 700;
+      text-align: center; text-transform: uppercase; letter-spacing: .04em; padding: 7px 6px;
+    }
+    .th-main { text-align: left !important; padding-left: 10px !important; }
+    .th-dis  { color: var(--dis);  background: var(--dis-hdr)  !important; }
+    .th-der  { color: var(--der);  background: var(--der-hdr)  !important; }
+    .th-dinf { color: var(--dinf); background: var(--dinf-hdr) !important; }
+    .th-dis.on  { background: var(--dis-on)  !important; }
+    .th-der.on  { background: var(--der-on)  !important; }
+    .th-dinf.on { background: var(--dinf-on) !important; }
+
+    .adot {
+      display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+      margin-left: 5px; vertical-align: middle;
+      background: var(--p-borderL); transition: background .2s;
+    }
+    .adot.dis.on  { background: var(--dis); }
+    .adot.der.on  { background: var(--der); }
+    .adot.dinf.on { background: var(--dinf); }
+
+    .col-num   { text-align: center; font-weight: 700; color: var(--p-textM); font-size: 11px; background: var(--p-surface) !important; white-space: nowrap; }
+    .row-label { font-size: 11px; color: var(--p-textM); background: var(--p-surface) !important; line-height: 1.35; min-width: 185px; }
+
+    /* Column active / inactive */
+    td.cdis, td.cder, td.cdinf { transition: opacity .2s; }
+    td.cdis.off, td.cder.off, td.cdinf.off { opacity: .3; pointer-events: none; }
+
+    /* ════ ROW 1 — per-pest checkboxes (mirrors protocol HTML structure) ════ */
+    .r1cb {
+      width: 20px !important; min-width: 20px; padding: 2px 3px;
+      text-align: center; vertical-align: middle;
+      cursor: pointer; user-select: none; background: var(--p-bg) !important;
+    }
+    .r1nm {
+      font-size: 11px; padding: 2px 5px; vertical-align: middle;
+      cursor: pointer; user-select: none; background: var(--p-bg) !important;
+      white-space: nowrap;
+    }
+    .r1cb:hover, .r1nm:hover { background: #f0f4ff !important; }
+
+    .pcb {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 12px; height: 12px;
+      border: 1.5px solid #9ca3af; border-radius: 1px;
+      font-size: 10px; font-weight: 900; color: transparent; transition: all .12s;
+    }
+    .pcb.dis.on  { border-color: var(--dis);  background: var(--dis);  color: white; }
+    .pcb.der.on  { border-color: var(--der);  background: var(--der);  color: white; }
+    .pcb.dinf.on { border-color: var(--dinf); background: var(--dinf); color: white; }
+
+    /* Other-pest text input (inside the row-1 cell) */
+    .pest-txt {
+      font-size: 11px; padding: 2px 5px; margin-top: 3px;
+      background: var(--p-bg); border: 1px solid var(--p-border);
+      border-radius: 3px; color: var(--p-text); width: 100%; font-family: inherit;
+    }
+    .pest-txt:focus { outline: none; border-color: var(--app-primary); }
+
+    /* ════ TREATMENT METHOD PILLS ════ */
+    .mpills { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 4px; }
+    .mpill {
+      padding: 2px 8px; border-radius: 10px;
+      border: 1px solid var(--p-border);
+      background: transparent; color: var(--p-textM);
+      cursor: pointer; font-size: 10px; font-family: inherit;
+      transition: all .12s; white-space: nowrap;
+    }
+    .mpill:hover { border-color: var(--app-primary); color: var(--p-text); }
+    .mpill.on    { background: rgba(124,110,240,.12); border-color: var(--app-primary); color: var(--p-text); font-weight: 600; }
+    .mpill:disabled { opacity: .35; cursor: not-allowed; }
+    .mdisplay { font-size: 11px; color: var(--p-textM); font-style: italic; }
+
+    /* ════ PRODUCT PICKER ════ */
+    .picker-row td { background: #f9fafb !important; border-top: 2px solid var(--p-borderL); }
+    .ppick { display: flex; gap: 5px; align-items: center; }
+    .ppick select { flex: 1; font-size: 11px; padding: 3px 6px; }
+    .btn-add { padding: 4px 10px; background: var(--app-primary); border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 11px; font-family: inherit; white-space: nowrap; flex-shrink: 0; transition: opacity .15s; }
+    .btn-add:hover    { opacity: .88; }
+    .btn-add:disabled { opacity: .35; cursor: not-allowed; }
+    .pchips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+    .pchip  { display: flex; align-items: center; gap: 3px; background: var(--p-surface); border: 1px solid var(--p-border); border-radius: 4px; padding: 2px 6px; font-size: 11px; color: var(--p-text); }
+    .cx     { background: none; border: none; color: var(--p-textM); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 1px; font-family: inherit; }
+    .cx:hover { color: #dc2626; }
+
+    /* Read-only product lines */
+    .pline { padding: 2px 0; border-bottom: 1px dashed var(--p-borderL); font-size: 11px; color: var(--p-text); }
+    .pline:last-child { border-bottom: none; }
+    .mt0 { margin-top: 0; }
+    .empty { color: var(--p-textM); font-size: 11px; }
+
+    /* Cell inputs */
+    .ci  { background: transparent; border: none; border-bottom: 1px solid var(--p-borderL); border-radius: 0; padding: 3px 2px; color: var(--p-text); width: 100%; font-size: 12px; font-family: inherit; }
+    .ci:focus  { outline: none; border-bottom-color: var(--app-primary); }
+    .ci:disabled { opacity: .4; }
+    .cta { background: transparent; border: 1px solid var(--p-borderL); border-radius: 3px; padding: 3px 5px; color: var(--p-text); width: 100%; font-size: 11px; resize: none; min-height: 36px; font-family: inherit; }
+    .cta:focus { outline: none; border-color: var(--app-primary); }
+    .cta:disabled { opacity: .4; }
+
+    /* ════ FOOTER (editor) ════ */
+    .footnote {
+      font-size: 10px; color: var(--p-textM); font-style: italic;
+      padding: 4px 10px; background: var(--p-bg);
+      border: 1px solid var(--app-border); border-top: none;
+    }
+    .footer-table {
+      width: 100%; border-collapse: collapse;
+      background: var(--p-bg); border: 1px solid var(--app-border);
+      border-top: none; border-radius: 0 0 8px 8px; overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    .footer-table td { border: 1px solid var(--p-border); padding: 10px 14px; vertical-align: top; }
+    .footer-hint { font-size: 10px; color: var(--p-textM); margin-top: 3px; }
+    .sig-line    { border-bottom: 1px solid var(--p-border); margin-top: 24px; width: 70%; margin-left: auto; margin-right: auto; }
+
+    /* ════ ACTION BAR ════ */
+    .action-bar {
+      display: flex; gap: 10px; justify-content: flex-end;
+      margin-top: 20px; padding-top: 16px;
+      border-top: 1px solid var(--app-border);
+    }
+    .btn { padding: 9px 22px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; font-family: inherit; transition: all .15s; }
+    .btn:hover { opacity: .88; }
+    .btn-primary   { background: var(--app-primary); color: white; }
+    .btn-secondary { background: var(--app-surface); color: var(--app-text); border: 1px solid var(--app-border); }
+
+    /* ════════════════════════════════════════════
+       PREVIEW PAGE
+       ════════════════════════════════════════════ */
+    .preview-wrap { min-height: 100vh; }
+
+    .preview-topbar {
+      background: var(--app-surface);
+      border-bottom: 1px solid var(--app-border);
+      padding: 10px 20px;
+      display: flex; align-items: center; gap: 12px;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,.35);
+    }
+    .pvtitle { font-size: 14px; font-weight: 700; color: var(--app-text); }
+    .pvsub   { font-size: 11px; color: var(--app-textM); margin-left: 4px; }
+
+    .ftabs { display: flex; gap: 6px; margin-left: auto; }
+    .ftab  {
+      padding: 5px 13px; border-radius: 5px;
+      border: 1px solid var(--app-border);
+      background: transparent; color: var(--app-textM);
+      cursor: pointer; font-size: 12px; font-family: inherit; transition: all .15s;
+    }
+    .ftab:hover  { border-color: var(--app-primary); color: var(--app-text); }
+    .ftab.active { background: var(--app-primaryD); border-color: var(--app-primary); color: var(--app-text); font-weight: 600; }
+
+    .pv-actions { display: flex; gap: 8px; }
+    .btn-back   { padding: 6px 14px; border-radius: 5px; border: 1px solid var(--app-border); background: transparent; color: var(--app-textM); cursor: pointer; font-size: 12px; font-family: inherit; transition: all .15s; display: flex; align-items: center; gap: 5px; }
+    .btn-back:hover { border-color: var(--app-text); color: var(--app-text); }
+    .btn-save    { padding: 7px 18px; background: var(--app-primary); border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 12px; font-family: inherit; font-weight: 600; transition: opacity .15s; }
+    .btn-save:hover { opacity: .88; }
+    .btn-tpl     { padding: 7px 18px; background: transparent; border: 1px solid var(--app-warning); border-radius: 5px; color: var(--app-warning); cursor: pointer; font-size: 12px; font-family: inherit; }
+
+    .preview-canvas {
+      display: flex; justify-content: center; align-items: flex-start;
+      gap: 28px; padding: 36px 24px 60px; flex-wrap: wrap;
+    }
+    .paper-slot  { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .paper-lbl   { font-size: 11px; color: var(--app-textM); }
+
+    /* ════ PAPER RENDER ════
+       Scale: 2.45 px / mm
+       A5 = 148 × 210 mm → 362 × 515 px
+       A4 = 210 × 297 mm → 515 × 728 px
+    */
+    .paper {
+      background: white; color: #111;
+      box-shadow: 0 6px 32px rgba(0,0,0,.5);
+      overflow: hidden; flex-shrink: 0;
+    }
+    .paper.a5   { width: 362px; min-height: 515px; }
+    .paper.a4p  { width: 515px; min-height: 728px; }
+    .paper.a4l  { width: 726px; min-height: 514px; display: flex; }
+    .paper.a5h  { width: 363px; min-height: 514px; }
+    .paper.a5h + .paper.a5h { border-left: 1px dashed #ccc; }
+
+    .pp { /* paper inner */
+      padding: 12px 11px 10px;
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 8px; line-height: 1.3; color: #111;
+    }
+
+    /* Paper header line */
+    .pp-hline {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      margin-bottom: 5px;
+    }
+    .pp-brand  { font-size: 7.5px; }
+    .pp-title  { font-size: 10px; font-weight: 700; text-align: center; flex: 1; padding: 0 6px; }
+    .pp-appendix { font-size: 6.5px; color: #555; text-align: right; }
+
+    /* Paper header table */
+    .pp-hdr { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+    .pp-hdr th, .pp-hdr td { border: .5px solid #555; padding: 2px 3px; font-size: 7px; }
+    .pp-hdr th { background: #eeeeee; font-weight: 700; text-align: center; }
+
+    /* Paper main table */
+    .pp-tbl { width: 100%; border-collapse: collapse; }
+    .pp-tbl th, .pp-tbl td { border: .5px solid #555; padding: 1.5px 2.5px; font-size: 6.5px; vertical-align: top; }
+    .pp-tbl thead th { background: #e8e8e8; text-align: center; font-weight: 700; font-size: 6px; }
+    .pp-tbl .pn  { font-size: 6.5px; color: #444; background: #f5f5f5; }
+    .pp-tbl .rn  { text-align: center; background: #f5f5f5; color: #555; font-weight: 700; width: 14px; }
+    .pp-cb  { text-align: center; width: 10px; }
+    .pp-nm  { font-size: 6px; }
+    .pp-cbx { display: inline-block; width: 8px; height: 8px; border: .7px solid #555; font-size: 7px; font-weight: 900; text-align: center; line-height: 8px; }
+
+    /* Paper footer */
+    .pp-foot { margin-top: 4px; border-top: .5px solid #555; padding-top: 3px; }
+    .pp-foot-row { display: flex; margin-bottom: 2px; gap: 0; }
+    .pp-ft { border: .5px solid #555; padding: 2px 3px; font-size: 6.5px; flex: 1; }
+    .pp-fs { border: .5px solid #555; padding: 2px 5px; font-size: 6.5px; width: 55px; text-align: center; }
+    .pp-fd { border: .5px solid #555; padding: 2px 4px; font-size: 6.5px; flex: 1; }
+    .pp-footnote { font-size: 6px; color: #666; font-style: italic; margin-top: 2px; }
+    .pp-sig-full { border: .5px solid #555; padding: 2px 4px; font-size: 6.5px; width: 100%; margin-top: 2px; }
+
+    /* Mockup badge */
+    .mockup-badge {
+      position: fixed; top: 10px; right: 10px;
+      background: #f59e0b; color: #451a03;
+      font-size: 10px; font-weight: 700;
+      padding: 3px 9px; border-radius: 4px; letter-spacing: .05em; z-index: 9999;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="mockup-badge">MOCKUP — Stage 2b v3</div>
+
+  <div x-data="editor()">
+
+    <!-- ══════════════════════════════════════════
+         EDITOR VIEW
+         ══════════════════════════════════════════ -->
+    <div x-show="view==='editor'" class="page-wrap">
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">Нов протокол</div>
+          <div class="page-subtitle">Протокол за ДДД обработка · Приложение № 5 към чл. 15, т. 6</div>
+        </div>
+      </div>
+
+      <!-- ── Header panels ── -->
+      <div class="header-wrap">
+        <div class="header-panels">
+
+          <!-- PANEL 1: Company (executor) selector -->
+          <div class="panel">
+            <div class="panel-title">Данни за извършителя на ДДД обработката</div>
+            <div style="margin-bottom:8px;">
+              <select x-model="companyId" @change="pickCompany()" style="width:100%">
+                <option value="">— изберете фирма —</option>
+                <template x-for="c in companies" :key="c.id">
+                  <option :value="c.id" x-text="c.name"></option>
+                </template>
+              </select>
+            </div>
+            <div class="field-row"><span class="field-lbl">Фирма:</span><span class="field-val" x-text="companyName||'—'"></span></div>
+            <div class="field-row"><span class="field-lbl">ЕИК:</span><span class="field-val" x-text="companyEik||'—'"></span></div>
+            <div class="field-row"><span class="field-lbl">Адрес:</span><span class="field-val" x-text="companyAddress||'—'"></span></div>
+            <div class="field-row"><span class="field-lbl">Тел:</span><span class="field-val" x-text="companyPhone||'—'"></span></div>
+          </div>
+
+          <!-- PANEL 2: Client search -->
+          <div class="panel">
+            <div class="panel-title">Данни за заявителя на извършената ДДД обработка</div>
+            <template x-if="!clientId">
+              <div class="search-wrap">
+                <input type="text" placeholder="Търси по фирма или ЕИК…"
+                  x-model="clientQ" @focus="showDrop=true" @input="showDrop=true"
+                  @keydown.escape="showDrop=false">
+                <div class="client-dd"
+                  x-show="showDrop && filteredClients.length > 0"
+                  @click.outside="showDrop=false">
+                  <template x-for="c in filteredClients" :key="c.id">
+                    <div class="c-opt" @click="pickClient(c)">
+                      <div class="c-firm" x-text="c.firm"></div>
+                      <div class="c-meta" x-text="'ЕИК: '+c.eik+' · '+c.address"></div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+            <template x-if="clientId">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+                <span style="font-size:12px;font-weight:600;color:var(--p-text);flex:1" x-text="clientFirm"></span>
+                <button class="btn-clear" @click="clearClient()" title="Изчисти заявителя">×</button>
+              </div>
+            </template>
+            <div class="field-row"><span class="field-lbl">Фирма:</span><span class="field-val" x-text="clientFirm||'—'"></span></div>
+            <div class="field-row"><span class="field-lbl">ЕИК:</span><span class="field-val" x-text="clientEik||'—'"></span></div>
+            <div class="field-row"><span class="field-lbl">Адрес:</span><span class="field-val" x-text="clientAddress||'—'"></span></div>
+            <div class="field-row"><span class="field-lbl">Тел:</span><span class="field-val" x-text="clientPhone||'—'"></span></div>
+            <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--p-borderL);">
+              <span style="font-size:10px;color:var(--p-textM);">Обработката е по:</span>
+              <div class="contract-opts">
+                <div class="contract-opt" @click="longTerm=false">
+                  <div class="mcb" :class="{on:!longTerm}"><span x-show="!longTerm">✓</span></div>
+                  <span>Еднократна заявка</span>
+                </div>
+                <div class="contract-opt" @click="longTerm=true">
+                  <div class="mcb" :class="{on:longTerm}"><span x-show="longTerm">✓</span></div>
+                  <span>Дългосрочен договор</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PANEL 3: Site -->
+          <div class="panel">
+            <div class="panel-title">Данни за обекта, в който е извършена ДДД обработката</div>
+            <template x-if="!siteId">
+              <div style="margin-bottom:8px;">
+                <select x-model="siteId" @change="pickSite()" :disabled="!clientId" style="width:100%">
+                  <option value="">— изберете обект —</option>
+                  <template x-for="s in filteredSites" :key="s.id">
+                    <option :value="s.id" x-text="s.name"></option>
+                  </template>
+                </select>
+                <div x-show="!clientId" style="font-size:10px;color:var(--p-textM);margin-top:3px;">Първо изберете заявител</div>
+              </div>
+            </template>
+            <template x-if="siteId">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+                <span style="font-size:12px;font-weight:600;color:var(--p-text);flex:1" x-text="siteName"></span>
+                <button class="btn-clear" @click="clearSite()" title="Изчисти обекта">×</button>
+              </div>
+            </template>
+            <div class="field-row"><span class="field-lbl">Обект:</span><span class="field-val" x-text="siteName||'—'"></span></div>
+            <div class="field-row"><span class="field-lbl">Адрес:</span><span class="field-val" x-text="siteAddress||'—'"></span></div>
+            <div class="field-row"><span class="field-lbl">Площ:</span><span class="field-val" x-text="siteArea ? siteArea+' m²' : '—'"></span></div>
+          </div>
+        </div>
+      </div><!-- /header-wrap -->
+
+      <!-- ── Main protocol table ── -->
+      <div class="table-wrap">
+        <table class="ptable">
+          <colgroup>
+            <col style="width:3%">   <!-- № -->
+            <col style="width:25%">  <!-- label -->
+            <!-- Дезинсекция: 4 sub-cols (cb, name, cb, name) -->
+            <col style="width:20px"> <!-- dis cb1 -->
+            <col style="width:8%">   <!-- dis name1 -->
+            <col style="width:20px"> <!-- dis cb2 -->
+            <col style="width:8%">   <!-- dis name2 -->
+            <!-- Дератизация: 2 sub-cols -->
+            <col style="width:20px"> <!-- der cb -->
+            <col style="width:13%">  <!-- der name -->
+            <!-- Дезинфекция: 2 sub-cols -->
+            <col style="width:20px"> <!-- dinf cb -->
+            <col style="width:13%">  <!-- dinf name -->
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="col-num">№</th>
+              <th class="th-main">Данни за извършените в обекта ДДД обработки</th>
+              <th colspan="4" class="th-dis" :class="{on: disActive}">
+                Дезинсекция и дезакаризация<span class="adot dis" :class="{on: disActive}"></span>
+              </th>
+              <th colspan="2" class="th-der" :class="{on: derActive}">
+                Дератизация<span class="adot der" :class="{on: derActive}"></span>
+              </th>
+              <th colspan="2" class="th-dinf" :class="{on: dinfActive}">
+                Дезинфекция<span class="adot dinf" :class="{on: dinfActive}"></span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- ════ ROW 1 — 5 sub-rows, mirrors protocol_old.html structure ════
+                 Дезинсекция: 4 pairs + Друго = 5 sub-rows
+                 Дератизация: Мишки(1) + Плъхове(2) + Друго(rowspan=3, rows 3-5)
+                 Дезинфекция: Вируси(1) + Бактерии(2) + Гъбички(3) + Друго(rowspan=2, rows 4-5)
+            -->
+
+            <!-- Sub-row 1 -->
+            <tr>
+              <td class="col-num" rowspan="5">1</td>
+              <td class="row-label" rowspan="5">Вид на вредителите, срещу които е извършена обработката / спектър на действие при дезинфектантите</td>
+              <!-- Дезинсекция pair 1 -->
+              <td class="r1cb" @click="tp('dis',1)"><span class="pcb dis" :class="{on:hp('dis',1)}">✓</span></td>
+              <td class="r1nm" @click="tp('dis',1)">Хлебарки</td>
+              <td class="r1cb" @click="tp('dis',2)"><span class="pcb dis" :class="{on:hp('dis',2)}">✓</span></td>
+              <td class="r1nm" @click="tp('dis',2)">Мухи</td>
+              <!-- Дератизация -->
+              <td class="r1cb" @click="tp('der',10)"><span class="pcb der" :class="{on:hp('der',10)}">✓</span></td>
+              <td class="r1nm" @click="tp('der',10)">Мишки</td>
+              <!-- Дезинфекция -->
+              <td class="r1cb" @click="tp('dinf',13)"><span class="pcb dinf" :class="{on:hp('dinf',13)}">✓</span></td>
+              <td class="r1nm" @click="tp('dinf',13)">Вируси</td>
+            </tr>
+
+            <!-- Sub-row 2 -->
+            <tr>
+              <!-- Дезинсекция pair 2 -->
+              <td class="r1cb" @click="tp('dis',3)"><span class="pcb dis" :class="{on:hp('dis',3)}">✓</span></td>
+              <td class="r1nm" @click="tp('dis',3)">Комари</td>
+              <td class="r1cb" @click="tp('dis',4)"><span class="pcb dis" :class="{on:hp('dis',4)}">✓</span></td>
+              <td class="r1nm" @click="tp('dis',4)">Молци</td>
+              <!-- Дератизация -->
+              <td class="r1cb" @click="tp('der',11)"><span class="pcb der" :class="{on:hp('der',11)}">✓</span></td>
+              <td class="r1nm" @click="tp('der',11)">Плъхове</td>
+              <!-- Дезинфекция -->
+              <td class="r1cb" @click="tp('dinf',14)"><span class="pcb dinf" :class="{on:hp('dinf',14)}">✓</span></td>
+              <td class="r1nm" @click="tp('dinf',14)">Бактерии</td>
+            </tr>
+
+            <!-- Sub-row 3 -->
+            <tr>
+              <!-- Дезинсекция pair 3 -->
+              <td class="r1cb" @click="tp('dis',5)"><span class="pcb dis" :class="{on:hp('dis',5)}">✓</span></td>
+              <td class="r1nm" @click="tp('dis',5)">Мравки</td>
+              <td class="r1cb" @click="tp('dis',6)"><span class="pcb dis" :class="{on:hp('dis',6)}">✓</span></td>
+              <td class="r1nm" @click="tp('dis',6)">Кърлежи</td>
+              <!-- Дератизация Друго (rowspan=3) -->
+              <td class="r1cb" rowspan="3" @click="tp('der','der-other')"><span class="pcb der" :class="{on:hp('der','der-other')}">✓</span></td>
+              <td class="r1nm" rowspan="3" @click.stop style="vertical-align:top;padding-top:4px;">
+                Друго
+                <input x-show="hp('der','der-other')" class="pest-txt" type="text" placeholder="…" x-model="derPestOther" @click.stop>
+              </td>
+              <!-- Дезинфекция -->
+              <td class="r1cb" @click="tp('dinf',15)"><span class="pcb dinf" :class="{on:hp('dinf',15)}">✓</span></td>
+              <td class="r1nm" @click="tp('dinf',15)">Гъбички</td>
+            </tr>
+
+            <!-- Sub-row 4 -->
+            <tr>
+              <!-- Дезинсекция pair 4 -->
+              <td class="r1cb" @click="tp('dis',7)"><span class="pcb dis" :class="{on:hp('dis',7)}">✓</span></td>
+              <td class="r1nm" @click="tp('dis',7)">Бълхи</td>
+              <td class="r1cb" @click="tp('dis',8)"><span class="pcb dis" :class="{on:hp('dis',8)}">✓</span></td>
+              <td class="r1nm" @click="tp('dis',8)">Дървеници</td>
+              <!-- der: covered by rowspan -->
+              <!-- Дезинфекция Друго (rowspan=2) -->
+              <td class="r1cb" rowspan="2" @click="tp('dinf','dinf-other')"><span class="pcb dinf" :class="{on:hp('dinf','dinf-other')}">✓</span></td>
+              <td class="r1nm" rowspan="2" @click.stop style="vertical-align:top;padding-top:4px;">
+                Друго
+                <input x-show="hp('dinf','dinf-other')" class="pest-txt" type="text" placeholder="…" x-model="dinfPestOther" @click.stop>
+              </td>
+            </tr>
+
+            <!-- Sub-row 5 — dis Друго spans 4 cols; der + dinf covered -->
+            <tr>
+              <td class="r1cb" @click="tp('dis','dis-other')"><span class="pcb dis" :class="{on:hp('dis','dis-other')}">✓</span></td>
+              <td class="r1nm" colspan="3" @click.stop style="vertical-align:middle;">
+                Друго
+                <input x-show="hp('dis','dis-other')" class="pest-txt" type="text" placeholder="…" x-model="disPestOther" @click.stop>
+              </td>
+              <!-- der: covered; dinf: covered -->
+            </tr>
+
+            <!-- ════ ROW 2 ════ -->
+            <tr>
+              <td class="col-num">2</td>
+              <td class="row-label">Обработена площ (m²)</td>
+              <td colspan="4" class="cdis" :class="{off:!disActive}"><input class="ci" type="number" placeholder="m²" x-model="disTreatedArea" :disabled="!disActive"></td>
+              <td colspan="2" class="cder" :class="{off:!derActive}"><input class="ci" type="number" placeholder="m²" x-model="derTreatedArea" :disabled="!derActive"></td>
+              <td colspan="2" class="cdinf" :class="{off:!dinfActive}"><input class="ci" type="number" placeholder="m²" x-model="dinfTreatedArea" :disabled="!dinfActive"></td>
+            </tr>
+
+            <!-- ════ ROW 3 ════ -->
+            <tr>
+              <td class="col-num">3</td>
+              <td class="row-label">Вид на обработените площи / помещения / повърхности</td>
+              <td colspan="4" class="cdis" :class="{off:!disActive}"><input class="ci" type="text" placeholder="напр. складови помещения, коридори…" x-model="disSurfaceDesc" :disabled="!disActive"></td>
+              <td colspan="2" class="cder" :class="{off:!derActive}"><input class="ci" type="text" placeholder="напр. мазета, складове…" x-model="derSurfaceDesc" :disabled="!derActive"></td>
+              <td colspan="2" class="cdinf" :class="{off:!dinfActive}"><input class="ci" type="text" placeholder="напр. работни повърхности…" x-model="dinfSurfaceDesc" :disabled="!dinfActive"></td>
+            </tr>
+
+            <!-- ════ ROW 4 ════ -->
+            <tr>
+              <td class="col-num">4</td>
+              <td class="row-label">Вид на обработката (механична, физична, биологична, химична с биоцидни препарати)</td>
+              <td colspan="4" class="cdis" :class="{off:!disActive}">
+                <div class="mpills">
+                  <template x-for="m in methods" :key="m">
+                    <button class="mpill" :class="{on:disMethods.includes(m)}" @click="tm('dis',m)" :disabled="!disActive" x-text="m"></button>
+                  </template>
+                </div>
+                <div class="mdisplay" x-show="disMethods.length>0" x-text="disMethods.join(', ')"></div>
+              </td>
+              <td colspan="2" class="cder" :class="{off:!derActive}">
+                <div class="mpills">
+                  <template x-for="m in methods" :key="m">
+                    <button class="mpill" :class="{on:derMethods.includes(m)}" @click="tm('der',m)" :disabled="!derActive" x-text="m"></button>
+                  </template>
+                </div>
+                <div class="mdisplay" x-show="derMethods.length>0" x-text="derMethods.join(', ')"></div>
+              </td>
+              <td colspan="2" class="cdinf" :class="{off:!dinfActive}">
+                <div class="mpills">
+                  <template x-for="m in methods" :key="m">
+                    <button class="mpill" :class="{on:dinfMethods.includes(m)}" @click="tm('dinf',m)" :disabled="!dinfActive" x-text="m"></button>
+                  </template>
+                </div>
+                <div class="mdisplay" x-show="dinfMethods.length>0" x-text="dinfMethods.join(', ')"></div>
+              </td>
+            </tr>
+
+            <!-- ════ ROW 5 ════ -->
+            <tr>
+              <td class="col-num">5</td>
+              <td class="row-label">Брой и вид (убиващи, живоловни, лепливи) на използваните капани</td>
+              <td colspan="4" class="cdis" :class="{off:!disActive}"><input class="ci" type="text" placeholder="напр. 3 бр. лепливи уловки…" x-model="disNonChem" :disabled="!disActive"></td>
+              <td colspan="2" class="cder" :class="{off:!derActive}"><input class="ci" type="text" placeholder="напр. 5 бр. убиващи капани…" x-model="derNonChem" :disabled="!derActive"></td>
+              <td colspan="2"><span class="empty">—</span></td>
+            </tr>
+
+            <!-- ════ PRODUCT PICKER ════ -->
+            <tr class="picker-row">
+              <td class="col-num" style="font-size:9px;color:var(--app-primary);">+</td>
+              <td class="row-label" style="font-style:italic;font-size:10px;color:var(--app-primary);">Добави препарат →</td>
+              <td colspan="4" class="cdis" :class="{off:!disActive}">
+                <div class="ppick">
+                  <select x-model="disSelP" :disabled="!disActive">
+                    <option value="">— Дезинсекция —</option>
+                    <template x-for="p in avail('dis')" :key="p.id"><option :value="p.id" x-text="p.name"></option></template>
+                  </select>
+                  <button class="btn-add" @click="addP('dis')" :disabled="!disActive||!disSelP">+ Добави</button>
+                </div>
+                <div class="pchips">
+                  <template x-for="p in disProds" :key="p.id">
+                    <div class="pchip"><span x-text="p.name"></span><button class="cx" @click="rmP('dis',p.id)">×</button></div>
+                  </template>
+                </div>
+              </td>
+              <td colspan="2" class="cder" :class="{off:!derActive}">
+                <div class="ppick">
+                  <select x-model="derSelP" :disabled="!derActive">
+                    <option value="">— Дератизация —</option>
+                    <template x-for="p in avail('der')" :key="p.id"><option :value="p.id" x-text="p.name"></option></template>
+                  </select>
+                  <button class="btn-add" @click="addP('der')" :disabled="!derActive||!derSelP">+ Добави</button>
+                </div>
+                <div class="pchips">
+                  <template x-for="p in derProds" :key="p.id">
+                    <div class="pchip"><span x-text="p.name"></span><button class="cx" @click="rmP('der',p.id)">×</button></div>
+                  </template>
+                </div>
+              </td>
+              <td colspan="2" class="cdinf" :class="{off:!dinfActive}">
+                <div class="ppick">
+                  <select x-model="dinfSelP" :disabled="!dinfActive">
+                    <option value="">— Дезинфекция —</option>
+                    <template x-for="p in avail('dinf')" :key="p.id"><option :value="p.id" x-text="p.name"></option></template>
+                  </select>
+                  <button class="btn-add" @click="addP('dinf')" :disabled="!dinfActive||!dinfSelP">+ Добави</button>
+                </div>
+                <div class="pchips">
+                  <template x-for="p in dinfProds" :key="p.id">
+                    <div class="pchip"><span x-text="p.name"></span><button class="cx" @click="rmP('dinf',p.id)">×</button></div>
+                  </template>
+                </div>
+              </td>
+            </tr>
+
+            <!-- ════ ROWS 6–10 — auto-fill from products ════ -->
+            <template x-for="row in productRows" :key="row.key">
+              <tr>
+                <td class="col-num" x-text="row.num"></td>
+                <td class="row-label" x-text="row.label"></td>
+                <td colspan="4" class="cdis" :class="{off:!disActive}">
+                  <template x-for="(p,i) in disProds" :key="p.id"><div class="pline" x-text="(i+1)+'. '+(p[row.key]||'—')"></div></template>
+                  <span x-show="disProds.length===0" class="empty">—</span>
+                </td>
+                <td colspan="2" class="cder" :class="{off:!derActive}">
+                  <template x-for="(p,i) in derProds" :key="p.id"><div class="pline" x-text="(i+1)+'. '+(p[row.key]||'—')"></div></template>
+                  <span x-show="derProds.length===0" class="empty">—</span>
+                </td>
+                <td colspan="2" class="cdinf" :class="{off:!dinfActive}">
+                  <template x-for="(p,i) in dinfProds" :key="p.id"><div class="pline" x-text="(i+1)+'. '+(p[row.key]||'—')"></div></template>
+                  <span x-show="dinfProds.length===0" class="empty">—</span>
+                </td>
+              </tr>
+            </template>
+
+            <!-- ════ ROW 11a ════ -->
+            <tr>
+              <td class="col-num" rowspan="2">11</td>
+              <td class="row-label">Общо количество изразходван препарат / работен разтвор.</td>
+              <td colspan="4" class="cdis" :class="{off:!disActive}"><input class="ci" type="text" placeholder="напр. 500 мл…" x-model="disTotalUsed" :disabled="!disActive"></td>
+              <td colspan="2"><span class="empty">—</span></td>
+              <td colspan="2" class="cdinf" :class="{off:!dinfActive}"><input class="ci" type="text" placeholder="напр. 1 л…" x-model="dinfTotalUsed" :disabled="!dinfActive"></td>
+            </tr>
+
+            <!-- ════ ROW 11b ════ -->
+            <tr>
+              <td class="row-label">Брой на поставените/заредени дератизациони кутии* и количеството родентицид, заложено в една дератизационна кутия (g).</td>
+              <td colspan="4"><span class="empty">—</span></td>
+              <td colspan="2" class="cder" :class="{off:!derActive}">
+                <textarea class="cta" rows="2" placeholder="напр. 10 бр. комбинирани примамки (70 г. Мишемор Грийн + 1 бр. Факорат паста)…" x-model="derBaitInfo" :disabled="!derActive"></textarea>
+              </td>
+              <td colspan="2"><span class="empty">—</span></td>
+            </tr>
+
+            <!-- ════ ROWS 12–12.4 — auto-fill ════ -->
+            <template x-for="row in safetyRows" :key="row.key">
+              <tr>
+                <td class="col-num" x-text="row.num"></td>
+                <td class="row-label" x-text="row.label"></td>
+                <td colspan="4" class="cdis" :class="{off:!disActive}">
+                  <template x-for="(p,i) in disProds" :key="p.id"><div class="pline" x-text="(i+1)+'. '+(p[row.key]||'—')"></div></template>
+                  <span x-show="disProds.length===0" class="empty">—</span>
+                </td>
+                <td colspan="2" class="cder" :class="{off:!derActive}">
+                  <template x-for="(p,i) in derProds" :key="p.id"><div class="pline" x-text="(i+1)+'. '+(p[row.key]||'—')"></div></template>
+                  <span x-show="derProds.length===0" class="empty">—</span>
+                </td>
+                <td colspan="2" class="cdinf" :class="{off:!dinfActive}">
+                  <template x-for="(p,i) in dinfProds" :key="p.id"><div class="pline" x-text="(i+1)+'. '+(p[row.key]||'—')"></div></template>
+                  <span x-show="dinfProds.length===0" class="empty">—</span>
+                </td>
+              </tr>
+            </template>
+
+            <!-- ════ ROW 12.5 ════ -->
+            <tr>
+              <td class="col-num">12.5</td>
+              <td class="row-label">Други</td>
+              <td colspan="4" class="cdis" :class="{off:!disActive}"><input class="ci" type="text" placeholder="Допълнителни указания…" x-model="disSafetyOther" :disabled="!disActive"></td>
+              <td colspan="2" class="cder" :class="{off:!derActive}"><input class="ci" type="text" placeholder="Допълнителни указания…" x-model="derSafetyOther" :disabled="!derActive"></td>
+              <td colspan="2" class="cdinf" :class="{off:!dinfActive}"><input class="ci" type="text" placeholder="Допълнителни указания…" x-model="dinfSafetyOther" :disabled="!dinfActive"></td>
+            </tr>
+
+            <!-- ════ ROW 13 ════ -->
+            <tr>
+              <td class="col-num">13</td>
+              <td class="row-label">Препоръки към заявителя за подобряване на санитарно-хигиенните и технически условия в обекта</td>
+              <td colspan="4" class="cdis" :class="{off:!disActive}"><textarea class="cta" rows="2" placeholder="Препоръки…" x-model="disRecs" :disabled="!disActive"></textarea></td>
+              <td colspan="2" class="cder" :class="{off:!derActive}"><textarea class="cta" rows="2" placeholder="Препоръки…" x-model="derRecs" :disabled="!derActive"></textarea></td>
+              <td colspan="2" class="cdinf" :class="{off:!dinfActive}"><textarea class="cta" rows="2" placeholder="Препоръки…" x-model="dinfRecs" :disabled="!dinfActive"></textarea></td>
+            </tr>
+
+            <!-- ════ ROW 14 ════ -->
+            <tr>
+              <td class="col-num">14</td>
+              <td class="row-label">Наложили се промени и корекции на данните в протокола</td>
+              <td colspan="4" class="cdis" :class="{off:!disActive}"><textarea class="cta" rows="2" placeholder="Корекции…" x-model="disCorrections" :disabled="!disActive"></textarea></td>
+              <td colspan="2" class="cder" :class="{off:!derActive}"><textarea class="cta" rows="2" placeholder="Корекции…" x-model="derCorrections" :disabled="!derActive"></textarea></td>
+              <td colspan="2" class="cdinf" :class="{off:!dinfActive}"><textarea class="cta" rows="2" placeholder="Корекции…" x-model="dinfCorrections" :disabled="!dinfActive"></textarea></td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div><!-- /table-wrap -->
+
+      <div class="footnote">* Прилага се картосхема на местоположението им в обекта.</div>
+
+      <!-- ── Footer table ── -->
+      <table class="footer-table">
+        <colgroup><col style="width:42%"><col style="width:13%"><col style="width:45%"></colgroup>
+        <tr>
+          <td>
+            <div style="font-size:11px;color:var(--p-textM);margin-bottom:5px;">Протоколът е подготвен от:</div>
+            <select x-model="preparedBy" style="width:100%">
+              <option value="">— изберете ръководител —</option>
+              <template x-for="w in workers" :key="w.id">
+                <option :value="w.id" x-text="w.name"></option>
+              </template>
+            </select>
+            <div class="footer-hint">(Ръководител / Инспектор ДДД)</div>
+          </td>
+          <td style="text-align:center;"><div style="font-size:11px;color:var(--p-textM);">Подпис:</div><div class="sig-line"></div></td>
+          <td>
+            <div style="font-size:11px;color:var(--p-textM);margin-bottom:5px;">Дата:</div>
+            <!-- Date 1: auto-filled with today -->
+            <input type="date" x-model="date1" style="width:55%">
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <div style="font-size:11px;color:var(--p-textM);margin-bottom:5px;">Обработката е извършена от:</div>
+            <select x-model="executedBy" style="width:100%">
+              <option value="">— изберете изпълнител —</option>
+              <template x-for="w in workers" :key="w.id">
+                <option :value="w.id" x-text="w.name"></option>
+              </template>
+            </select>
+            <div class="footer-hint">(Изпълнител на ДДД)</div>
+          </td>
+          <td style="text-align:center;"><div style="font-size:11px;color:var(--p-textM);">Подпис:</div><div class="sig-line"></div></td>
+          <td>
+            <div style="font-size:11px;color:var(--p-textM);margin-bottom:5px;">Дата и час на обработката:</div>
+            <!-- Date 2: empty by default -->
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="date" x-model="date2" style="width:44%">
+              <span style="font-size:11px;color:var(--p-textM);">от</span>
+              <input type="time" x-model="timeFrom" style="width:20%">
+              <span style="font-size:11px;color:var(--p-textM);">до</span>
+              <input type="time" x-model="timeTo"   style="width:20%">
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="3">
+            <div style="font-size:11px;color:var(--p-textM);margin-bottom:5px;">
+              Подпис на заявителя на обработката или на упълномощено от него лице (три имена):
+            </div>
+            <input type="text" placeholder="Три имена на подписалия…" x-model="signatory" style="width:55%">
+          </td>
+        </tr>
+      </table>
+
+      <!-- Action bar — NO save here; "Преглед" takes you to the preview page -->
+      <div class="action-bar">
+        <button class="btn btn-secondary" @click="">Отказ</button>
+        <button class="btn btn-primary" @click="view='preview'">
+          Преглед →
+        </button>
+      </div>
+
+    </div><!-- /editor view -->
+
+
+    <!-- ══════════════════════════════════════════
+         PREVIEW VIEW
+         ══════════════════════════════════════════ -->
+    <div x-show="view==='preview'" class="preview-wrap">
+
+      <!-- Sticky top bar -->
+      <div class="preview-topbar">
+        <button class="btn-back" @click="view='editor'">
+          ← Обратно към редактиране
+        </button>
+        <span class="pvtitle">Преглед на протокол</span>
+        <span class="pvsub" x-text="clientFirm ? '· '+clientFirm : ''"></span>
+
+        <!-- Format tabs -->
+        <div class="ftabs">
+          <button class="ftab" :class="{active:fmt==='a5'}"      @click="fmt='a5'">A5 (2 стр.)</button>
+          <button class="ftab" :class="{active:fmt==='a5-land'}" @click="fmt='a5-land'">A5 → A4 пейзаж</button>
+          <button class="ftab" :class="{active:fmt==='a4-p'}"    @click="fmt='a4-p'">A4 портрет</button>
+        </div>
+
+        <!-- Save actions -->
+        <div class="pv-actions">
+          <button class="btn-tpl">Запази като шаблон</button>
+          <button class="btn-save">Запази протокол</button>
+        </div>
+      </div>
+
+      <!-- Paper canvas -->
+      <div class="preview-canvas">
+
+        <!-- ── A5: two pages ── -->
+        <template x-if="fmt==='a5'">
+          <div style="display:contents;">
+            <!-- Page 1 -->
+            <div class="paper-slot">
+              <div class="paper a5">
+                <div class="pp">
+                  <div class="pp-hline">
+                    <span class="pp-brand" x-text="companyName||'Саниста ВИП СС ООД'"></span>
+                    <span class="pp-title">Протокол за ДДД обработка</span>
+                    <span class="pp-appendix">Приложение № 5 към чл. 15, т. 6</span>
+                  </div>
+                  <table class="pp-hdr">
+                    <tr>
+                      <th>Данни за извършителя</th>
+                      <th>Данни за заявителя</th>
+                      <th>Данни за обекта</th>
+                    </tr>
+                    <tr>
+                      <td><strong>Фирма:</strong> <span x-text="companyName||'—'"></span></td>
+                      <td><strong>Фирма:</strong> <span x-text="clientFirm||'—'"></span></td>
+                      <td><strong>Обект:</strong> <span x-text="siteName||'—'"></span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>ЕИК:</strong> <span x-text="companyEik||'—'"></span></td>
+                      <td><strong>ЕИК:</strong> <span x-text="clientEik||'—'"></span></td>
+                      <td rowspan="2"><strong>Адрес:</strong> <span x-text="siteAddress||'—'"></span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Адрес:</strong> <span x-text="companyAddress||'—'"></span></td>
+                      <td><strong>Адрес:</strong> <span x-text="clientAddress||'—'"></span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Тел:</strong> <span x-text="companyPhone||'—'"></span></td>
+                      <td><strong>Тел:</strong> <span x-text="clientPhone||'—'"></span></td>
+                      <td><strong>Площ:</strong> <span x-text="siteArea ? siteArea+' m²' : '—'"></span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Обработката е по:</strong></td>
+                      <td><span class="pp-cbx" x-text="!longTerm?'X':' '"></span> Еднократна заявка</td>
+                      <td><span class="pp-cbx" x-text="longTerm?'X':' '"></span> Дългосрочен договор</td>
+                    </tr>
+                  </table>
+
+                  <!-- Main table rows 1-8 on page 1 -->
+                  <table class="pp-tbl">
+                    <thead>
+                      <tr>
+                        <th style="width:4%">№</th>
+                        <th style="width:28%;text-align:left;">Данни за ДДД обработките</th>
+                        <th colspan="4">Дезинсекция и дезакаризация</th>
+                        <th colspan="2">Дератизация</th>
+                        <th colspan="2">Дезинфекция</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <!-- Row 1 sub-rows in preview -->
+                      <tr>
+                        <td class="rn" rowspan="5">1</td>
+                        <td class="pn" rowspan="5">Вид на вредителите / спектър при дезинфектанти</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',1)?'X':' '"></span></td>
+                        <td class="pp-nm">Хлебарки</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',2)?'X':' '"></span></td>
+                        <td class="pp-nm">Мухи</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('der',10)?'X':' '"></span></td>
+                        <td class="pp-nm">Мишки</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dinf',13)?'X':' '"></span></td>
+                        <td class="pp-nm">Вируси</td>
+                      </tr>
+                      <tr>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',3)?'X':' '"></span></td>
+                        <td class="pp-nm">Комари</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',4)?'X':' '"></span></td>
+                        <td class="pp-nm">Молци</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('der',11)?'X':' '"></span></td>
+                        <td class="pp-nm">Плъхове</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dinf',14)?'X':' '"></span></td>
+                        <td class="pp-nm">Бактерии</td>
+                      </tr>
+                      <tr>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',5)?'X':' '"></span></td>
+                        <td class="pp-nm">Мравки</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',6)?'X':' '"></span></td>
+                        <td class="pp-nm">Кърлежи</td>
+                        <td class="pp-cb" rowspan="3"><span class="pp-cbx" x-text="hp('der','der-other')?'X':' '"></span></td>
+                        <td class="pp-nm" rowspan="3">Друго<br><span x-text="derPestOther"></span></td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dinf',15)?'X':' '"></span></td>
+                        <td class="pp-nm">Гъбички</td>
+                      </tr>
+                      <tr>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',7)?'X':' '"></span></td>
+                        <td class="pp-nm">Бълхи</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',8)?'X':' '"></span></td>
+                        <td class="pp-nm">Дървеници</td>
+                        <td class="pp-cb" rowspan="2"><span class="pp-cbx" x-text="hp('dinf','dinf-other')?'X':' '"></span></td>
+                        <td class="pp-nm" rowspan="2">Друго<br><span x-text="dinfPestOther"></span></td>
+                      </tr>
+                      <tr>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis','dis-other')?'X':' '"></span></td>
+                        <td class="pp-nm" colspan="3">Друго — <span x-text="disPestOther"></span></td>
+                      </tr>
+                      <!-- Rows 2-8 -->
+                      <tr><td class="rn">2</td><td class="pn">Обработена площ (m²)</td><td colspan="4" x-text="disTreatedArea||'—'"></td><td colspan="2" x-text="derTreatedArea||'—'"></td><td colspan="2" x-text="dinfTreatedArea||'—'"></td></tr>
+                      <tr><td class="rn">3</td><td class="pn">Вид на обработените площи</td><td colspan="4" x-text="disSurfaceDesc||'—'"></td><td colspan="2" x-text="derSurfaceDesc||'—'"></td><td colspan="2" x-text="dinfSurfaceDesc||'—'"></td></tr>
+                      <tr><td class="rn">4</td><td class="pn">Вид на обработката</td><td colspan="4" x-text="disMethods.join(', ')||'—'"></td><td colspan="2" x-text="derMethods.join(', ')||'—'"></td><td colspan="2" x-text="dinfMethods.join(', ')||'—'"></td></tr>
+                      <tr><td class="rn">5</td><td class="pn">Брой и вид на капани</td><td colspan="4" x-text="disNonChem||'—'"></td><td colspan="2" x-text="derNonChem||'—'"></td><td colspan="2">—</td></tr>
+                      <template x-for="row in productRows" :key="row.key">
+                        <tr>
+                          <td class="rn" x-text="row.num"></td>
+                          <td class="pn" x-text="row.label"></td>
+                          <td colspan="4" x-text="disProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join(' | ')||'—'"></td>
+                          <td colspan="2" x-text="derProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join(' | ')||'—'"></td>
+                          <td colspan="2" x-text="dinfProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join(' | ')||'—'"></td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="paper-lbl">Страница 1</div>
+            </div>
+
+            <!-- Page 2 -->
+            <div class="paper-slot">
+              <div class="paper a5">
+                <div class="pp">
+                  <table class="pp-tbl">
+                    <tbody>
+                      <!-- Row 11 -->
+                      <tr><td class="rn" rowspan="2">11</td><td class="pn">Общо изразходвано</td><td colspan="4" x-text="disTotalUsed||'—'"></td><td colspan="2">—</td><td colspan="2" x-text="dinfTotalUsed||'—'"></td></tr>
+                      <tr><td class="pn">Дератизационни кутии</td><td colspan="4">—</td><td colspan="2" x-text="derBaitInfo||'—'"></td><td colspan="2">—</td></tr>
+                      <!-- Rows 12-14 -->
+                      <template x-for="row in safetyRows" :key="row.key">
+                        <tr>
+                          <td class="rn" x-text="row.num"></td>
+                          <td class="pn" x-text="row.label"></td>
+                          <td colspan="4" x-text="disProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join(' | ')||'—'"></td>
+                          <td colspan="2" x-text="derProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join(' | ')||'—'"></td>
+                          <td colspan="2" x-text="dinfProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join(' | ')||'—'"></td>
+                        </tr>
+                      </template>
+                      <tr><td class="rn">12.5</td><td class="pn">Други</td><td colspan="4" x-text="disSafetyOther||'—'"></td><td colspan="2" x-text="derSafetyOther||'—'"></td><td colspan="2" x-text="dinfSafetyOther||'—'"></td></tr>
+                      <tr><td class="rn">13</td><td class="pn">Препоръки</td><td colspan="4" x-text="disRecs||'—'"></td><td colspan="2" x-text="derRecs||'—'"></td><td colspan="2" x-text="dinfRecs||'—'"></td></tr>
+                      <tr><td class="rn">14</td><td class="pn">Корекции</td><td colspan="4" x-text="disCorrections||'—'"></td><td colspan="2" x-text="derCorrections||'—'"></td><td colspan="2" x-text="dinfCorrections||'—'"></td></tr>
+                    </tbody>
+                  </table>
+                  <div class="pp-footnote">* Прилага се картосхема на местоположението им в обекта.</div>
+                  <div class="pp-foot">
+                    <div class="pp-foot-row">
+                      <div class="pp-ft">Подготвен от: <strong x-text="workerName(preparedBy)"></strong></div>
+                      <div class="pp-fs">Подпис:</div>
+                      <div class="pp-fd">Дата: <span x-text="date1||'.............'"></span></div>
+                    </div>
+                    <div class="pp-foot-row">
+                      <div class="pp-ft">Извършен от: <strong x-text="workerName(executedBy)"></strong></div>
+                      <div class="pp-fs">Подпис:</div>
+                      <div class="pp-fd">
+                        Дата: <span x-text="date2||'.........'"></span>
+                        Час: от <span x-text="timeFrom||'.....'"></span> до <span x-text="timeTo||'.....'"></span>
+                      </div>
+                    </div>
+                    <div class="pp-sig-full">
+                      Подпис на заявителя: <span x-text="signatory||'.........................................................................'"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="paper-lbl">Страница 2</div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ── A5 → A4 landscape ── -->
+        <template x-if="fmt==='a5-land'">
+          <div class="paper-slot">
+            <div class="paper a4l">
+              <div class="paper a5h">
+                <div class="pp" style="font-size:7.5px;">
+                  <div style="font-weight:700;font-size:9px;text-align:center;margin-bottom:4px;">Протокол за ДДД — стр. 1</div>
+                  <div style="font-size:6.5px;margin-bottom:3px;">
+                    <strong x-text="companyName||'Саниста ВИП СС ООД'"></strong> |
+                    Заявител: <strong x-text="clientFirm||'—'"></strong> |
+                    Обект: <strong x-text="siteName||'—'"></strong>
+                  </div>
+                  <table class="pp-tbl">
+                    <thead><tr><th>№</th><th>Данни</th><th colspan="4">Дезинсекция</th><th colspan="2">Дератизация</th><th colspan="2">Дезинфекция</th></tr></thead>
+                    <tbody>
+                      <tr><td class="rn" rowspan="3">1</td><td class="pn" rowspan="3">Вредители</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',1)?'X':' '"></span></td><td class="pp-nm">Хлебарки</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',2)?'X':' '"></span></td><td class="pp-nm">Мухи</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('der',10)?'X':' '"></span></td><td class="pp-nm">Мишки</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dinf',13)?'X':' '"></span></td><td class="pp-nm">Вируси</td>
+                      </tr>
+                      <tr>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',3)?'X':' '"></span></td><td class="pp-nm">Комари</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',5)?'X':' '"></span></td><td class="pp-nm">Мравки</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('der',11)?'X':' '"></span></td><td class="pp-nm">Плъхове</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dinf',14)?'X':' '"></span></td><td class="pp-nm">Бактерии</td>
+                      </tr>
+                      <tr>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',7)?'X':' '"></span></td><td class="pp-nm">Бълхи</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',8)?'X':' '"></span></td><td class="pp-nm">Дървеници</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('der','der-other')?'X':' '"></span></td><td class="pp-nm">Друго</td>
+                        <td class="pp-cb"><span class="pp-cbx" x-text="hp('dinf',15)?'X':' '"></span></td><td class="pp-nm">Гъбички</td>
+                      </tr>
+                      <tr><td class="rn">2</td><td class="pn">Обр. площ</td><td colspan="4" x-text="disTreatedArea||'—'"></td><td colspan="2" x-text="derTreatedArea||'—'"></td><td colspan="2" x-text="dinfTreatedArea||'—'"></td></tr>
+                      <tr><td class="rn">3</td><td class="pn">Вид площи</td><td colspan="4" x-text="disSurfaceDesc||'—'"></td><td colspan="2" x-text="derSurfaceDesc||'—'"></td><td colspan="2" x-text="dinfSurfaceDesc||'—'"></td></tr>
+                      <tr><td class="rn">4</td><td class="pn">Вид обработка</td><td colspan="4" x-text="disMethods.join(',')||'—'"></td><td colspan="2" x-text="derMethods.join(',')||'—'"></td><td colspan="2" x-text="dinfMethods.join(',')||'—'"></td></tr>
+                      <tr><td class="rn">5</td><td class="pn">Капани</td><td colspan="4" x-text="disNonChem||'—'"></td><td colspan="2" x-text="derNonChem||'—'"></td><td colspan="2">—</td></tr>
+                      <template x-for="row in productRows" :key="row.key">
+                        <tr><td class="rn" x-text="row.num"></td><td class="pn" x-text="row.label"></td>
+                          <td colspan="4" x-text="disProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join('|')||'—'"></td>
+                          <td colspan="2" x-text="derProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join('|')||'—'"></td>
+                          <td colspan="2" x-text="dinfProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join('|')||'—'"></td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="paper a5h">
+                <div class="pp" style="font-size:7.5px;">
+                  <div style="font-weight:700;font-size:9px;text-align:center;margin-bottom:4px;">Протокол за ДДД — стр. 2</div>
+                  <table class="pp-tbl">
+                    <tbody>
+                      <tr><td class="rn" rowspan="2">11</td><td class="pn">Общо</td><td colspan="4" x-text="disTotalUsed||'—'"></td><td colspan="2" x-text="derBaitInfo||'—'"></td><td colspan="2" x-text="dinfTotalUsed||'—'"></td></tr>
+                      <tr><td class="pn">Дер. кутии</td><td colspan="4">—</td><td colspan="2">—</td><td colspan="2">—</td></tr>
+                      <template x-for="row in safetyRows" :key="row.key">
+                        <tr><td class="rn" x-text="row.num"></td><td class="pn" x-text="row.label"></td>
+                          <td colspan="4" x-text="disProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join('|')||'—'"></td>
+                          <td colspan="2" x-text="derProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join('|')||'—'"></td>
+                          <td colspan="2" x-text="dinfProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join('|')||'—'"></td>
+                        </tr>
+                      </template>
+                      <tr><td class="rn">13</td><td class="pn">Препоръки</td><td colspan="4" x-text="disRecs||'—'"></td><td colspan="2" x-text="derRecs||'—'"></td><td colspan="2" x-text="dinfRecs||'—'"></td></tr>
+                      <tr><td class="rn">14</td><td class="pn">Корекции</td><td colspan="4" x-text="disCorrections||'—'"></td><td colspan="2" x-text="derCorrections||'—'"></td><td colspan="2" x-text="dinfCorrections||'—'"></td></tr>
+                    </tbody>
+                  </table>
+                  <div class="pp-foot" style="margin-top:6px;">
+                    <div class="pp-foot-row">
+                      <div class="pp-ft">Подготвен: <strong x-text="workerName(preparedBy)"></strong></div>
+                      <div class="pp-fs">Подпис:</div>
+                      <div class="pp-fd">Дата: <span x-text="date1"></span></div>
+                    </div>
+                    <div class="pp-foot-row">
+                      <div class="pp-ft">Извършен: <strong x-text="workerName(executedBy)"></strong></div>
+                      <div class="pp-fs">Подпис:</div>
+                      <div class="pp-fd">Дата: <span x-text="date2||'....'"></span> Час: от <span x-text="timeFrom||'...'"></span> до <span x-text="timeTo||'...'"></span></div>
+                    </div>
+                    <div class="pp-sig-full">Подпис заявител: <span x-text="signatory||'........................................................'"></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="paper-lbl">A4 пейзаж (297 × 210 мм) — двете A5 страници на един лист</div>
+          </div>
+        </template>
+
+        <!-- ── A4 portrait — full protocol on one page ── -->
+        <template x-if="fmt==='a4-p'">
+          <div class="paper-slot">
+            <div class="paper a4p">
+              <div class="pp">
+                <div class="pp-hline">
+                  <span class="pp-brand" x-text="companyName||'Саниста ВИП СС ООД'"></span>
+                  <span class="pp-title">Протокол за ДДД обработка</span>
+                  <span class="pp-appendix">Приложение № 5 към чл. 15, т. 6</span>
+                </div>
+                <table class="pp-hdr">
+                  <tr><th>Извършител</th><th>Заявител</th><th>Обект</th></tr>
+                  <tr><td><strong>Фирма:</strong> <span x-text="companyName||'—'"></span></td><td><strong>Фирма:</strong> <span x-text="clientFirm||'—'"></span></td><td><strong>Обект:</strong> <span x-text="siteName||'—'"></span></td></tr>
+                  <tr><td><strong>ЕИК:</strong> <span x-text="companyEik||'—'"></span></td><td><strong>ЕИК:</strong> <span x-text="clientEik||'—'"></span></td><td rowspan="2"><strong>Адрес:</strong> <span x-text="siteAddress||'—'"></span></td></tr>
+                  <tr><td><strong>Адрес:</strong> <span x-text="companyAddress||'—'"></span></td><td><strong>Адрес:</strong> <span x-text="clientAddress||'—'"></span></td></tr>
+                  <tr>
+                    <td><strong>Тел:</strong> <span x-text="companyPhone||'—'"></span></td>
+                    <td><strong>Тел:</strong> <span x-text="clientPhone||'—'"></span></td>
+                    <td><strong>Площ:</strong> <span x-text="siteArea ? siteArea+' m²' : '—'"></span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Обработката е по:</strong></td>
+                    <td><span class="pp-cbx" x-text="!longTerm?'X':' '"></span> Еднократна заявка</td>
+                    <td><span class="pp-cbx" x-text="longTerm?'X':' '"></span> Дългосрочен договор</td>
+                  </tr>
+                </table>
+                <table class="pp-tbl">
+                  <thead><tr><th>№</th><th>Данни за ДДД обработките</th><th colspan="4">Дезинсекция</th><th colspan="2">Дератизация</th><th colspan="2">Дезинфекция</th></tr></thead>
+                  <tbody>
+                    <!-- Row 1 (compact 3 sub-rows for A4) -->
+                    <tr><td class="rn" rowspan="3">1</td><td class="pn" rowspan="3">Вредители / спектър</td>
+                      <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',1)?'X':' '"></span></td><td class="pp-nm">Хлебарки</td>
+                      <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',2)?'X':' '"></span></td><td class="pp-nm">Мухи</td>
+                      <td class="pp-cb"><span class="pp-cbx" x-text="hp('der',10)?'X':' '"></span></td><td class="pp-nm">Мишки</td>
+                      <td class="pp-cb"><span class="pp-cbx" x-text="hp('dinf',13)?'X':' '"></span></td><td class="pp-nm">Вируси</td>
+                    </tr>
+                    <tr>
+                      <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',3)?'X':' '"></span></td><td class="pp-nm">Комари</td>
+                      <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',5)?'X':' '"></span></td><td class="pp-nm">Мравки</td>
+                      <td class="pp-cb"><span class="pp-cbx" x-text="hp('der',11)?'X':' '"></span></td><td class="pp-nm">Плъхове</td>
+                      <td class="pp-cb"><span class="pp-cbx" x-text="hp('dinf',14)?'X':' '"></span></td><td class="pp-nm">Бактерии</td>
+                    </tr>
+                    <tr>
+                      <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',7)?'X':' '"></span></td><td class="pp-nm">Бълхи</td>
+                      <td class="pp-cb"><span class="pp-cbx" x-text="hp('dis',8)?'X':' '"></span></td><td class="pp-nm">Дървеници</td>
+                      <td class="pp-cb"><span class="pp-cbx" x-text="hp('der','der-other')?'X':' '"></span></td><td class="pp-nm">Друго</td>
+                      <td class="pp-cb"><span class="pp-cbx" x-text="hp('dinf',15)?'X':' '"></span></td><td class="pp-nm">Гъбички</td>
+                    </tr>
+                    <tr><td class="rn">2</td><td class="pn">Обр. площ (m²)</td><td colspan="4" x-text="disTreatedArea||'—'"></td><td colspan="2" x-text="derTreatedArea||'—'"></td><td colspan="2" x-text="dinfTreatedArea||'—'"></td></tr>
+                    <tr><td class="rn">3</td><td class="pn">Вид на обр. площи</td><td colspan="4" x-text="disSurfaceDesc||'—'"></td><td colspan="2" x-text="derSurfaceDesc||'—'"></td><td colspan="2" x-text="dinfSurfaceDesc||'—'"></td></tr>
+                    <tr><td class="rn">4</td><td class="pn">Вид на обработката</td><td colspan="4" x-text="disMethods.join(', ')||'—'"></td><td colspan="2" x-text="derMethods.join(', ')||'—'"></td><td colspan="2" x-text="dinfMethods.join(', ')||'—'"></td></tr>
+                    <tr><td class="rn">5</td><td class="pn">Брой и вид капани</td><td colspan="4" x-text="disNonChem||'—'"></td><td colspan="2" x-text="derNonChem||'—'"></td><td colspan="2">—</td></tr>
+                    <template x-for="row in productRows" :key="row.key">
+                      <tr><td class="rn" x-text="row.num"></td><td class="pn" x-text="row.label"></td>
+                        <td colspan="4" x-text="disProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join(' | ')||'—'"></td>
+                        <td colspan="2" x-text="derProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join(' | ')||'—'"></td>
+                        <td colspan="2" x-text="dinfProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join(' | ')||'—'"></td>
+                      </tr>
+                    </template>
+                    <tr><td class="rn" rowspan="2">11</td><td class="pn">Общо изразходвано</td><td colspan="4" x-text="disTotalUsed||'—'"></td><td colspan="2">—</td><td colspan="2" x-text="dinfTotalUsed||'—'"></td></tr>
+                    <tr><td class="pn">Дер. кутии</td><td colspan="4">—</td><td colspan="2" x-text="derBaitInfo||'—'"></td><td colspan="2">—</td></tr>
+                    <template x-for="row in safetyRows" :key="row.key">
+                      <tr><td class="rn" x-text="row.num"></td><td class="pn" x-text="row.label"></td>
+                        <td colspan="4" x-text="disProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join(' | ')||'—'"></td>
+                        <td colspan="2" x-text="derProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join(' | ')||'—'"></td>
+                        <td colspan="2" x-text="dinfProds.map((p,i)=>(i+1)+'. '+(p[row.key]||'—')).join(' | ')||'—'"></td>
+                      </tr>
+                    </template>
+                    <tr><td class="rn">12.5</td><td class="pn">Други</td><td colspan="4" x-text="disSafetyOther||'—'"></td><td colspan="2" x-text="derSafetyOther||'—'"></td><td colspan="2" x-text="dinfSafetyOther||'—'"></td></tr>
+                    <tr><td class="rn">13</td><td class="pn">Препоръки</td><td colspan="4" x-text="disRecs||'—'"></td><td colspan="2" x-text="derRecs||'—'"></td><td colspan="2" x-text="dinfRecs||'—'"></td></tr>
+                    <tr><td class="rn">14</td><td class="pn">Корекции</td><td colspan="4" x-text="disCorrections||'—'"></td><td colspan="2" x-text="derCorrections||'—'"></td><td colspan="2" x-text="dinfCorrections||'—'"></td></tr>
+                  </tbody>
+                </table>
+                <div class="pp-footnote">* Прилага се картосхема на местоположението им в обекта.</div>
+                <div class="pp-foot">
+                  <div class="pp-foot-row">
+                    <div class="pp-ft">Подготвен от: <strong x-text="workerName(preparedBy)"></strong></div>
+                    <div class="pp-fs">Подпис:</div>
+                    <div class="pp-fd">Дата: <span x-text="date1||'............'"></span></div>
+                  </div>
+                  <div class="pp-foot-row">
+                    <div class="pp-ft">Извършен от: <strong x-text="workerName(executedBy)"></strong></div>
+                    <div class="pp-fs">Подпис:</div>
+                    <div class="pp-fd">Дата: <span x-text="date2||'........'"></span>  Час: от <span x-text="timeFrom||'.....'"></span> до <span x-text="timeTo||'.....'"></span></div>
+                  </div>
+                  <div class="pp-sig-full">Подпис на заявителя: <span x-text="signatory||'.........................................................................'"></span></div>
+                </div>
+              </div>
+            </div>
+            <div class="paper-lbl">A4 портрет (210 × 297 мм) — целият протокол на 1 страница</div>
+          </div>
+        </template>
+
+      </div><!-- /preview-canvas -->
+    </div><!-- /preview view -->
+
+  </div><!-- /x-data -->
+
+
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+  <script>
+    document.addEventListener('alpine:init', () => {
+      Alpine.data('editor', () => ({
+
+        view: 'editor',   /* 'editor' | 'preview' */
+        fmt:  'a5',       /* 'a5' | 'a5-land' | 'a4-p' */
+
+        /* ════ Dummy data ════ */
+        companies: [
+          {id:1, name:'Саниста ВИП СС ООД', eik:'202719904', address:'гр. София, ул. „Нишава" №58, ет.1, ап.6', phone:'0888 61 47 46, 0888 28 24 90'},
+          {id:2, name:'ДДД Профи ЕООД',      eik:'111222333', address:'гр. Пловдив, бул. Марица 12',              phone:'032 111 222'},
+        ],
+        allClients: [
+          {id:1, firm:'"Виктория Нутс" ЕООД', eik:'123456789', address:'гр. София, бул. Дондуков 22',     phone:'02 123 4567'},
+          {id:2, firm:'"АВС Трейд" ООД',       eik:'987654321', address:'гр. Пловдив, ул. Марица 5',       phone:'032 456 789'},
+          {id:3, firm:'"Гурме Вижън" ЕООД',    eik:'555000111', address:'гр. Варна, бул. Приморски 10',    phone:'052 100 200'},
+        ],
+        allSites: [
+          {id:1, clientId:1, name:'Магазин №1',        address:'ул. Витоша 15',            area_m2:120},
+          {id:2, clientId:1, name:'Склад Ломско шосе', address:'бул. Ломско шосе 80',      area_m2:350},
+          {id:3, clientId:2, name:'Офис Пловдив',      address:'ул. Марица 5, ет. 2',      area_m2:80 },
+          {id:4, clientId:3, name:'Ресторант Гурме',   address:'бул. Приморски 10, ет.1',  area_m2:200},
+        ],
+        allProds: {
+          dis:  [
+            {id:1,name:'Карате Зеон 5CS', auth_no:'БД-01-001',formulation:'CS', active_subs:'ламбда-цихалотрин 5 г/л',working_sol:'0.05%', safety:'Да не се допира до очите',  action_time:'4 часа',   access:'4 ч.',   surfaces:'Нанесените повърхности',antidote:'Атропин'},
+            {id:2,name:'Бестицид 10WP',   auth_no:'БД-01-002',formulation:'WP', active_subs:'циперметрин 10%',         working_sol:'0.1%',  safety:'Избягвай контакт',          action_time:'2 часа',   access:'2 ч.',   surfaces:'Работни плотове',       antidote:'Атропин'},
+            {id:3,name:'Сипермекс 10EC',  auth_no:'БД-01-003',formulation:'EC', active_subs:'циперметрин 10%',         working_sol:'0.05%', safety:'Избягвай вдишване',         action_time:'3 часа',   access:'3 ч.',   surfaces:'Плинтуси, ъгли',        antidote:'Атропин'},
+          ],
+          der:  [
+            {id:4,name:'Факорат Паста',  auth_no:'БД-02-001',formulation:'RB', active_subs:'флокумафен 0.005%',  working_sol:'—',     safety:'Недостъпно за деца',         action_time:'—',       access:'—',     surfaces:'—',  antidote:'Витамин К1'},
+            {id:5,name:'Мишемор Грийн', auth_no:'БД-02-002',formulation:'GB', active_subs:'бромадиолон 0.005%', working_sol:'—',     safety:'Недостъпно за деца',         action_time:'—',       access:'—',     surfaces:'—',  antidote:'Витамин К1'},
+          ],
+          dinf: [
+            {id:6,name:'Кализол',         auth_no:'БД-03-001',formulation:'SL', active_subs:'натриев хипохлорит 5%', working_sol:'0.5%',  safety:'Избягвай контакт',  action_time:'30 мин.',  access:'30 мин.',surfaces:'Всички',             antidote:'Симптоматично'},
+            {id:7,name:'Аниосурф Оптима', auth_no:'БД-03-002',formulation:'SL', active_subs:'ДДАХ 5%',               working_sol:'0.25%', safety:'Да не се поглъща',  action_time:'15 мин.',  access:'15 мин.',surfaces:'Работни повърхности', antidote:'Симптоматично'},
+          ],
+        },
+        workers: [
+          {id:1, name:'М. Елкин',   isDef:false, isExec:true },
+          {id:2, name:'Св. Косева', isDef:true,  isExec:false},
+        ],
+        methods: ['механична','физична','биологична','химична с биоцидни препарати'],
+
+        /* Row metadata for loops */
+        productRows: [
+          {num:'6', label:'Търговско наименование на биоцида',              key:'name'},
+          {num:'7', label:'Номер на разрешението за пускане на пазара на биоцида', key:'auth_no'},
+          {num:'8', label:'Формулация на биоцида',                          key:'formulation'},
+          {num:'9', label:'Активни вещества и концентрация',                key:'active_subs'},
+          {num:'10',label:'Работен разтвор — концентрация и норма',         key:'working_sol'},
+        ],
+        safetyRows: [
+          {num:'12',   label:'Указания за мерки за безопасност в обекта',                          key:'safety'},
+          {num:'12.1', label:'Време на въздействие на биоцида',                                    key:'action_time'},
+          {num:'12.2', label:'Достъп на хора и животни до обработените площи. Време за проветряване.', key:'access'},
+          {num:'12.3', label:'Повърхности, подлежащи на забърсване / изплакване след времето на въздействие', key:'surfaces'},
+          {num:'12.4', label:'Антидот',                                                            key:'antidote'},
+        ],
+
+        /* ════ Form state ════ */
+        companyId: null,
+        companyName:'', companyEik:'', companyAddress:'', companyPhone:'',
+
+        clientQ:'', showDrop:false, clientId:null,
+        clientFirm:'', clientEik:'', clientAddress:'', clientPhone:'',
+
+        siteId:null, siteName:'', siteAddress:'', siteArea:'',
+        longTerm: false,
+
+        disSelectedPests:[], disMethods:[], disProds:[],
+        disTreatedArea:'', disSurfaceDesc:'', disNonChem:'',
+        disTotalUsed:'', disSafetyOther:'', disRecs:'', disCorrections:'',
+        disPestOther:'', disSelP:'',
+
+        derSelectedPests:[], derMethods:[], derProds:[],
+        derTreatedArea:'', derSurfaceDesc:'', derNonChem:'',
+        derTotalUsed:'', derSafetyOther:'', derRecs:'', derCorrections:'',
+        derPestOther:'', derSelP:'', derBaitInfo:'',
+
+        dinfSelectedPests:[], dinfMethods:[], dinfProds:[],
+        dinfTreatedArea:'', dinfSurfaceDesc:'',
+        dinfTotalUsed:'', dinfSafetyOther:'', dinfRecs:'', dinfCorrections:'',
+        dinfPestOther:'', dinfSelP:'',
+
+        /* Footer:
+           date1 = "Дата" (Протоколът е подготвен от) → auto-filled = today
+           date2 = "Дата и час" (Обработката е извършена от) → empty        */
+        preparedBy: null,
+        executedBy: null,
+        date1: new Date().toISOString().split('T')[0],  /* today */
+        date2: '',                                       /* empty */
+        timeFrom:'', timeTo:'', signatory:'',
+
+        /* ════ Init ════ */
+        init() {
+          const sup = this.workers.find(w => w.isDef);
+          const exe = this.workers.find(w => w.isExec);
+          if (sup) this.preparedBy = sup.id;
+          if (exe) this.executedBy = exe.id;
+          /* Default company */
+          if (this.companies.length) { this.companyId = this.companies[0].id; this.pickCompany(); }
+        },
+
+        /* ════ Computed ════ */
+        get disActive()  { return this.disSelectedPests.length  > 0; },
+        get derActive()  { return this.derSelectedPests.length  > 0; },
+        get dinfActive() { return this.dinfSelectedPests.length > 0; },
+
+        get filteredClients() {
+          if (!this.clientQ) return this.allClients;
+          const q = this.clientQ.toLowerCase();
+          return this.allClients.filter(c => c.firm.toLowerCase().includes(q) || c.eik.includes(q));
+        },
+        get filteredSites() {
+          if (!this.clientId) return [];
+          return this.allSites.filter(s => s.clientId === this.clientId);
+        },
+
+        /* ════ Methods ════ */
+        pickCompany() {
+          const c = this.companies.find(x => x.id === parseInt(this.companyId));
+          if (c) { this.companyName=c.name; this.companyEik=c.eik; this.companyAddress=c.address; this.companyPhone=c.phone; }
+        },
+
+        pickClient(c) {
+          this.clientId=c.id; this.clientFirm=c.firm; this.clientEik=c.eik;
+          this.clientAddress=c.address; this.clientPhone=c.phone;
+          this.clientQ=c.firm; this.showDrop=false;
+          this.siteId=null; this.siteName=''; this.siteAddress=''; this.siteArea='';
+        },
+        clearClient() {
+          this.clientId=null; this.clientFirm=''; this.clientEik='';
+          this.clientAddress=''; this.clientPhone=''; this.clientQ='';
+          this.clearSite();
+        },
+
+        pickSite() {
+          const s = this.allSites.find(x => x.id === parseInt(this.siteId));
+          if (s) { this.siteName=s.name; this.siteAddress=s.address; this.siteArea=s.area_m2; }
+        },
+        clearSite() {
+          this.siteId=null; this.siteName=''; this.siteAddress=''; this.siteArea='';
+        },
+
+        /* Row 1 pest toggle / has — shorthand names for template brevity */
+        tp(col, id) {
+          const arr = this[col+'SelectedPests'];
+          const i = arr.indexOf(id);
+          if (i>=0) arr.splice(i,1); else arr.push(id);
+        },
+        hp(col, id) { return this[col+'SelectedPests'].includes(id); },
+
+        tm(col, m) {
+          const arr = this[col+'Methods'];
+          const i = arr.indexOf(m);
+          if (i>=0) arr.splice(i,1); else arr.push(m);
+        },
+
+        avail(col) {
+          const added = this[col+'Prods'].map(p=>p.id);
+          return this.allProds[col].filter(p=>!added.includes(p.id));
+        },
+        addP(col) {
+          const pid = parseInt(this[col+'SelP']);
+          if (!pid) return;
+          const p = this.allProds[col].find(x=>x.id===pid);
+          if (p) { this[col+'Prods'].push({...p}); this[col+'SelP']=''; }
+        },
+        rmP(col, pid) { this[col+'Prods'] = this[col+'Prods'].filter(p=>p.id!==pid); },
+
+        workerName(id) {
+          const w = this.workers.find(x => x.id === id);
+          return w ? w.name : '.....................';
+        },
+      }));
+    });
+  </script>
+</body>
+</html>

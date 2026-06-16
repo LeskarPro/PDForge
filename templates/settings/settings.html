@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки — PDForge{% endblock %}
+{% block topbar_title %}Настройки{% endblock %}
+
+{% block content %}
+<style>
+  .settings-wrap { max-width: 720px; display: flex; flex-direction: column; gap: 28px; }
+
+  /* Section card */
+  .settings-section { background: #fff; border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg); overflow: hidden; }
+  .section-head { padding: 16px 20px 14px; border-bottom: 1px solid var(--border-subtle);
+    background: #fdf9f6; }
+  .section-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+  .section-desc  { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .section-body  { padding: 20px; }
+
+  /* Theme cards */
+  .theme-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .theme-card {
+    border: 2px solid var(--border-subtle); border-radius: var(--radius-md);
+    overflow: hidden; cursor: pointer; transition: border-color var(--t-fast);
+    position: relative;
+  }
+  .theme-card:hover { border-color: var(--c-clay); }
+  .theme-card.active { border-color: var(--c-coral); }
+  .theme-card.active::after {
+    content: '✓';
+    position: absolute; top: 5px; right: 6px;
+    font-size: 11px; font-weight: 700;
+    color: #fff; background: var(--c-coral);
+    width: 17px; height: 17px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+  }
+  .theme-preview { height: 72px; display: flex; }
+  .tp-sidebar { width: 28px; display: flex; flex-direction: column;
+    padding: 6px 5px; gap: 3px; }
+  .tp-brand { height: 5px; border-radius: 2px; width: 70%; margin-bottom: 2px; }
+  .tp-nav { height: 4px; border-radius: 2px; }
+  .tp-nav.active { width: 90%; }
+  .tp-nav.muted  { width: 65%; opacity: .35; }
+  .tp-content { flex: 1; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+  .tp-topbar { height: 12px; border-radius: 3px; }
+  .tp-cards { display: flex; gap: 3px; flex: 1; }
+  .tp-card { flex: 1; border-radius: 3px; border-width: 0.5px; border-style: solid; }
+  .theme-label { font-size: 11px; font-weight: 600; color: var(--text-primary);
+    padding: 6px 8px 7px; text-align: center; }
+
+  /* Format radio group */
+  .format-group { display: flex; flex-direction: column; gap: 10px; }
+  .format-option {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm); cursor: pointer;
+    transition: border-color var(--t-fast), background var(--t-fast);
+  }
+  .format-option:hover { border-color: var(--c-clay); background: #fdf9f6; }
+  .format-option.active { border-color: var(--c-coral); background: rgba(192,83,58,.04); }
+  .format-option input[type=radio] { accent-color: var(--c-coral); width: 15px; height: 15px; flex-shrink: 0; }
+  .format-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .format-desc  { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+
+  /* Save bar */
+  .save-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 20px; background: #fff;
+    border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  }
+  .btn-save { padding: 9px 22px; font-size: 13px; font-weight: 600;
+    background: var(--c-coral); color: #fff; border-radius: var(--radius-sm);
+    border: none; cursor: pointer; transition: background var(--t-fast); }
+  .btn-save:hover { background: var(--btn-primary-hover, #f09070); }
+  .save-status { font-size: 12.5px; color: var(--text-muted); }
+  .save-status.ok { color: #2d7a4a; font-weight: 500; }
+</style>
+
+<div class="settings-wrap">
+
+  <!-- ── Theme ── -->
+  <div class="settings-section">
+    <div class="section-head">
+      <div class="section-title">Тема</div>
+      <div class="section-desc">Изберете цветовата схема на приложението</div>
+    </div>
+    <div class="section-body">
+      <div class="theme-grid" id="theme-grid">
+
+        <!-- Coral -->
+        <div class="theme-card {% if settings.theme == 'coral' %}active{% endif %}"
+             data-theme="coral" onclick="selectTheme(this)">
+          <div class="theme-preview">
+            <div class="tp-sidebar" style="background:#3d2b2f">
+              <div class="tp-brand" style="background:#fec196"></div>
+              <div class="tp-nav active" style="background:#ffa686"></div>
+              <div class="tp-nav muted" style="background:#fff"></div>
+              <div class="tp-nav muted" style="background:#fff"></div>
+            </div>
+            <div class="tp-content" style="background:#f6efe9">
+              <div class="tp-topbar" style="background:#fff;border:0.5px solid #e8ddd6"></div>
+              <div class="tp-cards">
+                <div class="tp-card" style="background:#fff;border-color:#e8ddd6"></div>
+                <div class="tp-card" style="background:#fff;border-color:#e8ddd6"></div>
+              </div>
+            </div>
+          </div>
+          <div class="theme-label">Coral</div>
+        </div>
+
+        <!-- Slate -->
+        <div class="theme-card {% if settings.theme == 'slate' %}active{% endif %}"
+             data-theme="slate" onclick="selectTheme(this)">
+          <div class="theme-preview">
+            <div class="tp-sidebar" style="background:#1e293b">
+              <div class="tp-brand" style="background:#93c5fd"></div>
+              <div class="tp-nav active" style="background:#3b82f6"></div>
+              <div class="tp-nav muted" style="background:#fff"></div>
+              <div class="tp-nav muted" style="background:#fff"></div>
+            </div>
+            <div class="tp-content" style="background:#f1f5f9">
+              <div class="tp-topbar" style="background:#fff;border:0.5px solid #e2e8f0"></div>
+              <div class="tp-cards">
+                <div class="tp-card" style="background:#fff;border-color:#e2e8f0"></div>
+                <div class="tp-card" style="background:#fff;border-color:#e2e8f0"></div>
+              </div>
+            </div>
+          </div>
+          <div class="theme-label">Slate</div>
+        </div>
+
+        <!-- Silver -->
+        <div class="theme-card {% if settings.theme == 'silver' %}active{% endif %}"
+             data-theme="silver" onclick="selectTheme(this)">
+          <div class="theme-preview">
+            <div class="tp-sidebar" style="background:#3a3d42">
+              <div class="tp-brand" style="background:#a8c0d8"></div>
+              <div class="tp-nav active" style="background:#6b8cba"></div>
+              <div class="tp-nav muted" style="background:#fff"></div>
+              <div class="tp-nav muted" style="background:#fff"></div>
+            </div>
+            <div class="tp-content" style="background:#edeef0">
+              <div class="tp-topbar" style="background:#fff;border:0.5px solid #d8dadd"></div>
+              <div class="tp-cards">
+                <div class="tp-card" style="background:#fff;border-color:#d8dadd"></div>
+                <div class="tp-card" style="background:#fff;border-color:#d8dadd"></div>
+              </div>
+            </div>
+          </div>
+          <div class="theme-label">Silver</div>
+        </div>
+
+        <!-- Dark -->
+        <div class="theme-card {% if settings.theme == 'dark' %}active{% endif %}"
+             data-theme="dark" onclick="selectTheme(this)">
+          <div class="theme-preview">
+            <div class="tp-sidebar" style="background:#111827">
+              <div class="tp-brand" style="background:#fec196"></div>
+              <div class="tp-nav active" style="background:#c0533a"></div>
+              <div class="tp-nav muted" style="background:#6b7280"></div>
+              <div class="tp-nav muted" style="background:#6b7280"></div>
+            </div>
+            <div class="tp-content" style="background:#1f2937">
+              <div class="tp-topbar" style="background:#111827;border:0.5px solid #374151"></div>
+              <div class="tp-cards">
+                <div class="tp-card" style="background:#111827;border-color:#374151"></div>
+                <div class="tp-card" style="background:#111827;border-color:#374151"></div>
+              </div>
+            </div>
+          </div>
+          <div class="theme-label">Dark</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Default protocol format ── -->
+  <div class="settings-section">
+    <div class="section-head">
+      <div class="section-title">Формат на протокол по подразбиране</div>
+      <div class="section-desc">Автоматично избран при отваряне на страницата за преглед</div>
+    </div>
+    <div class="section-body">
+      <div class="format-group" id="format-group">
+
+        <label class="format-option {% if settings.default_protocol_format == 'a5' %}active{% endif %}"
+               onclick="selectFormat(this, 'a5')">
+          <input type="radio" name="format" value="a5"
+                 {% if settings.default_protocol_format == 'a5' %}checked{% endif %}>
+          <div>
+            <div class="format-label">A5 (2 стр.)</div>
+            <div class="format-desc">Два A5 листа — лицева и гръб — по един на страница</div>
+          </div>
+        </label>
+
+        <label class="format-option {% if settings.default_protocol_format == 'a5-land' %}active{% endif %}"
+               onclick="selectFormat(this, 'a5-land')">
+          <input type="radio" name="format" value="a5-land"
+                 {% if settings.default_protocol_format == 'a5-land' %}checked{% endif %}>
+          <div>
+            <div class="format-label">A5 → A4 пейзаж</div>
+            <div class="format-desc">Четири A5 копия върху два A4 листа в пейзажна ориентация</div>
+          </div>
+        </label>
+
+        <label class="format-option {% if settings.default_protocol_format == 'a4-p' %}active{% endif %}"
+               onclick="selectFormat(this, 'a4-p')">
+          <input type="radio" name="format" value="a4-p"
+                 {% if settings.default_protocol_format == 'a4-p' %}checked{% endif %}>
+          <div>
+            <div class="format-label">A4 портрет</div>
+            <div class="format-desc">Целият протокол на A4 лист в портретна ориентация</div>
+          </div>
+        </label>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Save bar ── -->
+  <div class="save-bar">
+    <button class="btn-save" onclick="saveSettings()">Запази настройките</button>
+    <span class="save-status" id="save-status"></span>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const THEME_VARS = {
+    coral: {},
+    slate: {
+      '--c-plum':'#1e293b','--c-coral':'#3b82f6','--c-clay':'#2563eb',
+      '--c-mauve':'#4a7abf','--c-peach':'#93c5fd',
+      '--sidebar-bg':'#1e293b','--sidebar-brand-bg':'#0f172a',
+      '--nav-text-active':'#93c5fd','--nav-bg-hover':'#273549',
+      '--nav-bg-active':'#2d4060','--nav-accent-active':'#3b82f6',
+      '--nav-sub-bg':'#162030','--nav-sub-bg-hover':'#243550',
+      '--version-text':'#334f70',
+      '--content-bg':'#f1f5f9','--card-bg':'#ffffff',
+      '--text-primary':'#0f172a','--text-muted':'#64748b',
+      '--border-subtle':'rgba(100,116,139,0.2)',
+      '--btn-primary-bg':'#3b82f6','--btn-primary-hover':'#2563eb',
+    },
+    silver: {
+      '--c-plum':'#3a3d42','--c-coral':'#6b8cba','--c-clay':'#5a7aaa',
+      '--c-mauve':'#7a9cbf','--c-peach':'#a8c0d8',
+      '--sidebar-bg':'#3a3d42','--sidebar-brand-bg':'#25272b',
+      '--nav-text-active':'#a8c0d8','--nav-bg-hover':'#454850',
+      '--nav-bg-active':'#4e5158','--nav-accent-active':'#6b8cba',
+      '--nav-sub-bg':'#2e3035','--nav-sub-bg-hover':'#3a3d44',
+      '--version-text':'#5a6070',
+      '--content-bg':'#edeef0','--card-bg':'#ffffff',
+      '--text-primary':'#25272b','--text-muted':'#8a8f96',
+      '--border-subtle':'rgba(100,105,115,0.18)',
+      '--btn-primary-bg':'#6b8cba','--btn-primary-hover':'#5a7aaa',
+    },
+    dark: {
+      '--c-plum':'#111827','--c-coral':'#c0533a','--c-clay':'#a04530',
+      '--c-mauve':'#8a4030','--c-peach':'#fec196',
+      '--sidebar-bg':'#111827','--sidebar-brand-bg':'#0a0f1a',
+      '--nav-text-active':'#fec196','--nav-bg-hover':'#1f2937',
+      '--nav-bg-active':'#243040','--nav-accent-active':'#c0533a',
+      '--nav-sub-bg':'#0d1420','--nav-sub-bg-hover':'#1a2232',
+      '--version-text':'#374151',
+      '--content-bg':'#1f2937','--card-bg':'#111827',
+      '--text-primary':'#f9fafb','--text-muted':'#9ca3af',
+      '--border-subtle':'rgba(255,255,255,0.1)',
+      '--btn-primary-bg':'#c0533a','--btn-primary-hover':'#a04530',
+    },
+  };
+
+  const CORAL_DEFAULTS = {
+    '--c-plum':'#63474d','--c-coral':'#ffa686','--c-clay':'#d6a184',
+    '--c-mauve':'#aa767c','--c-peach':'#fec196',
+    '--sidebar-bg':'#63474d','--sidebar-brand-bg':'#4a343a',
+    '--nav-text-active':'#fec196','--nav-bg-hover':'#74565c',
+    '--nav-bg-active':'#7d5f66','--nav-accent-active':'#ffa686',
+    '--nav-sub-bg':'#4a343a','--nav-sub-bg-hover':'#574048',
+    '--version-text':'#7d5f66',
+    '--content-bg':'#f6efe9','--card-bg':'#ffffff',
+    '--text-primary':'#3d2b2f','--text-muted':'#9a7a80',
+    '--border-subtle':'rgba(170,118,124,0.15)',
+    '--btn-primary-bg':'#ffa686','--btn-primary-hover':'#f09070',
+  };
+
+  let _currentTheme  = '{{ settings.theme }}';
+  let _currentFormat = '{{ settings.default_protocol_format }}';
+
+  function applyThemeVars(theme) {
+    const root = document.documentElement;
+    const vars = theme === 'coral' ? CORAL_DEFAULTS : THEME_VARS[theme] || {};
+    // Reset to coral defaults first, then override
+    Object.entries(CORAL_DEFAULTS).forEach(([k]) => root.style.removeProperty(k));
+    Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
+  }
+
+  function selectTheme(card) {
+    document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    _currentTheme = card.dataset.theme;
+    applyThemeVars(_currentTheme);
+    showStatus('');
+  }
+
+  function selectFormat(label, val) {
+    document.querySelectorAll('.format-option').forEach(l => l.classList.remove('active'));
+    label.classList.add('active');
+    _currentFormat = val;
+    showStatus('');
+  }
+
+  function showStatus(msg, ok) {
+    const el = document.getElementById('save-status');
+    el.textContent = msg;
+    el.className = 'save-status' + (ok ? ' ok' : '');
+  }
+
+  function saveSettings() {
+    const form = new FormData();
+    form.append('theme', _currentTheme);
+    form.append('default_protocol_format', _currentFormat);
+    form.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    fetch('{% url "core:settings_save" %}', { method: 'POST', body: form })
+      .then(r => {
+        if (r.ok) showStatus('Запазено успешно.', true);
+        else showStatus('Грешка при запазване.');
+      })
+      .catch(() => showStatus('Грешка при запазване.'));
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <title>Шаблони — Папки (v2)</title>
+  <style>
+    :root {
+      --c-peach:#fec196; --c-coral:#ffa686; --c-clay:#d6a184; --c-mauve:#aa767c; --c-plum:#63474d;
+      --sidebar-width:240px; --sidebar-bg:var(--c-plum); --sidebar-brand-bg:#4a343a;
+      --nav-text:rgba(255,255,255,.82); --nav-text-hover:rgba(255,255,255,.97); --nav-text-active:var(--c-peach);
+      --nav-bg-hover:#74565c; --nav-bg-active:#7d5f66; --nav-accent-active:var(--c-coral);
+      --nav-label-text:rgba(255,255,255,.35); --version-text:#7d5f66;
+      --content-bg:#f6efe9; --card-bg:#fff; --text-primary:#3d2b2f; --text-muted:#9a7a80;
+      --border-subtle:rgba(170,118,124,.15);
+      --radius-sm:4px; --radius-md:6px; --t-fast:140ms ease;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px}
+    a{text-decoration:none;cursor:pointer}
+    button{border:none;background:none;cursor:pointer;font:inherit;text-align:left}
+
+    /* ── Layout ── */
+    .app-layout{display:flex;height:100vh;overflow:hidden}
+    .sidebar{width:var(--sidebar-width);min-width:var(--sidebar-width);background:var(--sidebar-bg);display:flex;flex-direction:column;height:100vh}
+    .sidebar-brand{background:var(--sidebar-brand-bg);padding:18px 16px 16px;display:flex;flex-direction:column;gap:3px}
+    .brand-appname{font-size:17px;font-weight:700;color:var(--c-peach)}
+    .brand-company{font-size:12px;color:rgba(255,255,255,.6)}
+    .sidebar-nav{flex:1;padding:8px 0;overflow-y:auto}
+    .sidebar-management{flex-shrink:0;padding:6px 0 4px;border-top:1px solid rgba(255,255,255,.08)}
+    .sidebar-version{flex-shrink:0;padding:8px 16px 12px;font-size:11px;color:var(--version-text)}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;color:var(--nav-text);border-left:3px solid transparent;border-radius:0 var(--radius-sm) var(--radius-sm) 0;transition:background var(--t-fast),color var(--t-fast);width:100%}
+    .nav-item:hover{background:var(--nav-bg-hover);color:var(--nav-text-hover)}
+    .nav-item.active{background:var(--nav-bg-active);color:var(--nav-text-active);border-left-color:var(--nav-accent-active);font-weight:500}
+    .nav-text{flex:1;font-size:13.5px}
+    .nav-section-label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--nav-label-text);padding:6px 18px 2px}
+    .main-content{flex:1;background:var(--content-bg);display:flex;flex-direction:column;overflow:hidden}
+    .topbar{background:var(--card-bg);border-bottom:1px solid var(--border-subtle);padding:0 28px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .topbar-title{font-size:16px;font-weight:600;color:var(--text-primary)}
+    .page-body{flex:1;overflow-y:auto;padding:24px 28px}
+
+    /* ── Buttons ── */
+    .btn-primary{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--c-coral);color:#fff;font-size:13.5px;font-weight:500;border-radius:var(--radius-sm);transition:background var(--t-fast);cursor:pointer}
+    .btn-primary:hover{background:#f09070}
+    .btn-outline{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--card-bg);color:var(--text-muted);font-size:13px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);transition:background var(--t-fast),color var(--t-fast);cursor:pointer}
+    .btn-outline:hover{color:var(--text-primary);border-color:var(--c-clay)}
+    .btn-use{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;background:var(--c-coral);color:#fff;font-size:12.5px;font-weight:500;border-radius:var(--radius-sm);transition:background var(--t-fast);cursor:pointer;white-space:nowrap}
+    .btn-use:hover{background:#f09070}
+
+    /* ── Toolbar ── */
+    .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+    .search-wrap{position:relative;flex:1;max-width:320px}
+    .search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);width:15px;height:15px}
+    .search-input{width:100%;padding:8px 12px 8px 32px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);background:var(--card-bg);font-size:13px;color:var(--text-primary);outline:none}
+    .search-input:focus{border-color:var(--c-clay)}
+    .toolbar-spacer{flex:1}
+
+    /* ── Breadcrumb ── */
+    .breadcrumb{display:flex;align-items:center;gap:4px;margin-bottom:14px;flex-wrap:wrap}
+    .crumb{font-size:13px;color:var(--c-mauve);cursor:pointer;padding:2px 4px;border-radius:var(--radius-sm);transition:background var(--t-fast),color var(--t-fast)}
+    .crumb:hover{background:rgba(170,118,124,.1);color:var(--c-plum)}
+    .crumb-current{font-size:13px;color:var(--text-primary);font-weight:600;padding:2px 4px}
+    .crumb-sep{color:var(--border-subtle);font-size:12px;user-select:none}
+
+    /* ── File list ── */
+    .file-list{display:flex;flex-direction:column;gap:6px}
+
+    /* ── FOLDER ROW ── */
+    .folder-row{
+      background:var(--card-bg);
+      border:1px solid var(--border-subtle);
+      border-radius:var(--radius-md);
+      display:flex;align-items:center;gap:14px;
+      padding:12px 16px;
+      cursor:pointer;
+      transition:border-color var(--t-fast),box-shadow var(--t-fast);
+      min-height:56px;
+    }
+    .folder-row:hover{border-color:var(--c-clay);box-shadow:0 2px 8px rgba(99,71,77,.07)}
+    .folder-icon{
+      flex-shrink:0;width:36px;height:36px;
+      background:rgba(214,161,132,.14);
+      border-radius:var(--radius-sm);
+      display:flex;align-items:center;justify-content:center;
+      color:var(--c-clay);
+    }
+    .folder-icon svg{width:18px;height:18px}
+    .folder-name{flex:1;font-size:14px;font-weight:600;color:var(--text-primary)}
+    .folder-count{font-size:11px;color:var(--text-muted);background:rgba(170,118,124,.1);padding:2px 9px;border-radius:10px;white-space:nowrap}
+    .folder-more{
+      display:flex;align-items:center;justify-content:center;
+      width:28px;height:28px;border-radius:var(--radius-sm);
+      color:var(--text-muted);border:1px solid transparent;
+      font-size:15px;letter-spacing:.05em;
+      transition:background var(--t-fast),color var(--t-fast),border-color var(--t-fast);
+      cursor:pointer;flex-shrink:0;
+    }
+    .folder-more:hover{background:var(--content-bg);border-color:var(--border-subtle);color:var(--text-primary)}
+
+    /* ── TEMPLATE ROW ── */
+    .template-card{
+      background:var(--card-bg);
+      border:1px solid var(--border-subtle);
+      border-radius:var(--radius-md);
+      display:flex;align-items:stretch;
+      overflow:hidden;
+      min-height:82px;
+      transition:border-color var(--t-fast),box-shadow var(--t-fast);
+    }
+    .template-card:hover{border-color:var(--c-clay);box-shadow:0 2px 10px rgba(99,71,77,.08)}
+
+    /* Left accent strip (shows it's a template, not a folder) */
+    .tpl-strip{
+      width:4px;flex-shrink:0;
+      background:linear-gradient(to bottom, var(--c-clay), var(--c-mauve));
+    }
+
+    /* Main info */
+    .tpl-main{
+      flex:1;min-width:0;
+      padding:11px 16px;
+      display:flex;flex-direction:column;justify-content:center;gap:4px;
+    }
+    .tpl-pseudo{font-size:16px;font-weight:800;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+    .tpl-firm  {font-size:13px;color:#6b4e54;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .tpl-site  {display:flex;align-items:center;gap:6px;margin-top:1px;min-width:0}
+    .tpl-site-name{font-size:12px;font-weight:600;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;max-width:55%}
+    .tpl-site-sep {font-size:11px;color:var(--border-subtle);flex-shrink:0}
+    .tpl-addr  {font-size:11.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px;opacity:.8;min-width:0}
+    .tpl-addr svg{flex-shrink:0;opacity:.6}
+
+    /* Pests block */
+    .tpl-pests{
+      flex-shrink:0;width:175px;
+      padding:10px 14px;
+      border-left:1px solid var(--border-subtle);
+      background:#fdf9f6;
+      display:flex;flex-wrap:wrap;align-content:center;gap:4px;
+    }
+    .pest-tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--radius-sm);font-size:11px;font-weight:500;white-space:nowrap}
+    .pest-di{background:rgba(255,166,134,.13);color:#b05030;border:1px solid rgba(255,166,134,.35)}
+    .pest-dr{background:rgba(170,118,124,.13);color:#6a3a42;border:1px solid rgba(170,118,124,.35)}
+    .pest-dn{background:rgba(214,161,132,.13);color:#885030;border:1px solid rgba(214,161,132,.35)}
+
+    /* Tags + Price block */
+    .tpl-meta{
+      flex-shrink:0;width:125px;
+      padding:10px 12px;
+      border-left:1px solid var(--border-subtle);
+      display:flex;flex-direction:column;justify-content:center;gap:8px;
+    }
+    .tags-row{display:flex;flex-wrap:wrap;gap:4px}
+    .tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:500}
+    .tag-green{background:rgba(74,160,100,.12);color:#2d7a4a;border:1px solid rgba(74,160,100,.3)}
+    .tag-blue {background:rgba(74,120,200,.12);color:#2d5ca8;border:1px solid rgba(74,120,200,.3)}
+    .tag-mauve{background:rgba(170,118,124,.12);color:#6a3a42;border:1px solid rgba(170,118,124,.3)}
+    .price-row {font-size:13px;font-weight:600;color:var(--text-primary)}
+    .price-none{font-size:12px;color:var(--text-muted);font-style:italic}
+
+    /* Actions */
+    .tpl-actions{
+      flex-shrink:0;
+      border-left:1px solid var(--border-subtle);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+      padding:10px 12px;
+    }
+    .btn-more{
+      display:flex;align-items:center;justify-content:center;
+      width:28px;height:28px;border-radius:var(--radius-sm);
+      color:var(--text-muted);border:1px solid var(--border-subtle);
+      font-size:15px;letter-spacing:.05em;
+      transition:background var(--t-fast),color var(--t-fast);cursor:pointer;
+    }
+    .btn-more:hover{background:var(--content-bg);color:var(--text-primary)}
+
+    /* ── Section divider between folders and templates ── */
+    .section-label{
+      font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;
+      color:var(--text-muted);padding:4px 2px 6px;
+    }
+
+    /* ── Dropdown menu ── */
+    .dropdown-wrap{position:relative;display:inline-block}
+    .dropdown-menu{
+      position:absolute;right:0;top:calc(100% + 4px);
+      background:var(--card-bg);border:1px solid var(--border-subtle);
+      border-radius:var(--radius-md);min-width:150px;
+      box-shadow:0 6px 20px rgba(61,43,47,.12);z-index:50;
+      display:none;
+      overflow:hidden;
+    }
+    .dropdown-menu.open{display:block}
+    .dropdown-item{
+      display:flex;align-items:center;gap:8px;
+      padding:9px 14px;font-size:13px;color:var(--text-primary);
+      transition:background var(--t-fast);cursor:pointer;
+    }
+    .dropdown-item:hover{background:var(--content-bg)}
+    .dropdown-item.danger{color:#b05030}
+    .dropdown-item svg{width:13px;height:13px;opacity:.7;flex-shrink:0}
+    .dropdown-sep{border-top:1px solid var(--border-subtle);margin:3px 0}
+
+    /* ── Empty state ── */
+    .empty-state{
+      text-align:center;padding:48px 24px;
+      border:1.5px dashed rgba(170,118,124,.3);
+      border-radius:var(--radius-md);
+      background:rgba(255,255,255,.5);
+    }
+    .empty-state p{font-size:14px;color:var(--text-muted);margin-top:6px}
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-appname">PDForge</span>
+      <span class="brand-company">ДДД Про ЕООД</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item"><span class="nav-text">Табло</span></a>
+      <a class="nav-item"><span class="nav-text">Протоколи</span></a>
+      <a class="nav-item active"><span class="nav-text">Шаблони</span></a>
+      <a class="nav-item"><span class="nav-text">Еднократни обработки</span></a>
+      <a class="nav-item"><span class="nav-text">Справки</span></a>
+      <a class="nav-item"><span class="nav-text">Клиенти</span></a>
+      <a class="nav-item"><span class="nav-text">Обекти</span></a>
+      <a class="nav-item"><span class="nav-text">Етикети</span></a>
+    </nav>
+    <div class="sidebar-management">
+      <span class="nav-section-label">Управление</span>
+      <a class="nav-item"><span class="nav-text">Справочници</span></a>
+      <a class="nav-item"><span class="nav-text">База данни</span></a>
+      <a class="nav-item"><span class="nav-text">Настройки</span></a>
+    </div>
+    <div class="sidebar-version">v1.0.0 Beta</div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main-content">
+    <div class="topbar">
+      <span class="topbar-title">Шаблони</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn-outline" onclick="alert('Нова папка')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5v6m3-3H9m4.06-7.19-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"/></svg>
+          Нова папка
+        </button>
+        <button class="btn-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          Нов шаблон
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="search-wrap">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0Z"/></svg>
+          <input class="search-input" type="text" placeholder="Търси шаблон…">
+        </div>
+        <div class="toolbar-spacer"></div>
+        <span id="item-count" style="font-size:12px;color:var(--text-muted)"></span>
+      </div>
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumb" id="breadcrumb"></div>
+
+      <!-- File list -->
+      <div class="file-list" id="file-list"></div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+// ══════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════
+const tree = {
+  root: {
+    type: 'folder',
+    name: 'Шаблони',
+    children: ['f-victoria', 'f-transcom', 'f-hranmag', 't-stroy-loose']
+  },
+  'f-victoria': {
+    type: 'folder', name: 'Виктория Нутс',
+    children: ['f-victoria-mag', 'f-victoria-sklad']
+  },
+  'f-victoria-mag': {
+    type: 'folder', name: 'Магазини',
+    children: ['t-vn-mag1', 't-vn-mag2']
+  },
+  'f-victoria-sklad': {
+    type: 'folder', name: 'Складове',
+    children: ['t-vn-sklad1']
+  },
+  'f-transcom': {
+    type: 'folder', name: 'Транс Ком',
+    children: ['t-tc-1', 't-tc-2']
+  },
+  'f-hranmag': {
+    type: 'folder', name: 'ХранМаг',
+    children: ['t-hm-1']
+  },
+
+  // Templates
+  't-vn-mag1': {
+    type: 'template',
+    pseudo: 'Виктория Нутс', firm: '„Виктория Нутс" ЕООД',
+    site: 'Магазин №1, гр. София', address: 'ул. Витоша 15',
+    pests: [{name:'Мухи',cls:'pest-di'},{name:'Хлебарки',cls:'pest-di'},{name:'Мравки',cls:'pest-di'}],
+    tags: [{label:'Хранителен',cls:'tag-green'},{label:'Месечно',cls:'tag-blue'}],
+    price: '85.00 лв'
+  },
+  't-vn-mag2': {
+    type: 'template',
+    pseudo: 'Виктория Нутс', firm: '„Виктория Нутс" ЕООД',
+    site: 'Магазин №3, гр. София', address: 'бул. Дондуков 22',
+    pests: [{name:'Хлебарки',cls:'pest-di'},{name:'Мравки',cls:'pest-di'}],
+    tags: [{label:'Хранителен',cls:'tag-green'}],
+    price: '60.00 лв'
+  },
+  't-vn-sklad1': {
+    type: 'template',
+    pseudo: 'Виктория Нутс', firm: '„Виктория Нутс" ЕООД',
+    site: 'Склад Люлин', address: 'ул. Народни Будители 8',
+    pests: [{name:'Плъхове',cls:'pest-dr'},{name:'Мишки',cls:'pest-dr'}],
+    tags: [{label:'Договор',cls:'tag-mauve'}],
+    price: null
+  },
+  't-tc-1': {
+    type: 'template',
+    pseudo: 'Транс Ком', firm: 'Транс Ком ООД',
+    site: 'Склад Банишора', address: 'ул. Индустриална 7, гр. Пловдив',
+    pests: [{name:'Хлебарки',cls:'pest-di'},{name:'Плъхове',cls:'pest-dr'},{name:'Мишки',cls:'pest-dr'}],
+    tags: [{label:'Договор',cls:'tag-mauve'},{label:'Месечно',cls:'tag-blue'}],
+    price: '120.00 лв'
+  },
+  't-tc-2': {
+    type: 'template',
+    pseudo: 'Транс Ком', firm: 'Транс Ком ООД',
+    site: 'Гараж', address: 'ул. Магистрална 3, гр. Пловдив',
+    pests: [{name:'Плъхове',cls:'pest-dr'}],
+    tags: [{label:'Договор',cls:'tag-mauve'}],
+    price: '40.00 лв'
+  },
+  't-hm-1': {
+    type: 'template',
+    pseudo: 'ХранМаг №5', firm: 'ХранМаг ЕООД',
+    site: 'Магазин №5', address: 'бул. Опълченски 88, гр. Русе',
+    pests: [{name:'Хлебарки',cls:'pest-di'},{name:'Мравки',cls:'pest-di'}],
+    tags: [{label:'Хранителен',cls:'tag-green'}],
+    price: '45.00 лв'
+  },
+  't-stroy-loose': {
+    type: 'template',
+    pseudo: 'Строй', firm: 'Строй ООД',
+    site: 'Склад №2', address: 'ул. Строителна 3, гр. Бургас',
+    pests: [{name:'Плъхове',cls:'pest-dr'},{name:'Мишки',cls:'pest-dr'}],
+    tags: [{label:'Договор',cls:'tag-mauve'}],
+    price: '60.00 лв'
+  }
+};
+
+// ══════════════════════════════════════
+//  NAVIGATION STATE
+// ══════════════════════════════════════
+let pathStack = [{ id: 'root', name: 'Шаблони' }];
+let openDropdown = null;
+
+function currentFolder() {
+  return pathStack[pathStack.length - 1];
+}
+
+function navigate(folderId, folderName) {
+  pathStack.push({ id: folderId, name: folderName });
+  render();
+}
+
+function navigateTo(index) {
+  pathStack = pathStack.slice(0, index + 1);
+  render();
+}
+
+// ══════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════
+function render() {
+  renderBreadcrumb();
+  renderFileList();
+  closeAllDropdowns();
+}
+
+function renderBreadcrumb() {
+  const bc = document.getElementById('breadcrumb');
+  bc.innerHTML = '';
+  pathStack.forEach((seg, i) => {
+    if (i < pathStack.length - 1) {
+      const crumb = document.createElement('span');
+      crumb.className = 'crumb';
+      crumb.textContent = seg.name;
+      crumb.onclick = () => navigateTo(i);
+      bc.appendChild(crumb);
+      const sep = document.createElement('span');
+      sep.className = 'crumb-sep';
+      sep.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>`;
+      bc.appendChild(sep);
+    } else {
+      const cur = document.createElement('span');
+      cur.className = 'crumb-current';
+      cur.textContent = seg.name;
+      bc.appendChild(cur);
+    }
+  });
+}
+
+function renderFileList() {
+  const list = document.getElementById('file-list');
+  list.innerHTML = '';
+  const node = tree[currentFolder().id];
+  const children = node.children || [];
+
+  const folders   = children.filter(id => tree[id].type === 'folder');
+  const templates = children.filter(id => tree[id].type === 'template');
+
+  // update count
+  const countEl = document.getElementById('item-count');
+  const parts = [];
+  if (folders.length)   parts.push(folders.length   + (folders.length   === 1 ? ' папка' : ' папки'));
+  if (templates.length) parts.push(templates.length + (templates.length === 1 ? ' шаблон' : ' шаблона'));
+  countEl.textContent = parts.join(', ') || '';
+
+  if (!children.length) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="var(--c-clay)" style="margin-bottom:10px"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v8.25m19.5 0v-7.5a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44l-2.122-2.12a1.5 1.5 0 0 0-1.06-.44H4.5m19.5 9v6.75A2.25 2.25 0 0 1 21.75 21H2.25A2.25 2.25 0 0 1 0 18.75v-7.5"/></svg>
+        <p>Тази папка е празна.<br>Добавете шаблон или нова подпапка.</p>
+      </div>`;
+    return;
+  }
+
+  // Folders section
+  if (folders.length) {
+    if (templates.length) {
+      const lbl = document.createElement('div');
+      lbl.className = 'section-label';
+      lbl.textContent = 'Папки';
+      list.appendChild(lbl);
+    }
+    folders.forEach(id => list.appendChild(buildFolderRow(id)));
+  }
+
+  // Templates section
+  if (templates.length) {
+    if (folders.length) {
+      const lbl = document.createElement('div');
+      lbl.className = 'section-label';
+      lbl.style.marginTop = '12px';
+      lbl.textContent = 'Шаблони';
+      list.appendChild(lbl);
+    }
+    templates.forEach(id => list.appendChild(buildTemplateRow(id)));
+  }
+}
+
+// ══════════════════════════════════════
+//  FOLDER ROW
+// ══════════════════════════════════════
+function buildFolderRow(id) {
+  const f = tree[id];
+  const childCount = f.children ? f.children.length : 0;
+
+  const row = document.createElement('div');
+  row.className = 'folder-row';
+  row.onclick = (e) => {
+    if (!e.target.closest('.dropdown-wrap')) navigate(id, f.name);
+  };
+
+  row.innerHTML = `
+    <div class="folder-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v8.25m19.5 0v-7.5a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44l-2.122-2.12a1.5 1.5 0 0 0-1.06-.44H4.5m19.5 9v6.75A2.25 2.25 0 0 1 21.75 21H2.25A2.25 2.25 0 0 1 0 18.75v-7.5"/></svg>
+    </div>
+    <div class="folder-name">${f.name}</div>
+    <span class="folder-count">${childCount} ${childCount === 1 ? 'елемент' : 'елемента'}</span>
+    <div class="dropdown-wrap">
+      <button class="folder-more" onclick="toggleDropdown(event, 'dd-${id}')">⋯</button>
+      <div class="dropdown-menu" id="dd-${id}">
+        <div class="dropdown-item">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+          Преименувай
+        </div>
+        <div class="dropdown-item">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg>
+          Премести
+        </div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-item danger">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+          Изтрий папката
+        </div>
+      </div>
+    </div>
+  `;
+  return row;
+}
+
+// ══════════════════════════════════════
+//  TEMPLATE ROW
+// ══════════════════════════════════════
+function buildTemplateRow(id) {
+  const t = tree[id];
+  const pestsHtml = t.pests.map(p => `<span class="pest-tag ${p.cls}">${p.name}</span>`).join('');
+  const tagsHtml  = t.tags.map(tg => `<span class="tag ${tg.cls}">${tg.label}</span>`).join('');
+  const priceHtml = t.price
+    ? `<span class="price-row">${t.price}</span>`
+    : `<span class="price-none">без цена</span>`;
+
+  const card = document.createElement('div');
+  card.className = 'template-card';
+  card.innerHTML = `
+    <div class="tpl-strip"></div>
+    <div class="tpl-main">
+      <div class="tpl-pseudo">${t.pseudo}</div>
+      <div class="tpl-firm">${t.firm}</div>
+      <div class="tpl-site">
+        <span class="tpl-site-name">${t.site}</span>
+        <span class="tpl-site-sep">·</span>
+        <div class="tpl-addr">
+          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/></svg>
+          <span>${t.address}</span>
+        </div>
+      </div>
+    </div>
+    <div class="tpl-pests">${pestsHtml}</div>
+    <div class="tpl-meta">
+      <div class="tags-row">${tagsHtml}</div>
+      <div>${priceHtml}</div>
+    </div>
+    <div class="tpl-actions">
+      <button class="btn-use">Използвай</button>
+      <div class="dropdown-wrap">
+        <button class="btn-more" onclick="toggleDropdown(event, 'dd-${id}')">⋯</button>
+        <div class="dropdown-menu" id="dd-${id}">
+          <div class="dropdown-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+            Редактирай
+          </div>
+          <div class="dropdown-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg>
+            Премести
+          </div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-item danger">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+            Изтрий
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  return card;
+}
+
+// ══════════════════════════════════════
+//  DROPDOWN HELPERS
+// ══════════════════════════════════════
+function toggleDropdown(e, id) {
+  e.stopPropagation();
+  const menu = document.getElementById(id);
+  const isOpen = menu.classList.contains('open');
+  closeAllDropdowns();
+  if (!isOpen) {
+    menu.classList.add('open');
+    openDropdown = id;
+  }
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+  openDropdown = null;
+}
+
+document.addEventListener('click', closeAllDropdowns);
+
+// ══════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════
+render();
+</script>
+</body>
+</html>

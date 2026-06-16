@@ -1,0 +1,69 @@
+{% for worker in workers %}
+<tr class="worker-row {% if not worker.is_active %}inactive{% endif %}"
+    id="worker-row-{{ worker.pk }}"
+    data-search="{{ worker.name }} {{ worker.role }}">
+  <td>
+    <div class="worker-name">{{ worker.name }}</div>
+    {% if worker.role %}<div class="worker-role">{{ worker.role }}</div>{% endif %}
+  </td>
+  <td>
+    <div style="display:flex;flex-direction:column;gap:4px;">
+      {% if worker.is_default_supervisor %}
+        <span class="default-badge badge-supervisor">Подготвил (по подр.)</span>
+      {% endif %}
+      {% if worker.is_default_executor %}
+        <span class="default-badge badge-executor">Изпълнил (по подр.)</span>
+      {% endif %}
+      {% if not worker.is_default_supervisor and not worker.is_default_executor %}
+        <span style="color:var(--text-muted);font-size:12px;">—</span>
+      {% endif %}
+    </div>
+  </td>
+  <td>
+    {% if worker.is_active %}
+      <span class="default-badge" style="background:rgba(60,160,100,.12);color:#1a6b3a;">Активен</span>
+    {% else %}
+      <span class="default-badge badge-inactive">Неактивен</span>
+    {% endif %}
+  </td>
+  <td>
+    <div class="row-actions">
+      <button class="site-btn edit" title="Редактирай"
+              hx-get="{% url 'core:worker_edit' worker.pk %}"
+              hx-target="#modal-content"
+              hx-swap="innerHTML">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652
+                   L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685
+                   a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/>
+        </svg>
+      </button>
+      <button class="site-btn del" title="Изтрий"
+              hx-delete="{% url 'core:worker_delete' worker.pk %}"
+              hx-target="#worker-list"
+              hx-swap="innerHTML"
+              hx-confirm="Изтрий работник „{{ worker.name }}"?">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21
+                   c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673
+                   a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1
+                   -2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0
+                   -3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0
+                   a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916
+                   c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0
+                   -3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916
+                   m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+        </svg>
+      </button>
+    </div>
+  </td>
+</tr>
+{% empty %}
+<tr class="no-workers-row">
+  <td colspan="4">Няма въведени работници.</td>
+</tr>
+{% endfor %}

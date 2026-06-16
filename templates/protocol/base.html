@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Протокол{% endblock %}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 1mm 0;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 8.5pt;
+      line-height: 1.1;
+    }
+
+    .page-break { page-break-after: always; }
+
+    /* ===== Header line: logo + slogan + title + appendix ===== */
+    .protocol-header-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      /*margin-bottom: 6px;*/
+    }
+    .protocol-header-line .brand-block {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .protocol-header-line .logo {
+      padding-left: 60px;
+      height: 26px;
+      width: auto;
+    }
+    .protocol-header-line .brand-slogan {
+      font-style: italic;
+      font-size: 8pt;
+      white-space: nowrap;
+    }
+    .protocol-header-line .doc-title-inline {
+      font-weight: bold;
+      font-size: 11pt;
+    }
+    .protocol-header-line .doc-appendix {
+      padding-right: 40px;
+      font-size: 8pt;
+    }
+
+    /* ===== Header table (3 parties + engagement strip) ===== */
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      /*margin-bottom: 6px;*/
+    }
+    .header-table th, .header-table td {
+      border: 1px solid;
+      padding: 3px 6px;
+      vertical-align: top;
+      font-size: 7pt;
+      font-weight: bold;            /* all header-table text bold */
+    }
+    .header-table th {
+      text-align: center;
+    }
+
+    /* Checkboxes — header engagement row ("Обработката е по") */
+    .checkbox {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 1px solid;
+      vertical-align: middle;
+      margin-right: 3px;
+      text-align: center;
+      line-height: 8px;
+      font-size: 7pt;
+      font-weight: bold;
+    }
+
+    /* ===== Main 10-column protocol table ===== */
+    .protocol-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .protocol-table th, .protocol-table td {
+      border: 1px solid;
+      padding: 1px 3px;
+      vertical-align: top;
+      font-size: 8.5pt;
+    }
+    .protocol-table th {
+      text-align: center;
+      font-weight: bold;
+    }
+    .protocol-table td.col-num {
+      text-align: center;
+      vertical-align: middle;
+    }
+    .protocol-table td.cb {
+      padding: 0;
+      text-align: center;
+      vertical-align: middle;
+      font-weight: bold;
+      line-height: 1;
+    }
+    .protocol-table td.pname {
+      vertical-align: middle;
+    }
+
+    /* ===== Footer table ===== */
+    .footer-table {
+      width: 100%;
+      border-collapse: collapse;
+      /*margin-top: 6px;*/
+      font-size: 8pt;
+    }
+    .footer-table td {
+      border: 1px solid;
+      padding: 3px 5px;
+      vertical-align: top;
+    }
+    .footer-hint {
+      font-style: italic;
+      font-size: 7pt;
+    }
+    /* row 2 date cell: "Дата:" pinned left, time block pinned right */
+    .fd-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 6px;
+    }
+    .fd-right {
+      text-align: right;
+      white-space: nowrap;
+    }
+    /* row 3 — заявител signature band, tall enough to hand-write */
+    .footer-signatory { height: 45px; }
+
+    /* ===== Misc ===== */
+    .footnote {
+      font-size: 7.5pt;
+      font-style: italic;
+      /*margin-top: 3px;*/
+    }
+
+/* ===== 6b — Two-up A5 panels ===== */
+    .a5-panel {
+      width: 100%;
+      height: 147mm;
+      padding: 3mm 1mm;
+
+      overflow: hidden;
+      border-bottom: 1px dashed;
+    }
+    .page-break-before { page-break-before: always; }
+
+    /* Typography for the A5 panels — tune these to fill the space */
+    .a5-panel { font-size: 7.5pt; }
+    /*.a5-panel .protocol-header-line { margin-bottom: 4px; }*/
+    .a5-panel .logo { height: 24px; padding-left: 30px; }
+    .a5-panel .brand-slogan { font-size: 8.5pt; }
+    .a5-panel .doc-title-inline { font-size: 11pt; }
+    .a5-panel .doc-appendix { font-size: 9pt; padding-right: 40px; }
+    .a5-panel .header-table th{ padding: 1px 2px; font-size: 7.8pt; }
+    .a5-panel .header-table td { padding: 1px 2px; font-size: 8pt; }
+    .a5-panel .header-table { margin-bottom: 1px; }
+    .a5-panel .protocol-table th,
+    .a5-panel .protocol-table td { padding: 0px 3px; font-size: 9pt; }
+    .a5-panel .protocol-table td.cb { font-size: 7.5pt; }
+    .a5-panel .checkbox { width: 10px; height: 10px; font-size: 6.5pt; line-height: 8px; }
+    .a5-panel .footer-table { font-size: 9pt; }
+    .a5-panel .footer-table td { padding: 2px 4px; }
+    .a5-panel .footer-hint { font-size: 8pt; }
+    .a5-panel .footer-signatory { height: 60px; }
+    .a5-panel .footnote {padding-left: 30px; font-size: 8pt;}
+
+  </style>
+  {% comment %}
+    Hook for descendant templates to inject extra <head> content
+    (e.g. print_render.html appends a browser-print-tuned stylesheet here).
+    Empty by default so the WeasyPrint flow via protocol/protocol.html
+    is unaffected.
+  {% endcomment %}
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  {% block content %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,148 @@
+<style>
+  .ff-bc{display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:11.5px;color:var(--text-muted);margin-bottom:10px}
+  .ff-crumb{cursor:pointer;padding:2px 6px;border-radius:3px;background:var(--content-bg);color:var(--text-primary)}
+  .ff-crumb:hover{background:rgba(255,166,134,.18)}
+  .ff-sep{color:var(--text-muted)}
+  .ff-folder-list{display:flex;flex-direction:column;gap:4px;max-height:240px;overflow-y:auto}
+  .ff-folder-row{padding:8px 12px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background .12s,border-color .12s}
+  .ff-folder-row:hover,.ff-folder-row.selected{background:rgba(255,166,134,.12);border-color:var(--c-clay)}
+  .ff-folder-row.selected{font-weight:600}
+  .ff-root-row{padding:8px 12px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background .12s,border-color .12s;margin-bottom:4px}
+  .ff-root-row:hover,.ff-root-row.selected{background:rgba(255,166,134,.12);border-color:var(--c-clay)}
+  .ff-empty{font-size:12px;color:var(--text-muted);font-style:italic;padding:8px 0}
+  .ff-current{font-size:11px;color:var(--text-muted);margin-top:8px;padding:5px 8px;background:rgba(214,161,132,.1);border-radius:var(--radius-sm)}
+</style>
+
+<script id="ff-data" type="application/json">{{ folders_json|safe }}</script>
+
+<div style="color:var(--text-primary)">
+  <div class="modal-title" style="font-size:16px;font-weight:700;padding:20px 24px 0;margin-bottom:4px;">
+    Премести шаблон
+  </div>
+  <div style="font-size:12.5px;color:var(--text-muted);padding:0 24px 16px;">
+    {{ template.display_name }}
+  </div>
+
+  <div class="form-section-label">Изберете папка</div>
+  <div class="form-inner" style="margin-bottom:4px">
+    <div class="ff-bc" id="ff-bc"></div>
+
+    <!-- Root option -->
+    <div class="ff-root-row" id="ff-root-row">🏠 Шаблони (корен)</div>
+
+    <div class="ff-folder-list" id="ff-list"></div>
+    <div class="ff-current" id="ff-current"></div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn-cancel" onclick="closeModal()">Отказ</button>
+    <button type="button" class="btn-save" id="ff-submit">Премести тук</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  const folders = JSON.parse(document.getElementById('ff-data').textContent);
+  const initFolder = '{{ template.folder_id|default:"" }}' || null;
+
+  // Start navigation at the template's current folder's parent so user can
+  // see sibling folders, or at root if the template is already at root.
+  let currentId = null;
+  let selectedId = initFolder;  // the folder we will move INTO
+
+  function subfolders(parentId) {
+    return folders.filter(f => String(f.parent_id || '') === String(parentId || ''));
+  }
+
+  function breadcrumbFor(folderId) {
+    if (!folderId) return [];
+    const trail = [];
+    let cursor = folders.find(f => String(f.id) === String(folderId));
+    const seen = new Set();
+    while (cursor && !seen.has(cursor.id)) {
+      trail.unshift(cursor);
+      seen.add(cursor.id);
+      cursor = cursor.parent_id
+        ? folders.find(f => String(f.id) === String(cursor.parent_id))
+        : null;
+    }
+    return trail;
+  }
+
+  function folderName(id) {
+    if (!id) return 'Шаблони (корен)';
+    const f = folders.find(x => String(x.id) === String(id));
+    return f ? f.name : '—';
+  }
+
+  function render() {
+    // Breadcrumb (shows where we are navigating)
+    const bc = document.getElementById('ff-bc');
+    const trail = breadcrumbFor(currentId);
+    let bcHtml = '<span class="ff-crumb" data-nav="null">Шаблони</span>';
+    trail.forEach(c => {
+      bcHtml += `<span class="ff-sep">›</span>
+        <span class="ff-crumb" data-nav="${c.id}">${c.name}</span>`;
+    });
+    bc.innerHTML = bcHtml;
+    bc.querySelectorAll('.ff-crumb').forEach(el => {
+      el.addEventListener('click', () => {
+        currentId = el.dataset.nav === 'null' ? null : el.dataset.nav;
+        render();
+      });
+    });
+
+    // Root row
+    const rootRow = document.getElementById('ff-root-row');
+    rootRow.className = 'ff-root-row' + (selectedId === null ? ' selected' : '');
+    rootRow.onclick = () => { selectedId = null; render(); };
+
+    // Subfolder list
+    const list = document.getElementById('ff-list');
+    const subs = subfolders(currentId);
+    if (subs.length === 0) {
+      list.innerHTML = '<div class="ff-empty">Няма подпапки — можете да изберете тази папка.</div>';
+    } else {
+      list.innerHTML = subs.map(f =>
+        `<div class="ff-folder-row${String(f.id) === String(selectedId) ? ' selected' : ''}"
+              data-id="${f.id}">${'📁'} ${f.name}</div>`
+      ).join('');
+      list.querySelectorAll('.ff-folder-row').forEach(el => {
+        el.addEventListener('click', () => {
+          selectedId = el.dataset.id;
+          // Double-click / tap navigates in; single click selects
+          currentId = el.dataset.id;
+          render();
+        });
+      });
+    }
+
+    // Current selection note
+    document.getElementById('ff-current').textContent =
+      'Ще бъде преместен в: ' + folderName(selectedId);
+  }
+
+  // If template already has a folder, start navigation there
+  if (initFolder) {
+    const f = folders.find(x => String(x.id) === String(initFolder));
+    currentId = f ? (f.parent_id || null) : null;
+  }
+
+  render();
+
+  document.getElementById('ff-submit').addEventListener('click', async function() {
+    const form = new FormData();
+    if (selectedId) form.append('folder_id', selectedId);
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrf) form.append('csrfmiddlewaretoken', csrf.value);
+
+    const r = await fetch('{% url "core:template_move" template.pk %}',
+                          { method: 'POST', body: form });
+    if (r.ok) {
+      document.body.dispatchEvent(new Event('templatesChanged'));
+    } else {
+      alert('Грешка при преместване.');
+    }
+  });
+})();
+</script>

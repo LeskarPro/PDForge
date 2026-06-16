@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Етикети — PDForge{% endblock %}
+{% block topbar_title %}Етикети{% endblock %}
+
+{% block topbar_actions %}
+  <span id="tag-count" style="font-size:12px;color:var(--text-muted);">
+    {{ tags|length }} {% if tags|length == 1 %}етикет{% else %}етикета{% endif %}
+  </span>
+  <button class="btn-primary"
+          hx-get="{% url 'core:tag_create' %}"
+          hx-target="#modal-content"
+          hx-swap="innerHTML">
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none"
+         viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+    </svg>
+    Нов етикет
+  </button>
+{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
+<style>
+  /* ── Tag list ── */
+  .list-card{background:#fff;border:1px solid var(--border-subtle);border-radius:var(--radius-md);overflow:hidden}
+
+  .tag-row{display:flex;align-items:center;gap:14px;padding:11px 16px;
+    border-bottom:1px solid var(--border-subtle);transition:background var(--t-fast)}
+  .tag-row:last-child{border-bottom:none}
+  .tag-row:hover{background:#fdf7f2}
+
+  .drag-handle{display:flex;align-items:center;justify-content:center;width:20px;
+    color:rgba(170,118,124,.3);cursor:grab;flex-shrink:0;font-size:16px;
+    transition:color var(--t-fast);line-height:1}
+  .tag-row:hover .drag-handle{color:var(--c-mauve)}
+  .tag-row--unused { opacity: 0.42; }
+  .tag-row--unused:hover { opacity: 0.80; transition: opacity var(--t-med); }
+  .sortable-ghost{opacity:.4;background:#f0e6e0}
+  .sortable-drag{opacity:.9;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+
+  .tag-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 7px;
+    border-radius:30px;font-size:12.5px;font-weight:500;flex-shrink:0;min-width:80px;white-space:nowrap}
+  .tag-pill-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+  .tag-description{flex:1;font-size:13px;color:var(--text-muted);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tag-description.empty{font-style:italic;color:rgba(154,122,128,.45)}
+
+  .row-actions{display:flex;align-items:center;gap:2px;flex-shrink:0}
+  .row-btn{display:flex;align-items:center;justify-content:center;width:30px;height:30px;
+    border-radius:var(--radius-sm);color:var(--text-muted);border:1px solid transparent;
+    transition:all var(--t-fast)}
+  .row-btn svg{width:14px;height:14px}
+  .row-btn:hover{background:var(--content-bg);border-color:var(--border-subtle);color:var(--text-primary)}
+  .row-btn.del:hover{color:#b03030;background:rgba(200,80,80,.08);border-color:rgba(200,80,80,.25)}
+
+  /* ── Empty state ── */
+  .empty-state{display:flex;flex-direction:column;align-items:center;
+    justify-content:center;padding:56px 20px;color:var(--text-muted);gap:8px}
+  .empty-state p{font-size:13.5px}
+
+  /* ── Modal overlay (same as clients) ── */
+  .modal-overlay{position:fixed;inset:0;background:rgba(61,43,47,.38);
+    display:flex;align-items:center;justify-content:center;z-index:200}
+  .modal-overlay.hidden{display:none}
+  .modal-box{background:#fff;border-radius:var(--radius-lg);padding:28px;
+    min-width:420px;max-width:500px;max-height:90vh;overflow-y:auto;
+    box-shadow:0 8px 40px rgba(0,0,0,.18)}
+
+  /* ── Form styles ── */
+  .modal-title{font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:22px}
+  .form-group{margin-bottom:14px}
+  .form-label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--text-muted);margin-bottom:5px}
+  .form-label .req{color:var(--c-coral)}
+  .form-label .opt{font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-muted)}
+  .form-input{width:100%;padding:9px 12px;border:1px solid var(--border-subtle);
+    border-radius:var(--radius-sm);font:inherit;font-size:13.5px;
+    color:var(--text-primary);background:#fff;outline:none;
+    transition:border-color var(--t-fast)}
+  .form-input:focus{border-color:var(--c-clay)}
+  textarea.form-input{resize:vertical;min-height:72px}
+  .form-error{color:#c0392b;font-size:11.5px;margin-top:4px}
+  .modal-footer{display:flex;justify-content:flex-end;gap:8px;
+    margin-top:22px;border-top:1px solid var(--border-subtle);padding-top:18px}
+  .btn-cancel{padding:8px 18px;font-size:13px;color:var(--text-muted);
+    border:1px solid var(--border-subtle);border-radius:var(--radius-sm);
+    background:#fff;transition:background var(--t-fast),color var(--t-fast)}
+  .btn-cancel:hover{background:var(--content-bg);color:var(--text-primary)}
+  .btn-save{padding:8px 20px;font-size:13px;font-weight:500;
+    background:var(--c-coral);color:#fff;border-radius:var(--radius-sm);
+    transition:background var(--t-fast)}
+  .btn-save:hover{background:#f09070}
+  .btn-delete{padding:8px 20px;font-size:13px;font-weight:500;
+    background:#c0392b;color:#fff;border-radius:var(--radius-sm);
+    transition:background var(--t-fast)}
+  .btn-delete:hover{background:#a93226}
+
+  /* ── Color picker ── */
+  .color-picker-row{display:flex;align-items:center;gap:10px}
+  .color-native-input{width:38px;height:38px;padding:2px;cursor:pointer;
+    border:1px solid var(--border-subtle);border-radius:var(--radius-sm);background:#fff}
+  .color-presets{display:flex;gap:7px;flex-wrap:wrap}
+  .color-preset-dot{width:22px;height:22px;border-radius:50%;cursor:pointer;
+    border:2px solid transparent;transition:transform var(--t-fast),border-color var(--t-fast);flex-shrink:0}
+  .color-preset-dot:hover{transform:scale(1.15)}
+  .color-preset-dot.selected{border-color:#3d2b2f}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Modal overlay -->
+<div id="modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div id="modal-content"
+         hx-on::after-swap="document.getElementById('modal').classList.remove('hidden')">
+    </div>
+  </div>
+</div>
+
+<!-- Tag list -->
+<div class="list-card" id="tag-list">
+  {% include "tags/_list_body.html" %}
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  /* ── HTMX CSRF ── */
+  document.addEventListener('htmx:configRequest', function(e) {
+    e.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+  });
+
+  /* ── Modal ── */
+  function closeModal() {
+    document.getElementById('modal').classList.add('hidden');
+    document.getElementById('modal-content').innerHTML = '';
+  }
+  document.body.addEventListener('closeModal', closeModal);
+
+  /* ── Count chip ── */
+  function updateCount() {
+    const n = document.querySelectorAll('#tag-list .tag-row').length;
+    const chip = document.getElementById('tag-count');
+    if (chip) chip.textContent = n + (n === 1 ? ' етикет' : ' етикета');
+  }
+  document.body.addEventListener('htmx:afterSwap', function(e) {
+    if (e.detail.target && e.detail.target.id === 'tag-list') updateCount();
+  });
+
+  /* ── Drag-to-reorder (SortableJS) ── */
+  const REORDER_URL = '{% url "core:tag_reorder" %}';
+  const CSRF = '{{ csrf_token }}';
+
+  Sortable.create(document.getElementById('tag-list'), {
+    handle: '.drag-handle',
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    dragClass: 'sortable-drag',
+    onEnd: function() {
+      const ids = [...document.querySelectorAll('#tag-list .tag-row')]
+        .map(r => r.dataset.id)
+        .join(',');
+      fetch(REORDER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': CSRF,
+        },
+        body: 'order=' + encodeURIComponent(ids),
+      });
+    }
+  });
+</script>
+{% endblock %}

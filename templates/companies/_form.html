@@ -1,0 +1,113 @@
+<form method="post"
+      enctype="multipart/form-data"
+      hx-post="{% if company %}{% url 'core:company_edit' company.pk %}{% else %}{% url 'core:company_create' %}{% endif %}"
+      hx-encoding="multipart/form-data"
+      hx-target="#modal-content"
+      hx-swap="innerHTML">
+  {% csrf_token %}
+
+  <div class="modal-title">
+    {% if company %}Редактирай фирма{% else %}Нова фирма{% endif %}
+  </div>
+
+  <div class="form-section-label">Основна информация</div>
+  <div class="form-inner">
+    <div class="form-row cols2">
+      <div class="form-group">
+        <label class="form-label">Наименование <span class="req">*</span></label>
+        {{ form.name }}
+        {% if form.name.errors %}<span class="form-error">{{ form.name.errors.0 }}</span>{% endif %}
+      </div>
+      <div class="form-group">
+        <label class="form-label">ЕИК <span class="req">*</span></label>
+        {{ form.eik }}
+        {% if form.eik.errors %}<span class="form-error">{{ form.eik.errors.0 }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="form-row cols1">
+      <div class="form-group">
+        <label class="form-label">Адрес</label>
+        {{ form.address }}
+      </div>
+    </div>
+    <div class="form-row cols2">
+      <div class="form-group">
+        <label class="form-label">Телефон</label>
+        {{ form.phone }}
+      </div>
+      <div class="form-group">
+        <label class="form-label">Слоган</label>
+        {{ form.slogan }}
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section-label">Лого и статус</div>
+  <div class="form-inner">
+    <div class="form-row cols1">
+      <div class="form-group">
+        <label class="form-label">Лого</label>
+        <div class="file-input-wrap">
+          <label class="file-input-btn" for="{{ form.logo.id_for_label }}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none"
+                 viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21
+                       18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
+            </svg>
+            <span id="file-label">{% if company and company.logo %}Замени лого…{% else %}Избери файл…{% endif %}</span>
+          </label>
+          {{ form.logo }}
+          {% if company and company.logo %}
+            <span class="form-hint">Текущо: {{ company.logo.name|slice:"6:" }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="form-row cols1">
+      <label class="checkbox-row">
+        {{ form.is_active }}
+        Активна фирма
+      </label>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn-cancel" onclick="closeModal()">Отказ</button>
+    <button type="submit" class="btn-save">Запази</button>
+  </div>
+</form>
+
+<style>
+  .file-input-wrap { display: flex; flex-direction: column; gap: 5px; }
+  .file-input-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 14px; border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm); font-size: 13px;
+    color: var(--text-muted); background: #fff; cursor: pointer;
+    transition: border-color var(--t-fast), color var(--t-fast);
+    width: fit-content;
+  }
+  .file-input-btn:hover { border-color: var(--c-clay); color: var(--text-primary); }
+  .file-input-btn svg { flex-shrink: 0; }
+  #id_logo { display: none; }
+</style>
+
+<script>
+  document.addEventListener('htmx:afterRequest', function(e) {
+    if (e.detail.xhr.status === 204) {
+      document.body.dispatchEvent(new Event('companiesChanged'));
+    }
+  });
+
+  document.querySelectorAll('#modal-content input:not([type=checkbox]):not([type=file]), #modal-content select, #modal-content textarea')
+    .forEach(el => el.classList.add('form-input'));
+
+  const logoInput = document.getElementById('id_logo');
+  if (logoInput) {
+    logoInput.addEventListener('change', function() {
+      const label = document.getElementById('file-label');
+      if (label) label.textContent = this.files[0] ? this.files[0].name : 'Избери файл…';
+    });
+  }
+</script>

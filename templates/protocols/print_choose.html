@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Печат на протокол — PDForge{% endblock %}
+{% block topbar_title %}Печат на протокол{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'core:protocol_view' protocol.pk %}" class="btn-outline" style="text-decoration:none;">
+    ← Назад
+  </a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ══════════════════════════════════════════════
+     Print-format chooser — trimmed preview page.
+     Reuses the pv-* paper render styles so the
+     preview matches the PDF/print output exactly.
+     ══════════════════════════════════════════════ */
+  .pv-root {
+    max-width: 1380px; margin: 0 auto; padding: 12px 0 60px;
+    color: var(--text-primary);
+  }
+  [x-cloak] { display: none !important; }
+
+  .pv-actionbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 12px 16px; margin-bottom: 16px;
+    background: var(--card-bg); border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    box-shadow: 0 1px 6px rgba(99,71,77,.08);
+  }
+  .pv-fmt-tabs { display: flex; gap: 6px; }
+  .pv-fmt {
+    padding: 6px 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    background: transparent; color: var(--text-muted);
+    cursor: pointer; font-size: 12.5px; font-family: inherit;
+    transition: all .15s;
+  }
+  .pv-fmt:hover  { border-color: var(--c-clay); color: var(--text-primary); }
+  .pv-fmt.active { background: var(--c-coral); border-color: var(--c-coral); color: #fff; font-weight: 600; }
+  .pv-action-buttons { display: flex; gap: 8px; margin-left: auto; }
+  .pv-btn {
+    padding: 8px 16px; border-radius: var(--radius-sm); border: none;
+    cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit;
+    transition: opacity .15s, background .15s;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .pv-btn:hover { opacity: .92; }
+  .pv-btn-primary   { background: var(--c-coral); color: #fff; }
+  .pv-btn-secondary { background: #fff; color: var(--text-muted); border: 1px solid var(--border-subtle); }
+
+  /* Paper viewport */
+  .pv-canvas {
+    display: flex; flex-direction: column; align-items: center; gap: 22px;
+    padding: 20px 8px;
+  }
+  .pv-paper-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  /* ══════════════════════════════════════════════
+     Real protocol render styles — ported verbatim
+     from templates/protocols/preview.html so the
+     preview matches the PDF output character-for-
+     character.  All scoped under .pv-paper.
+     ══════════════════════════════════════════════ */
+  .pv-paper {
+    background: white; color: #111;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 8.5pt; line-height: 1.1;
+    width: 210mm; min-height: 297mm; margin: 0 auto;
+    box-shadow: 0 8px 40px rgba(40,28,30,.45);
+    transform-origin: top center;
+    border-radius: 2px; overflow: hidden;
+  }
+  @media (max-width: 1200px) {
+    .pv-paper { transform: scale(.85); margin-bottom: -18mm; }
+  }
+  @media (max-width: 1000px) {
+    .pv-paper { transform: scale(.72); margin-bottom: -28mm; }
+  }
+  @media (max-width: 800px) {
+    .pv-paper { transform: scale(.55); margin-bottom: -45mm; }
+  }
+  .pv-paper * { box-sizing: border-box; }
+
+  .pv-paper .protocol-header-line {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .pv-paper .protocol-header-line .brand-block { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .pv-paper .protocol-header-line .logo { padding-left: 30px; height: 24px; width: auto; }
+  .pv-paper .protocol-header-line .brand-slogan { font-style: italic; font-size: 8.5pt; white-space: nowrap; }
+  .pv-paper .protocol-header-line .doc-title-inline { font-weight: bold; font-size: 11pt; }
+  .pv-paper .protocol-header-line .doc-appendix { padding-right: 40px; font-size: 9pt; }
+
+  .pv-paper .header-table { width: 100%; border-collapse: collapse; }
+  .pv-paper .header-table th,
+  .pv-paper .header-table td { border: 1px solid; padding: 1px 2px; vertical-align: top; font-size: 8pt; font-weight: bold; }
+  .pv-paper .header-table th { text-align: center; font-size: 7.8pt; }
+
+  .pv-paper .checkbox {
+    display: inline-block; width: 10px; height: 10px; border: 1px solid;
+    vertical-align: middle; margin-right: 3px;
+    text-align: center; line-height: 8px;
+    font-size: 6.5pt; font-weight: bold;
+  }
+
+  .pv-paper .protocol-table { width: 100%; border-collapse: collapse; }
+  .pv-paper .protocol-table th,
+  .pv-paper .protocol-table td { border: 1px solid; padding: 0 3px; vertical-align: top; font-size: 9pt; }
+  .pv-paper .protocol-table th { text-align: center; font-weight: bold; }
+  .pv-paper .protocol-table td.col-num { text-align: center; vertical-align: middle; }
+  .pv-paper .protocol-table td.cb { padding: 0; text-align: center; vertical-align: middle; font-weight: bold; line-height: 1; font-size: 7.5pt; }
+  .pv-paper .protocol-table td.pname { vertical-align: middle; }
+
+  .pv-paper .footer-table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  .pv-paper .footer-table td { border: 1px solid; padding: 2px 4px; vertical-align: top; }
+  .pv-paper .footer-hint { font-style: italic; font-size: 8pt; }
+  .pv-paper .fd-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+  .pv-paper .fd-right { text-align: right; white-space: nowrap; }
+  .pv-paper .footer-signatory { height: 60px; }
+  .pv-paper .footnote { padding-left: 30px; font-size: 8pt; font-style: italic; }
+
+  /* A5 panels — two per page, dashed separator */
+  .pv-paper .a5-panel {
+    width: 100%; height: 147mm; padding: 3mm 1mm;
+    overflow: hidden; border-bottom: 1px dashed #aaa;
+    font-size: 7.5pt;
+  }
+  .pv-paper .a5-panel:last-child { border-bottom: none; }
+  .pv-paper .a5-panel .protocol-header-line .logo { height: 24px; padding-left: 30px; }
+  .pv-paper .a5-panel .header-table th { padding: 1px 2px; font-size: 7.8pt; }
+  .pv-paper .a5-panel .header-table td { padding: 1px 2px; font-size: 8pt; }
+  .pv-paper .a5-panel .protocol-table th,
+  .pv-paper .a5-panel .protocol-table td { padding: 0px 3px; font-size: 9pt; }
+  .pv-paper .a5-panel .protocol-table td.cb { font-size: 7.5pt; }
+  .pv-paper .a5-panel .checkbox { width: 10px; height: 10px; font-size: 6.5pt; line-height: 8px; }
+  .pv-paper .a5-panel .footer-table { font-size: 9pt; }
+  .pv-paper .a5-panel .footer-table td { padding: 2px 4px; }
+  .pv-paper .a5-panel .footer-hint { font-size: 8pt; }
+  .pv-paper .a5-panel .footer-signatory { height: 60px; }
+  .pv-paper .a5-panel .footnote { padding-left: 30px; font-size: 8pt; }
+
+  /* Future-format placeholder */
+  .pv-future {
+    width: 515px; min-height: 500px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    background: white; color: #555;
+    box-shadow: 0 8px 30px rgba(40,28,30,.35); border-radius: 2px;
+    background-image: repeating-linear-gradient(45deg, transparent 0 14px, rgba(0,0,0,.025) 14px 28px);
+  }
+  .pv-future-inner { max-width: 360px; padding: 30px 24px; text-align: center; font-family: 'Times New Roman', serif; }
+  .pv-future-icon  { font-size: 32px; color: var(--c-coral); margin-bottom: 10px; }
+  .pv-future-title { font-size: 13.5px; font-weight: 700; color: #333; margin-bottom: 8px; }
+  .pv-future-body  { font-size: 11.5px; color: #555; line-height: 1.5; font-style: italic; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div x-data="protocolPrintChoose()" x-cloak class="pv-root">
+
+  <!-- ═══ Action bar ═══ -->
+  <div class="pv-actionbar">
+    <div class="pv-fmt-tabs">
+      <button class="pv-fmt" :class="{active: fmt==='a5'}"      @click="fmt='a5'">A5 (2 стр.)</button>
+      <button class="pv-fmt" :class="{active: fmt==='a5-land'}" @click="fmt='a5-land'">A5 → A4 пейзаж</button>
+      <button class="pv-fmt" :class="{active: fmt==='a4-p'}"    @click="fmt='a4-p'">A4 портрет</button>
+    </div>
+    <div class="pv-action-buttons">
+      <a class="pv-btn pv-btn-primary" :href="printUrl()" style="text-decoration:none;">🖨 Печат</a>
+      <a class="pv-btn pv-btn-secondary" href="{% url 'core:protocol_view' protocol.pk %}" style="text-decoration:none;">← Назад</a>
+    </div>
+  </div>
+
+  <!-- ═══ Paper area ═══ -->
+  <div class="pv-canvas">
+
+    <!-- Format 1: A5 — TRUE render via existing protocol partials -->
+    <div x-show="fmt==='a5'">
+      <div class="pv-paper">
+        <div class="a5-panel">
+          {% include "protocol/_protocol_front.html" with protocol=protocol %}
+        </div>
+        <div class="a5-panel">
+          {% include "protocol/_protocol_front.html" with protocol=protocol %}
+        </div>
+      </div>
+      <div class="pv-paper-label">Лист 1 — лицева страна (2 копия)</div>
+
+      <div class="pv-paper" style="margin-top:24px;">
+        <div class="a5-panel">
+          {% include "protocol/_protocol_back.html" with protocol=protocol %}
+        </div>
+        <div class="a5-panel">
+          {% include "protocol/_protocol_back.html" with protocol=protocol %}
+        </div>
+      </div>
+      <div class="pv-paper-label">Лист 2 — гръб (2 копия)</div>
+    </div>
+
+    <!-- Format 2: A5 → A4 landscape — future -->
+    <div x-show="fmt==='a5-land'">
+      <div class="pv-future">
+        <div class="pv-future-inner">
+          <div class="pv-future-icon">⚙</div>
+          <div class="pv-future-title">A5 → A4 пейзаж</div>
+          <div class="pv-future-body">
+            Форматът е в процес на разработка и ще бъде достъпен в следващите обновления.
+          </div>
+        </div>
+      </div>
+      <div class="pv-paper-label">A4 пейзаж — 4 стр. A5 на 1 лист (двойно копие)</div>
+    </div>
+
+    <!-- Format 3: A4 portrait — future -->
+    <div x-show="fmt==='a4-p'">
+      <div class="pv-future">
+        <div class="pv-future-inner">
+          <div class="pv-future-icon">⚙</div>
+          <div class="pv-future-title">A4 портрет (цял лист)</div>
+          <div class="pv-future-body">
+            Форматът е в процес на разработка и ще бъде достъпен в следващите обновления.
+          </div>
+        </div>
+      </div>
+      <div class="pv-paper-label">A4 портрет — целият протокол на лист, в 2 копия</div>
+    </div>
+
+  </div>
+
+</div>{# /pv-root #}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('alpine:init', () => {
+  Alpine.data('protocolPrintChoose', () => ({
+    fmt: 'a5',
+    printUrl() {
+      return '{% url "core:protocol_print" protocol.pk %}?fmt=' + this.fmt;
+    },
+  }));
+});
+</script>
+{% endblock %}

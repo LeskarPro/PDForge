@@ -1,0 +1,86 @@
+<div class="modal-title">
+  {% if mode == 'edit' %}Редактирай обект{% else %}Нов обект{% if not show_client %} — {{ client.firm }}{% endif %}{% endif %}
+</div>
+
+<form hx-post="{% if mode == 'edit' %}{% url 'core:site_edit' site.pk %}{% elif show_client %}{% url 'core:site_create_full' %}{% else %}{% url 'core:site_create' client.pk %}{% endif %}"
+      hx-target="#modal-content"
+      hx-swap="innerHTML">
+  {% csrf_token %}
+  <input type="hidden" name="_ctx" value="{{ ctx|default:'clients' }}">
+
+  {% if show_client %}
+  <div class="form-group">
+    <label class="form-label">Клиент <span class="req">*</span></label>
+    <select class="form-input" name="client" required>
+      <option value="">— изберете клиент —</option>
+      {% for c in form.client.field.queryset %}
+        <option value="{{ c.pk }}"
+          {% if form.client.value|stringformat:"s" == c.pk|stringformat:"s" %}selected{% endif %}>
+          {{ c.firm }}
+        </option>
+      {% endfor %}
+    </select>
+    {% for e in form.client.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="form-group">
+    <label class="form-label">Псевдоним <span class="req">*</span></label>
+    <input class="form-input" name="pseudonym" value="{{ form.pseudonym.value|default:'' }}"
+           placeholder="напр. Магазин Център" required>
+    {% for e in form.pseudonym.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Наименование на обекта <span class="req">*</span></label>
+    <input class="form-input" name="name" value="{{ form.name.value|default:'' }}"
+           placeholder="Магазин №1" required>
+    {% for e in form.name.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Адрес</label>
+    <input class="form-input" name="address" value="{{ form.address.value|default:'' }}"
+           placeholder="ул. Витоша 15, гр. Sofia">
+    {% for e in form.address.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Площ (м²)</label>
+      <input class="form-input" type="number" name="area_m2"
+             value="{{ form.area_m2.value|default:'' }}" placeholder="120" min="1">
+      {% for e in form.area_m2.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+    </div>
+    <div></div>
+  </div>
+
+  {% if form.tags.field.queryset.exists %}
+  <div class="form-group">
+    <label class="form-label">Етикети</label>
+    <div class="tag-checks">
+      {% for choice in form.tags %}
+      <label class="tag-check-label">
+        <input type="checkbox" name="tags" value="{{ choice.data.value }}"
+               {% if choice.data.selected %}checked{% endif %}>
+        {{ choice.choice_label }}
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="form-group">
+    <label class="form-label">Бележки</label>
+    <textarea class="form-input" name="notes"
+              placeholder="Бележки…">{{ form.notes.value|default:'' }}</textarea>
+    {% for e in form.notes.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn-cancel" onclick="closeModal()">Откажи</button>
+    <button type="submit" class="btn-save">
+      {% if mode == 'edit' %}Запази{% else %}Добави обект{% endif %}
+    </button>
+  </div>
+</form>

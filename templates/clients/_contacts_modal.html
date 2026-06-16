@@ -1,0 +1,33 @@
+<div class="contacts-title">Контактни лица</div>
+<div class="contacts-subtitle">{{ site.name }}{% if site.address %} — {{ site.address }}{% endif %}</div>
+
+<div id="contacts-{{ site.pk }}">
+  {% include "clients/_contacts_list.html" %}
+</div>
+
+<div class="contacts-add-title">Добави контакт</div>
+<form hx-post="{% url 'core:site_contact_create' site.pk %}"
+      hx-target="#contacts-{{ site.pk }}"
+      hx-swap="innerHTML"
+      hx-on::after-request="if(event.detail.successful) this.reset()">
+  {% csrf_token %}
+  <div class="contacts-add-row">
+    <div class="form-group">
+      <label class="form-label">Ime <span class="req">*</span></label>
+      <input class="form-input" name="name" placeholder="Иван Петров" required>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Телефон</label>
+      <input class="form-input" name="phone" placeholder="0888 123 456">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Длъжност</label>
+      <input class="form-input" name="position" placeholder="Управител">
+    </div>
+  </div>
+  {% for e in form.name.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+  <div class="modal-footer">
+    <button type="button" class="btn-cancel" onclick="closeModal()">Затвори</button>
+    <button type="submit" class="btn-save">Добави</button>
+  </div>
+</form>

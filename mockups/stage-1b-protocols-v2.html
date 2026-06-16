@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <title>Протоколи — Вариант 2 (Таблица)</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <style>
+    :root {
+      --c-peach:#fec196; --c-coral:#ffa686; --c-clay:#d6a184; --c-mauve:#aa767c; --c-plum:#63474d;
+      --sidebar-width:240px; --sidebar-bg:var(--c-plum); --sidebar-brand-bg:#4a343a;
+      --nav-text:rgba(255,255,255,.82); --nav-text-hover:rgba(255,255,255,.97); --nav-text-active:var(--c-peach);
+      --nav-bg-hover:#74565c; --nav-bg-active:#7d5f66; --nav-accent-active:var(--c-coral);
+      --nav-label-text:rgba(255,255,255,.35); --version-text:#7d5f66;
+      --content-bg:#f6efe9; --card-bg:#fff; --text-primary:#3d2b2f; --text-muted:#9a7a80;
+      --border-subtle:rgba(170,118,124,.15);
+      --radius-sm:4px; --radius-md:6px; --t-fast:140ms ease;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px}
+    a{text-decoration:none;cursor:pointer}
+    button{border:none;background:none;cursor:pointer;font:inherit;text-align:left}
+
+    .app-layout{display:flex;height:100vh;overflow:hidden}
+    .sidebar{width:var(--sidebar-width);min-width:var(--sidebar-width);background:var(--sidebar-bg);display:flex;flex-direction:column;height:100vh}
+    .sidebar-brand{background:var(--sidebar-brand-bg);padding:18px 16px 16px;display:flex;flex-direction:column;gap:3px}
+    .brand-appname{font-size:17px;font-weight:700;color:var(--c-peach)}
+    .brand-company{font-size:12px;color:rgba(255,255,255,.6)}
+    .sidebar-nav{flex:1;padding:8px 0}
+    .sidebar-management{flex-shrink:0;padding:6px 0 4px;border-top:1px solid rgba(255,255,255,.08)}
+    .sidebar-version{flex-shrink:0;padding:8px 16px 12px;font-size:11px;color:var(--version-text)}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;color:var(--nav-text);border-left:3px solid transparent;border-radius:0 var(--radius-sm) var(--radius-sm) 0;transition:background var(--t-fast),color var(--t-fast);width:100%}
+    .nav-item:hover{background:var(--nav-bg-hover);color:var(--nav-text-hover)}
+    .nav-item.active{background:var(--nav-bg-active);color:var(--nav-text-active);border-left-color:var(--nav-accent-active);font-weight:500}
+    .nav-text{flex:1;font-size:13.5px}
+    .nav-section-label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--nav-label-text);padding:6px 18px 2px}
+    .main-content{flex:1;background:var(--content-bg);display:flex;flex-direction:column;overflow:hidden}
+    .topbar{background:var(--card-bg);border-bottom:1px solid var(--border-subtle);padding:0 28px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .topbar-title{font-size:16px;font-weight:600;color:var(--text-primary)}
+    .page-body{flex:1;overflow-y:auto;padding:24px 28px}
+
+    .toolbar{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+    .search-wrap{position:relative;flex:1;max-width:340px}
+    .search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);width:15px;height:15px}
+    .search-input{width:100%;padding:8px 12px 8px 32px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);background:var(--card-bg);font-size:13px;color:var(--text-primary);outline:none;transition:border-color var(--t-fast)}
+    .search-input:focus{border-color:var(--c-clay)}
+    .btn-primary{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--c-coral);color:#fff;font-size:13.5px;font-weight:500;border-radius:var(--radius-sm);transition:background var(--t-fast);cursor:pointer}
+    .btn-primary:hover{background:#f09070}
+    .btn-outline{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--card-bg);color:var(--text-muted);font-size:13px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);transition:background var(--t-fast),color var(--t-fast);cursor:pointer}
+    .btn-outline:hover{color:var(--text-primary);border-color:var(--c-clay)}
+    .records-count{margin-left:auto;font-size:12px;color:var(--text-muted)}
+
+    .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--radius-sm);font-size:11px;font-weight:500;white-space:nowrap}
+    .badge-di{background:rgba(255,166,134,.14);color:#b85530;border:1px solid rgba(255,166,134,.4)}
+    .badge-dr{background:rgba(170,118,124,.14);color:#6e3d44;border:1px solid rgba(170,118,124,.4)}
+    .badge-dn{background:rgba(214,161,132,.14);color:#8a5530;border:1px solid rgba(214,161,132,.4)}
+
+    /* ── TABLE VARIANT ── */
+    .proto-table-wrap{background:var(--card-bg);border-radius:var(--radius-md);border:1px solid var(--border-subtle);overflow:hidden}
+
+    .proto-table-head{
+      display:grid;
+      grid-template-columns: 110px 1fr 180px 160px 120px;
+      padding:10px 18px;
+      border-bottom:2px solid var(--border-subtle);
+      background:#fdf7f2;
+    }
+    .th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted)}
+
+    .proto-row{
+      display:grid;
+      grid-template-columns: 110px 1fr 180px 160px 120px;
+      padding:14px 18px;
+      border-bottom:1px solid var(--border-subtle);
+      align-items:center;
+      cursor:pointer;
+      transition:background var(--t-fast);
+      min-height:64px;
+    }
+    .proto-row:last-child{border-bottom:none}
+    .proto-row:hover{background:#fdf7f2}
+
+    /* Date cell */
+    .cell-date{}
+    .date-main{font-size:14px;font-weight:700;color:var(--text-primary)}
+    .date-sub{font-size:11.5px;color:var(--text-muted);margin-top:2px}
+
+    /* Client/Site cell */
+    .cell-client{}
+    .client-name{font-size:13.5px;font-weight:600;color:var(--text-primary)}
+    .site-name{font-size:12px;color:var(--text-muted);margin-top:2px}
+
+    /* Services cell */
+    .cell-services{display:flex;flex-wrap:wrap;gap:4px}
+
+    /* Executor cell */
+    .cell-executor{font-size:13px;color:var(--text-primary)}
+    .executor-sub{font-size:11.5px;color:var(--text-muted);margin-top:2px}
+
+    /* Actions cell */
+    .cell-actions{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+    .btn-icon{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:5px 10px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;transition:background var(--t-fast),color var(--t-fast)}
+    .btn-pdf{background:rgba(99,71,77,.07);color:var(--c-plum);border:1px solid rgba(99,71,77,.15)}
+    .btn-pdf:hover{background:rgba(99,71,77,.13)}
+    .btn-copy{background:rgba(255,166,134,.1);color:#b85530;border:1px solid rgba(255,166,134,.3)}
+    .btn-copy:hover{background:rgba(255,166,134,.2)}
+    .tag-contract{font-size:10px;padding:2px 7px;border-radius:var(--radius-sm);background:rgba(170,118,124,.1);color:var(--c-mauve);border:1px solid rgba(170,118,124,.25)}
+
+    /* Modal — same as v1 */
+    .modal-overlay{position:fixed;inset:0;background:rgba(61,43,47,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:24px}
+    .modal{background:var(--card-bg);border-radius:var(--radius-md);width:100%;max-width:560px;max-height:85vh;overflow-y:auto;box-shadow:0 16px 48px rgba(61,43,47,.22)}
+    .modal-header{padding:18px 24px 14px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+    .modal-title{font-size:16px;font-weight:700;color:var(--text-primary)}
+    .modal-subtitle{font-size:12.5px;color:var(--text-muted);margin-top:2px}
+    .modal-close{padding:4px;color:var(--text-muted);border-radius:var(--radius-sm);transition:background var(--t-fast)}
+    .modal-close:hover{background:var(--border-subtle)}
+    .modal-body{padding:20px 24px}
+    .modal-section{margin-bottom:18px}
+    .modal-section:last-child{margin-bottom:0}
+    .modal-section-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:8px}
+    .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .modal-field label{font-size:11px;color:var(--text-muted);display:block;margin-bottom:2px}
+    .modal-field span{font-size:13.5px;color:var(--text-primary);font-weight:500}
+    .modal-services{display:flex;gap:6px;flex-wrap:wrap}
+    .modal-footer{padding:14px 24px 18px;border-top:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:flex-end;gap:10px}
+    .btn-secondary{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:transparent;color:var(--text-muted);font-size:13.5px;font-weight:500;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);transition:background var(--t-fast),color var(--t-fast);cursor:pointer}
+    .btn-secondary:hover{background:var(--content-bg);color:var(--text-primary)}
+  </style>
+</head>
+<body>
+<div class="app-layout" x-data="{
+  modal:false, selected:null,
+  protocols:[
+    {day:'15',month:'МАЙ',year:'2026',date:'15.05.2026',client:'Транс Ком ООД',site:'Склад Банишора',time:'09:00 – 11:00',executor:'Иван Петров',services:['di','dr'],contract:true,notes:'Стандартна месечна обработка.'},
+    {day:'12',month:'МАЙ',year:'2026',date:'12.05.2026',client:'ХранМаг ЕООД',site:'Магазин №3',time:'14:00 – 15:30',executor:'Мария Иванова',services:['dn'],contract:true,notes:'Профилактична дезинфекция.'},
+    {day:'08',month:'МАЙ',year:'2026',date:'08.05.2026',client:'Транс Ком ООД',site:'Офис Люлин',time:'10:00 – 13:00',executor:'Иван Петров',services:['di','dr','dn'],contract:false,notes:'Комплексна обработка — пролетна.'},
+    {day:'01',month:'МАЙ',year:'2026',date:'01.05.2026',client:'Строй ООД',site:'Склад №2',time:'08:00 – 09:30',executor:'Мария Иванова',services:['dr'],contract:true,notes:''},
+    {day:'28',month:'АПР',year:'2026',date:'28.04.2026',client:'ХранМаг ЕООД',site:'Магазин №5',time:'15:00 – 16:00',executor:'Иван Петров',services:['di'],contract:false,notes:'Еднократна обработка при сигнал.'}
+  ],
+  open(p){this.selected=p;this.modal=true},
+  serviceLabel(s){return{di:'Дезинсекция',dr:'Дератизация',dn:'Дезинфекция'}[s]},
+  badgeClass(s){return{di:'badge-di',dr:'badge-dr',dn:'badge-dn'}[s]}
+}">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand"><span class="brand-appname">PDForge</span><span class="brand-company">ДДД Про ЕООД</span></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item"><span class="nav-text">Табло</span></a>
+      <a class="nav-item active"><span class="nav-text">Протоколи</span></a>
+      <a class="nav-item"><span class="nav-text">Шаблони</span></a>
+      <a class="nav-item"><span class="nav-text">Еднократни обработки</span></a>
+      <a class="nav-item"><span class="nav-text">Справки</span></a>
+      <a class="nav-item"><span class="nav-text">Клиенти</span></a>
+      <a class="nav-item"><span class="nav-text">Обекти</span></a>
+      <a class="nav-item"><span class="nav-text">Етикети</span></a>
+    </nav>
+    <div class="sidebar-management">
+      <span class="nav-section-label">Управление</span>
+      <a class="nav-item"><span class="nav-text">Справочници</span></a>
+      <a class="nav-item"><span class="nav-text">База данни</span></a>
+      <a class="nav-item"><span class="nav-text">Настройки</span></a>
+    </div>
+    <div class="sidebar-version">v1.0.0 Beta</div>
+  </aside>
+
+  <main class="main-content">
+    <div class="topbar">
+      <span class="topbar-title">Протоколи</span>
+      <button class="btn-primary">+ Нов протокол</button>
+    </div>
+
+    <div class="page-body">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0Z"/></svg>
+          <input class="search-input" type="text" placeholder="Търси по клиент, обект…">
+        </div>
+        <button class="btn-outline">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75 4.5 4.5m0 0-4.5 4.5m4.5-4.5H9.75"/></svg>
+          Филтри
+        </button>
+        <span class="records-count">5 протокола</span>
+      </div>
+
+      <div class="proto-table-wrap">
+        <!-- Header -->
+        <div class="proto-table-head">
+          <span class="th">Дата</span>
+          <span class="th">Клиент / Обект</span>
+          <span class="th">Услуги</span>
+          <span class="th">Изпълнил</span>
+          <span class="th" style="text-align:right">Действия</span>
+        </div>
+
+        <!-- Rows -->
+        <template x-for="p in protocols" :key="p.date + p.client">
+          <div class="proto-row" @click="open(p)">
+
+            <div class="cell-date">
+              <div class="date-main" x-text="p.date"></div>
+              <div class="date-sub" x-text="p.time"></div>
+            </div>
+
+            <div class="cell-client">
+              <div class="client-name" x-text="p.client"></div>
+              <div class="site-name" x-text="p.site"></div>
+            </div>
+
+            <div class="cell-services">
+              <template x-for="s in p.services" :key="s">
+                <span class="badge" :class="badgeClass(s)" x-text="serviceLabel(s)"></span>
+              </template>
+            </div>
+
+            <div class="cell-executor">
+              <div x-text="p.executor"></div>
+              <template x-if="p.contract">
+                <div class="executor-sub"><span class="tag-contract">Договор</span></div>
+              </template>
+            </div>
+
+            <div class="cell-actions" @click.stop>
+              <button class="btn-icon btn-pdf">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                PDF
+              </button>
+              <button class="btn-icon btn-copy">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"/></svg>
+                Копирай
+              </button>
+            </div>
+
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Modal (identical to v1) -->
+    <div class="modal-overlay" x-show="modal" x-transition @click.self="modal=false" style="display:none">
+      <div class="modal" @click.stop>
+        <div class="modal-header">
+          <div>
+            <div class="modal-title" x-text="selected?.client + ' — ' + selected?.site"></div>
+            <div class="modal-subtitle" x-text="selected?.date + '  ·  ' + selected?.time"></div>
+          </div>
+          <button class="modal-close" @click="modal=false">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-section">
+            <div class="modal-section-title">Услуги</div>
+            <div class="modal-services">
+              <template x-for="s in selected?.services" :key="s">
+                <span class="badge" :class="$root.badgeClass(s)" x-text="$root.serviceLabel(s)"></span>
+              </template>
+            </div>
+          </div>
+          <div class="modal-section">
+            <div class="modal-section-title">Детайли</div>
+            <div class="modal-grid">
+              <div class="modal-field"><label>Изпълнил</label><span x-text="selected?.executor"></span></div>
+              <div class="modal-field"><label>Вид договор</label><span x-text="selected?.contract ? 'Дългосрочен' : 'Еднократен'"></span></div>
+            </div>
+          </div>
+          <template x-if="selected?.notes">
+            <div class="modal-section">
+              <div class="modal-section-title">Бележки</div>
+              <p style="font-size:13.5px;color:var(--text-primary);line-height:1.6" x-text="selected?.notes"></p>
+            </div>
+          </template>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" @click="modal=false">Затвори</button>
+          <button class="btn-outline">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"/></svg>
+            Копирай протокол
+          </button>
+          <button class="btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+            Виж PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <title>Еднократни обработки — Stage 2a Mockup</title>
+  <style>
+    :root {
+      --c-peach:#fec196; --c-coral:#ffa686; --c-clay:#d6a184; --c-mauve:#aa767c; --c-plum:#63474d;
+      --sidebar-width:240px; --sidebar-bg:var(--c-plum); --sidebar-brand-bg:#4a343a;
+      --nav-text:rgba(255,255,255,.82); --nav-text-hover:rgba(255,255,255,.97);
+      --nav-text-active:var(--c-peach); --nav-bg-hover:#74565c; --nav-bg-active:#7d5f66;
+      --nav-accent-active:var(--c-coral); --nav-label-text:rgba(255,255,255,.35);
+      --nav-sub-bg:#4a343a; --nav-sub-text:rgba(255,255,255,.68);
+      --version-text:#7d5f66;
+      --content-bg:#f6efe9; --card-bg:#fff; --text-primary:#3d2b2f; --text-muted:#9a7a80;
+      --border-subtle:rgba(170,118,124,.15);
+      --radius-sm:4px; --radius-md:6px; --radius-lg:8px;
+      --t-fast:140ms ease; --t-med:200ms ease;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px;color:var(--text-primary)}
+    a{text-decoration:none;cursor:pointer}
+    button{border:none;background:none;cursor:pointer;font:inherit;text-align:left}
+
+    /* ── Layout ── */
+    .app-layout{display:flex;height:100vh;overflow:hidden}
+    .sidebar{width:var(--sidebar-width);min-width:var(--sidebar-width);background:var(--sidebar-bg);display:flex;flex-direction:column;height:100vh}
+    .sidebar-brand{background:var(--sidebar-brand-bg);padding:18px 16px 16px;display:flex;flex-direction:column;gap:3px}
+    .brand-appname{font-size:17px;font-weight:700;color:var(--c-peach)}
+    .brand-company{font-size:12px;color:rgba(255,255,255,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sidebar-nav{flex:1;padding:8px 0;overflow-y:auto}
+    .sidebar-management{flex-shrink:0;padding:6px 0 4px;border-top:1px solid rgba(255,255,255,.08)}
+    .sidebar-version{flex-shrink:0;padding:8px 16px 12px;font-size:11px;color:var(--version-text)}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;color:var(--nav-text);border-left:3px solid transparent;border-radius:0 var(--radius-sm) var(--radius-sm) 0;transition:background var(--t-fast),color var(--t-fast);width:100%}
+    .nav-item:hover{background:var(--nav-bg-hover);color:var(--nav-text-hover)}
+    .nav-item.active{background:var(--nav-bg-active);color:var(--nav-text-active);border-left-color:var(--nav-accent-active);font-weight:500}
+    .nav-text{flex:1;font-size:13.5px}
+    .nav-section-label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--nav-label-text);padding:6px 18px 2px}
+    .nav-group-header{display:flex;align-items:center;gap:10px;padding:9px 16px;width:100%;color:var(--nav-text);border-left:3px solid transparent;border-radius:0 var(--radius-sm) var(--radius-sm) 0;transition:background var(--t-fast)}
+    .nav-group-header:hover{background:var(--nav-bg-hover)}
+    .nav-arrow{margin-left:auto;font-size:11px;color:rgba(255,255,255,.4)}
+    .nav-subitems{background:var(--nav-sub-bg)}
+    .nav-subitem{display:flex;align-items:center;padding:7px 16px 7px 26px;color:var(--nav-sub-text);font-size:13px;border-left:3px solid transparent;transition:background var(--t-fast)}
+    .nav-subitem:hover{background:#574048;color:rgba(255,255,255,.92)}
+
+    .main-content{flex:1;background:var(--content-bg);display:flex;flex-direction:column;overflow:hidden}
+    .topbar{background:var(--card-bg);border-bottom:1px solid var(--border-subtle);padding:0 28px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .topbar-title{font-size:16px;font-weight:600;color:var(--text-primary)}
+    .topbar-actions{display:flex;align-items:center;gap:10px}
+    .page-body{flex:1;overflow-y:auto;padding:24px 28px}
+
+    /* ── Buttons ── */
+    .btn-primary{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--c-coral);color:#fff;font-size:13.5px;font-weight:500;border-radius:var(--radius-sm);transition:background var(--t-fast);cursor:pointer}
+    .btn-primary:hover{background:#f09070}
+    .count-chip{font-size:12px;color:var(--text-muted);background:var(--content-bg);border:1px solid var(--border-subtle);border-radius:30px;padding:2px 10px}
+
+    /* ── Toolbar ── */
+    .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+    .search-wrap{position:relative;flex:1;max-width:300px}
+    .search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);width:14px;height:14px;pointer-events:none}
+    .search-input{width:100%;padding:7px 12px 7px 30px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);background:#fff;font-size:13px;color:var(--text-primary);outline:none}
+    .search-input:focus{border-color:var(--c-clay)}
+    .filter-btn{display:inline-flex;align-items:center;gap:5px;padding:7px 12px;background:#fff;color:var(--text-muted);font-size:12.5px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);transition:all var(--t-fast);cursor:pointer}
+    .filter-btn:hover{color:var(--text-primary);border-color:var(--c-clay)}
+    .filter-btn.active{background:rgba(255,166,134,.1);color:var(--c-coral);border-color:rgba(255,166,134,.4)}
+
+    /* ══════════════════════════════════════════════
+       ENTRY CARD
+    ══════════════════════════════════════════════ */
+    .entry-list{display:flex;flex-direction:column;gap:8px}
+
+    .entry-card{
+      background:var(--card-bg);
+      border:1px solid var(--border-subtle);
+      border-radius:var(--radius-md);
+      overflow:hidden;
+      transition:border-color var(--t-fast);
+    }
+    .entry-card.is-open{border-color:rgba(170,118,124,.3)}
+
+    /* ── Card header (quick display row) ── */
+    .entry-header{
+      display:flex;
+      align-items:center;
+      gap:0;
+      padding:0;
+      cursor:pointer;
+      user-select:none;
+      transition:background var(--t-fast);
+    }
+    .entry-header:hover{background:#fdf7f2}
+
+    /* Date column — fixed width, visually distinct */
+    .entry-date{
+      flex-shrink:0;
+      width:72px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:14px 10px;
+      border-right:1px solid var(--border-subtle);
+      background:rgba(254,193,150,.08);
+    }
+    .date-day{font-size:20px;font-weight:700;color:var(--text-primary);line-height:1}
+    .date-mon{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-top:2px}
+    .date-year{font-size:10px;color:var(--text-muted);margin-top:1px}
+
+    /* Main info — stretches */
+    .entry-info{
+      flex:1;
+      min-width:0;
+      padding:11px 14px;
+      display:flex;
+      flex-direction:column;
+      gap:5px;
+    }
+
+    /* Row 1: pseudonym + service chips + note icon */
+    .entry-row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .entry-pseudonym{font-size:14px;font-weight:700;color:var(--text-primary);white-space:nowrap}
+    .entry-name{font-size:12.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    /* Service chips */
+    .svc-chips{display:flex;gap:4px;flex-wrap:wrap}
+    .svc-chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:3px;font-size:10.5px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+    .svc-dis{background:rgba(41,128,185,.12);color:#1a6fa1}
+    .svc-der{background:rgba(39,174,96,.12);color:#1e8449}
+    .svc-inf{background:rgba(142,68,173,.12);color:#7d3c98}
+
+    /* Note icon */
+    .note-icon{width:16px;height:16px;flex-shrink:0;transition:opacity var(--t-fast)}
+    .note-icon--active{opacity:1;color:var(--c-coral)}
+    .note-icon--empty{opacity:.15;color:var(--text-muted)}
+
+    /* Row 2: address + phone */
+    .entry-row2{display:flex;align-items:center;gap:16px}
+    .entry-addr{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted)}
+    .entry-addr svg, .entry-phone svg{width:12px;height:12px;flex-shrink:0;opacity:.6}
+    .entry-phone{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted)}
+
+    /* Row 3: tags + price */
+    .entry-row3{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .tag-pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+    .tag-dot{width:7px;height:7px;border-radius:50%}
+    .price-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;background:rgba(254,193,150,.18);color:#8a5a30;font-size:11.5px;font-weight:600;border-radius:3px;margin-left:auto;white-space:nowrap}
+
+    /* Action buttons */
+    .entry-actions{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:4px;
+      padding:0 12px;
+      flex-shrink:0;
+      border-left:1px solid var(--border-subtle);
+      align-self:stretch;
+    }
+    .act-btn{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:var(--radius-sm);color:var(--text-muted);border:1px solid transparent;transition:all var(--t-fast)}
+    .act-btn svg{width:13px;height:13px}
+    .act-btn:hover{background:var(--content-bg);border-color:var(--border-subtle);color:var(--text-primary)}
+    .act-btn.del:hover{color:#b03030;background:rgba(200,80,80,.08);border-color:rgba(200,80,80,.25)}
+
+    /* Chevron */
+    .entry-chevron{width:14px;height:14px;color:var(--text-muted);transition:transform var(--t-med);flex-shrink:0}
+    .entry-chevron.open{transform:rotate(90deg)}
+
+    /* ── Expanded detail body ── */
+    .entry-body{
+      border-top:1px solid var(--border-subtle);
+      display:none;
+      padding:18px 20px 20px;
+      background:#fdfaf7;
+    }
+    .entry-body.open{display:block}
+
+    .detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px 24px;margin-bottom:18px}
+    .detail-cell{}
+    .detail-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:3px}
+    .detail-value{font-size:13px;color:var(--text-primary);font-weight:500}
+    .detail-value.muted{color:var(--text-muted);font-style:italic;font-weight:400}
+
+    .detail-section{margin-top:14px;padding-top:14px;border-top:1px solid var(--border-subtle)}
+    .detail-section-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-bottom:10px}
+
+    /* Products table */
+    .products-table{width:100%;border-collapse:collapse}
+    .products-table th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);padding:0 10px 6px 0;border-bottom:1px solid var(--border-subtle);text-align:left}
+    .products-table td{padding:8px 10px 8px 0;border-bottom:1px solid var(--border-subtle);font-size:12.5px;color:var(--text-primary)}
+    .products-table tr:last-child td{border-bottom:none}
+
+    /* Pest chips */
+    .pest-chips{display:flex;flex-wrap:wrap;gap:5px}
+    .pest-chip{padding:3px 10px;background:rgba(170,118,124,.1);color:var(--c-plum);font-size:12px;border-radius:3px;font-weight:500}
+
+    /* Note box */
+    .note-box{background:#fff;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;color:var(--text-primary);line-height:1.6;border-left:3px solid var(--c-coral)}
+
+    /* Workers */
+    .worker-chips{display:flex;flex-wrap:wrap;gap:6px}
+    .worker-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(99,71,77,.08);border-radius:var(--radius-sm);font-size:12.5px;color:var(--c-plum);font-weight:500}
+    .worker-avatar{width:20px;height:20px;border-radius:50%;background:var(--c-mauve);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0}
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- ════ SIDEBAR ════ -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-appname">PDForge</span>
+      <span class="brand-company">ДДД Дружество ЕООД</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item"><span class="nav-text">Табло</span></a>
+      <a href="#" class="nav-item"><span class="nav-text">Протоколи</span></a>
+      <a href="#" class="nav-item"><span class="nav-text">Шаблони</span></a>
+      <a href="#" class="nav-item active"><span class="nav-text">Еднократни обработки</span></a>
+      <a href="#" class="nav-item"><span class="nav-text">Справки</span></a>
+      <a href="#" class="nav-item"><span class="nav-text">Клиенти</span></a>
+      <a href="#" class="nav-item"><span class="nav-text">Обекти</span></a>
+      <a href="#" class="nav-item"><span class="nav-text">Етикети</span></a>
+    </nav>
+    <div class="sidebar-management">
+      <span class="nav-section-label">Управление</span>
+      <button class="nav-group-header"><span class="nav-text">Справочници</span><span class="nav-arrow">›</span></button>
+      <a href="#" class="nav-item"><span class="nav-text">База данни</span></a>
+      <a href="#" class="nav-item"><span class="nav-text">Настройки</span></a>
+    </div>
+    <div class="sidebar-version">v1.0.0</div>
+  </aside>
+
+  <!-- ════ MAIN ════ -->
+  <main class="main-content">
+    <div class="topbar">
+      <span class="topbar-title">Еднократни обработки</span>
+      <div class="topbar-actions">
+        <span class="count-chip">4 записа</span>
+        <button class="btn-primary">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          Нова обработка
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input class="search-input" placeholder="Търси по адрес, псевдоним…">
+        </div>
+        <button class="filter-btn active">Дезинсекция</button>
+        <button class="filter-btn">Дератизация</button>
+        <button class="filter-btn">Дезинфекция</button>
+      </div>
+
+      <div class="entry-list">
+
+        <!-- ── Entry 1 — expanded, has note ── -->
+        <div class="entry-card is-open" id="card1">
+          <div class="entry-header" onclick="toggle('card1','chev1')">
+
+            <div class="entry-date">
+              <span class="date-day">23</span>
+              <span class="date-mon">май</span>
+              <span class="date-year">2026</span>
+            </div>
+
+            <div class="entry-info">
+              <div class="entry-row1">
+                <span class="entry-pseudonym">Ап. Иванови</span>
+                <span class="entry-name">Иван Иванов</span>
+                <div class="svc-chips">
+                  <span class="svc-chip svc-dis">Дезинсекция</span>
+                  <span class="svc-chip svc-der">Дератизация</span>
+                </div>
+                <!-- Note icon — HAS note -->
+                <svg class="note-icon note-icon--active" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" title="Има бележка"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
+                <svg class="entry-chevron open" id="chev1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6"/></svg>
+              </div>
+              <div class="entry-row2">
+                <span class="entry-addr">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0z"/></svg>
+                  ул. Витоша 15, ет. 3, ап. 8
+                </span>
+                <span class="entry-phone">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.338c0-1.035 1.07-1.74 1.994-1.25l2.725 1.453a1.5 1.5 0 0 1 .648 1.891l-.892 2.008a.75.75 0 0 0 .239.878l3.12 2.34a.75.75 0 0 0 .878-.024l1.83-1.491a1.5 1.5 0 0 1 1.942.074l2.1 1.944c.72.666.63 1.8-.193 2.346l-1.086.724a2.25 2.25 0 0 1-2.558.024 18.452 18.452 0 0 1-6.364-6.657 2.25 2.25 0 0 1 .158-2.52L2.25 6.338z"/></svg>
+                  0888 123 456
+                </span>
+              </div>
+              <div class="entry-row3">
+                <span class="tag-pill" style="background:#fdecea;color:#c0392b"><span class="tag-dot" style="background:#e74c3c"></span>Спешно</span>
+                <span class="tag-pill" style="background:#eafaf1;color:#1e8449"><span class="tag-dot" style="background:#27ae60"></span>Договор</span>
+                <span class="price-chip">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33"/></svg>
+                  85.00 лв.
+                </span>
+              </div>
+            </div>
+
+            <div class="entry-actions">
+              <button class="act-btn" title="Редактирай">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931z"/></svg>
+              </button>
+              <button class="act-btn del" title="Изтрий">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Expanded body -->
+          <div class="entry-body open" id="body1">
+            <div class="detail-grid">
+              <div class="detail-cell">
+                <div class="detail-label">Час</div>
+                <div class="detail-value">09:00 – 10:30</div>
+              </div>
+              <div class="detail-cell">
+                <div class="detail-label">Изпълнители</div>
+                <div class="worker-chips">
+                  <span class="worker-chip"><span class="worker-avatar">ПП</span>Петър Петров</span>
+                  <span class="worker-chip"><span class="worker-avatar">ГД</span>Георги Димитров</span>
+                </div>
+              </div>
+              <div class="detail-cell">
+                <div class="detail-label">Вредители</div>
+                <div class="pest-chips">
+                  <span class="pest-chip">Хлебарки</span>
+                  <span class="pest-chip">Мишки</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <div class="detail-section-title">Използвани препарати</div>
+              <table class="products-table">
+                <thead>
+                  <tr>
+                    <th>Препарат</th>
+                    <th>Количество</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Сурфактин 25 ЕК</td>
+                    <td>50 мл</td>
+                  </tr>
+                  <tr>
+                    <td>Бродифакум 0.005%</td>
+                    <td>2 примамки</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="detail-section">
+              <div class="detail-section-title">Бележка</div>
+              <div class="note-box">Клиентът иска повторно посещение след 2 седмици за контрол. Да се провери под мивката — има следи от влага.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Entry 2 — collapsed, NO note ── -->
+        <div class="entry-card" id="card2">
+          <div class="entry-header" onclick="toggle('card2','chev2')">
+            <div class="entry-date">
+              <span class="date-day">18</span>
+              <span class="date-mon">май</span>
+              <span class="date-year">2026</span>
+            </div>
+            <div class="entry-info">
+              <div class="entry-row1">
+                <span class="entry-pseudonym">Бл. 14 — мазе</span>
+                <span class="entry-name">Красимира Стоянова</span>
+                <div class="svc-chips">
+                  <span class="svc-chip svc-der">Дератизация</span>
+                </div>
+                <!-- Note icon — NO note -->
+                <svg class="note-icon note-icon--empty" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
+                <svg class="entry-chevron" id="chev2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6"/></svg>
+              </div>
+              <div class="entry-row2">
+                <span class="entry-addr">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0z"/></svg>
+                  бул. България 44, вх. Б, мазе
+                </span>
+                <span class="entry-phone">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.338c0-1.035 1.07-1.74 1.994-1.25l2.725 1.453a1.5 1.5 0 0 1 .648 1.891l-.892 2.008a.75.75 0 0 0 .239.878l3.12 2.34a.75.75 0 0 0 .878-.024l1.83-1.491a1.5 1.5 0 0 1 1.942.074l2.1 1.944c.72.666.63 1.8-.193 2.346l-1.086.724a2.25 2.25 0 0 1-2.558.024 18.452 18.452 0 0 1-6.364-6.657 2.25 2.25 0 0 1 .158-2.52L2.25 6.338z"/></svg>
+                  0877 654 321
+                </span>
+              </div>
+              <div class="entry-row3">
+                <span class="price-chip">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33"/></svg>
+                  40.00 лв.
+                </span>
+              </div>
+            </div>
+            <div class="entry-actions">
+              <button class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931z"/></svg></button>
+              <button class="act-btn del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>
+            </div>
+          </div>
+          <div class="entry-body" id="body2"><!-- expands on click --></div>
+        </div>
+
+        <!-- ── Entry 3 — collapsed, has note, all 3 services ── -->
+        <div class="entry-card" id="card3">
+          <div class="entry-header" onclick="toggle('card3','chev3')">
+            <div class="entry-date">
+              <span class="date-day">10</span>
+              <span class="date-mon">май</span>
+              <span class="date-year">2026</span>
+            </div>
+            <div class="entry-info">
+              <div class="entry-row1">
+                <span class="entry-pseudonym">Фризьорски салон</span>
+                <span class="entry-name">Стилияна Маринова</span>
+                <div class="svc-chips">
+                  <span class="svc-chip svc-dis">Дезинсекция</span>
+                  <span class="svc-chip svc-der">Дератизация</span>
+                  <span class="svc-chip svc-inf">Дезинфекция</span>
+                </div>
+                <svg class="note-icon note-icon--active" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
+                <svg class="entry-chevron" id="chev3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6"/></svg>
+              </div>
+              <div class="entry-row2">
+                <span class="entry-addr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0z"/></svg>ул. Раковски 7, партер</span>
+                <span class="entry-phone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.338c0-1.035 1.07-1.74 1.994-1.25l2.725 1.453a1.5 1.5 0 0 1 .648 1.891l-.892 2.008a.75.75 0 0 0 .239.878l3.12 2.34a.75.75 0 0 0 .878-.024l1.83-1.491a1.5 1.5 0 0 1 1.942.074l2.1 1.944c.72.666.63 1.8-.193 2.346l-1.086.724a2.25 2.25 0 0 1-2.558.024 18.452 18.452 0 0 1-6.364-6.657 2.25 2.25 0 0 1 .158-2.52L2.25 6.338z"/></svg>0899 111 222</span>
+              </div>
+              <div class="entry-row3">
+                <span class="tag-pill" style="background:#fef9e7;color:#b7770d"><span class="tag-dot" style="background:#f39c12"></span>Контрол</span>
+                <span class="price-chip"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33"/></svg>120.00 лв.</span>
+              </div>
+            </div>
+            <div class="entry-actions">
+              <button class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931z"/></svg></button>
+              <button class="act-btn del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>
+            </div>
+          </div>
+          <div class="entry-body" id="body3"></div>
+        </div>
+
+        <!-- ── Entry 4 — no price, no tags ── -->
+        <div class="entry-card" id="card4">
+          <div class="entry-header" onclick="toggle('card4','chev4')">
+            <div class="entry-date">
+              <span class="date-day">02</span>
+              <span class="date-mon">май</span>
+              <span class="date-year">2026</span>
+            </div>
+            <div class="entry-info">
+              <div class="entry-row1">
+                <span class="entry-pseudonym">Гараж Петков</span>
+                <span class="entry-name">Димитър Петков</span>
+                <div class="svc-chips">
+                  <span class="svc-chip svc-der">Дератизация</span>
+                </div>
+                <svg class="note-icon note-icon--empty" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
+                <svg class="entry-chevron" id="chev4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6"/></svg>
+              </div>
+              <div class="entry-row2">
+                <span class="entry-addr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0z"/></svg>ж.к. Надежда, гараж №12</span>
+                <span class="entry-phone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.338c0-1.035 1.07-1.74 1.994-1.25l2.725 1.453a1.5 1.5 0 0 1 .648 1.891l-.892 2.008a.75.75 0 0 0 .239.878l3.12 2.34a.75.75 0 0 0 .878-.024l1.83-1.491a1.5 1.5 0 0 1 1.942.074l2.1 1.944c.72.666.63 1.8-.193 2.346l-1.086.724a2.25 2.25 0 0 1-2.558.024 18.452 18.452 0 0 1-6.364-6.657 2.25 2.25 0 0 1 .158-2.52L2.25 6.338z"/></svg>0888 999 000</span>
+              </div>
+              <div class="entry-row3">
+                <span style="font-size:11.5px;color:var(--text-muted);font-style:italic">— без цена —</span>
+              </div>
+            </div>
+            <div class="entry-actions">
+              <button class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931z"/></svg></button>
+              <button class="act-btn del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>
+            </div>
+          </div>
+          <div class="entry-body" id="body4"></div>
+        </div>
+
+      </div><!-- /entry-list -->
+    </div><!-- /page-body -->
+  </main>
+</div>
+
+<script>
+  function toggle(cardId, chevId) {
+    const card = document.getElementById(cardId);
+    const body = document.getElementById('body' + cardId.replace('card',''));
+    const chev = document.getElementById(chevId);
+    const open = body.classList.contains('open');
+    body.classList.toggle('open', !open);
+    card.classList.toggle('is-open', !open);
+    chev.classList.toggle('open', !open);
+  }
+</script>
+</body>
+</html>

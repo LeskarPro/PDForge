@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Работници — PDForge{% endblock %}
+{% block topbar_title %}Работници{% endblock %}
+
+{% block topbar_actions %}
+  <button class="btn-primary"
+          hx-get="{% url 'core:worker_create' %}"
+          hx-target="#modal-content"
+          hx-swap="innerHTML">
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none"
+         viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+    </svg>
+    Нов работник
+  </button>
+{% endblock %}
+
+{% block content %}
+<style>
+  .toolbar { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+  .search-wrap { position:relative; flex:1; max-width:320px; }
+  .search-wrap svg { position:absolute; left:10px; top:50%; transform:translateY(-50%);
+    color:var(--text-muted); width:15px; height:15px; pointer-events:none; }
+  .search-input { width:100%; padding:8px 12px 8px 32px; border:1px solid var(--border-subtle);
+    border-radius:var(--radius-sm); background:#fff; font-size:13px;
+    color:var(--text-primary); outline:none; }
+  .search-input:focus { border-color:var(--c-clay); }
+  .records-count { margin-left:auto; font-size:12px; color:var(--text-muted); }
+
+  .workers-card { background:#fff; border:1px solid var(--border-subtle);
+    border-radius:var(--radius-md); overflow:hidden; }
+  .workers-table { width:100%; border-collapse:collapse; }
+  .workers-table th { font-size:10px; font-weight:600; text-transform:uppercase;
+    letter-spacing:.08em; color:var(--text-muted); padding:11px 12px;
+    border-bottom:1px solid var(--border-subtle); text-align:left; white-space:nowrap;
+    background:#fdf9f6; }
+  .workers-table td { padding:10px 12px; border-bottom:1px solid var(--border-subtle);
+    vertical-align:middle; font-size:13px; color:var(--text-primary); }
+  .workers-table tr:last-child td { border-bottom:none; }
+  .workers-table tr:hover td { background:#fdf9f6; }
+  .workers-table tr.inactive td { opacity:.5; }
+
+  .worker-name { font-weight:600; color:var(--text-primary); }
+  .worker-role { font-size:12px; color:var(--text-muted); margin-top:2px; }
+
+  .default-badge { display:inline-flex; align-items:center; gap:4px;
+    padding:2px 8px; border-radius:10px; font-size:11px; font-weight:500; white-space:nowrap; }
+  .badge-supervisor { background:rgba(80,130,200,.12); color:#185fa5; }
+  .badge-executor   { background:rgba(60,160,100,.12); color:#1a6b3a; }
+  .badge-inactive   { background:rgba(150,150,150,.12); color:#666; }
+
+  .row-actions { display:flex; align-items:center; gap:4px; justify-content:flex-end; white-space:nowrap; }
+  .site-btn { display:flex; align-items:center; justify-content:center;
+    width:28px; height:28px; border-radius:var(--radius-sm);
+    color:var(--text-muted); border:1px solid transparent;
+    transition:background var(--t-fast),color var(--t-fast),border-color var(--t-fast); }
+  .site-btn svg { width:13px; height:13px; }
+  .site-btn:hover { background:var(--content-bg); border-color:var(--border-subtle); color:var(--text-primary); }
+  .site-btn.edit:hover { color:#b05030; background:rgba(255,166,134,.1); border-color:rgba(255,166,134,.3); }
+  .site-btn.del:hover  { color:#b03030; background:rgba(200,80,80,.08); border-color:rgba(200,80,80,.25); }
+
+  .no-workers-row td { text-align:center; padding:40px; color:var(--text-muted); font-style:italic; }
+
+  /* Modal */
+  .modal-overlay { position:fixed; inset:0; background:rgba(61,43,47,.38);
+    display:flex; align-items:center; justify-content:center; z-index:200; }
+  .modal-overlay.hidden { display:none; }
+  .modal-box { background:#fff; border-radius:var(--radius-lg);
+    width:100%; max-width:480px; max-height:92vh; overflow-y:auto;
+    box-shadow:0 8px 40px rgba(0,0,0,.18); }
+
+  .modal-title { font-size:16px; font-weight:700; color:var(--text-primary);
+    padding:20px 24px 0; margin-bottom:18px; }
+  .form-section-label { font-size:10px; font-weight:600; text-transform:uppercase;
+    letter-spacing:.08em; color:var(--text-muted);
+    padding:6px 24px; background:#fdf9f6;
+    border-top:1px solid var(--border-subtle);
+    border-bottom:1px solid var(--border-subtle); margin-bottom:16px; }
+  .form-inner { padding:0 24px; }
+  .form-row { display:grid; gap:12px; margin-bottom:14px; }
+  .form-row.cols2 { grid-template-columns:1fr 1fr; }
+  .form-row.cols1 { grid-template-columns:1fr; }
+  .form-group { display:flex; flex-direction:column; gap:4px; }
+  .form-label { display:block; font-size:11px; font-weight:600; text-transform:uppercase;
+    letter-spacing:.08em; color:var(--text-muted); margin-bottom:5px; }
+  .form-label .req { color:var(--c-coral); }
+  .form-input { width:100%; padding:9px 12px; border:1px solid var(--border-subtle);
+    border-radius:var(--radius-sm); font:inherit; font-size:13.5px;
+    color:var(--text-primary); background:#fff; outline:none;
+    transition:border-color var(--t-fast); }
+  .form-input:focus { border-color:var(--c-clay); }
+  .form-error { color:#c0392b; font-size:11.5px; margin-top:4px; }
+  .form-hint { font-size:11px; color:var(--text-muted); margin-top:3px; }
+  .modal-footer { display:flex; justify-content:flex-end; gap:8px;
+    margin:18px 24px 20px; border-top:1px solid var(--border-subtle); padding-top:16px; }
+  .btn-cancel { padding:8px 18px; font-size:13px; color:var(--text-muted);
+    border:1px solid var(--border-subtle); border-radius:var(--radius-sm); background:#fff; }
+  .btn-cancel:hover { background:var(--content-bg); color:var(--text-primary); }
+  .btn-save { padding:8px 20px; font-size:13px; font-weight:500;
+    background:var(--c-coral); color:#fff; border-radius:var(--radius-sm); }
+  .btn-save:hover { background:#f09070; }
+  .checkbox-row { display:flex; align-items:center; gap:8px; font-size:13px;
+    color:var(--text-primary); cursor:pointer; margin-bottom:10px; }
+  .checkbox-row input[type=checkbox] { width:15px; height:15px; accent-color:var(--c-coral); }
+</style>
+
+<!-- Modal -->
+<div id="modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div id="modal-content"
+         hx-on::after-swap="document.getElementById('modal').classList.remove('hidden')">
+    </div>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <div class="search-wrap">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+         stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="m21 21-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0Z"/>
+    </svg>
+    <input id="worker-search" class="search-input"
+           placeholder="Търси по име, длъжност…"
+           oninput="filterWorkers(this.value)">
+  </div>
+  <span class="records-count" id="worker-count">{{ workers|length }} работника</span>
+</div>
+
+<!-- Table -->
+<div class="workers-card">
+  <table class="workers-table">
+    <thead>
+      <tr>
+        <th style="width:35%">Работник</th>
+        <th style="width:30%">Роля по подразбиране</th>
+        <th style="width:15%">Статус</th>
+        <th style="width:20%;text-align:right"></th>
+      </tr>
+    </thead>
+    <tbody id="worker-list">
+      {% include "workers/_list_body.html" %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener('htmx:configRequest', function(e) {
+    e.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+  });
+
+  document.body.addEventListener('workersChanged', function() {
+    closeModal();
+    htmx.ajax('GET', '{% url "core:worker_list_body" %}', {
+      target: '#worker-list', swap: 'innerHTML'
+    });
+  });
+
+  function closeModal() {
+    document.getElementById('modal').classList.add('hidden');
+    document.getElementById('modal-content').innerHTML = '';
+  }
+  document.body.addEventListener('closeModal', closeModal);
+
+  function filterWorkers(q) {
+    q = q.toLowerCase();
+    let visible = 0;
+    document.querySelectorAll('.worker-row').forEach(row => {
+      const show = row.dataset.search.toLowerCase().includes(q);
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    const el = document.getElementById('worker-count');
+    if (el) el.textContent = visible + ' работника';
+  }
+</script>
+{% endblock %}

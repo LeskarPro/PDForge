@@ -1,0 +1,594 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Преглед на протокол — PDForge{% endblock %}
+{% block topbar_title %}Преглед на протокол{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'core:protocol_create' %}" class="btn-outline" style="text-decoration:none;">
+    ← Към редактиране
+  </a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ══════════════════════════════════════════════
+     Stage 2b — Preview page
+     ══════════════════════════════════════════════ */
+  .pv-root {
+    max-width: 1380px; margin: 0 auto; padding: 12px 0 60px;
+    color: var(--text-primary);
+  }
+  [x-cloak] { display: none !important; }
+
+  /* Action bar — sits between topbar and paper area */
+  .pv-actionbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 12px 16px; margin-bottom: 16px;
+    background: var(--card-bg); border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    box-shadow: 0 1px 6px rgba(99,71,77,.08);
+  }
+  .pv-fmt-tabs { display: flex; gap: 6px; }
+  .pv-fmt {
+    padding: 6px 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    background: transparent; color: var(--text-muted);
+    cursor: pointer; font-size: 12.5px; font-family: inherit;
+    transition: all .15s;
+  }
+  .pv-fmt:hover  { border-color: var(--c-clay); color: var(--text-primary); }
+  .pv-fmt.active { background: var(--c-coral); border-color: var(--c-coral); color: #fff; font-weight: 600; }
+  .pv-action-buttons { display: flex; gap: 8px; margin-left: auto; }
+  .pv-btn {
+    padding: 8px 16px; border-radius: var(--radius-sm); border: none;
+    cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit;
+    transition: opacity .15s, background .15s;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .pv-btn:hover { opacity: .92; }
+  .pv-btn:disabled { opacity: .45; cursor: not-allowed; }
+  .pv-btn-primary   { background: var(--c-coral); color: #fff; }
+  .pv-btn-secondary { background: #fff; color: var(--text-muted); border: 1px solid var(--border-subtle); }
+  .pv-btn-template  { background: #fff; color: #b06030; border: 1px solid #d6a184; }
+  .pv-btn-template:hover { background: #fdf2e8; opacity: 1; }
+
+  /* Paper viewport */
+  .pv-canvas {
+    display: flex; flex-direction: column; align-items: center; gap: 22px;
+    padding: 20px 8px;
+  }
+  .pv-paper-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  /* ══════════════════════════════════════════════
+     Real protocol render styles — ported verbatim
+     from templates/protocol/base.html so the
+     preview matches the PDF output character-for-
+     character.  All scoped under .pv-paper.
+     ══════════════════════════════════════════════ */
+  .pv-paper {
+    background: white; color: #111;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 8.5pt; line-height: 1.1;
+    width: 210mm; min-height: 297mm; margin: 0 auto;
+    box-shadow: 0 8px 40px rgba(40,28,30,.45);
+    transform-origin: top center;
+    border-radius: 2px; overflow: hidden;
+  }
+  /* On narrow screens (tablet / small laptop), scale down so the A4 paper
+     fits inside the viewport.  Wide screens render at full size. */
+  @media (max-width: 1200px) {
+    .pv-paper { transform: scale(.85); margin-bottom: -18mm; }
+  }
+  @media (max-width: 1000px) {
+    .pv-paper { transform: scale(.72); margin-bottom: -28mm; }
+  }
+  @media (max-width: 800px) {
+    .pv-paper { transform: scale(.55); margin-bottom: -45mm; }
+  }
+  .pv-paper * { box-sizing: border-box; }
+
+  /* Header line */
+  .pv-paper .protocol-header-line {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .pv-paper .protocol-header-line .brand-block { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .pv-paper .protocol-header-line .logo { padding-left: 30px; height: 24px; width: auto; }
+  .pv-paper .protocol-header-line .brand-slogan { font-style: italic; font-size: 8.5pt; white-space: nowrap; }
+  .pv-paper .protocol-header-line .doc-title-inline { font-weight: bold; font-size: 11pt; }
+  .pv-paper .protocol-header-line .doc-appendix { padding-right: 40px; font-size: 9pt; }
+
+  .pv-paper .header-table { width: 100%; border-collapse: collapse; }
+  .pv-paper .header-table th,
+  .pv-paper .header-table td { border: 1px solid; padding: 1px 2px; vertical-align: top; font-size: 8pt; font-weight: bold; }
+  .pv-paper .header-table th { text-align: center; font-size: 7.8pt; }
+
+  .pv-paper .checkbox {
+    display: inline-block; width: 10px; height: 10px; border: 1px solid;
+    vertical-align: middle; margin-right: 3px;
+    text-align: center; line-height: 8px;
+    font-size: 6.5pt; font-weight: bold;
+  }
+
+  .pv-paper .protocol-table { width: 100%; border-collapse: collapse; }
+  .pv-paper .protocol-table th,
+  .pv-paper .protocol-table td { border: 1px solid; padding: 0 3px; vertical-align: top; font-size: 9pt; }
+  .pv-paper .protocol-table th { text-align: center; font-weight: bold; }
+  .pv-paper .protocol-table td.col-num { text-align: center; vertical-align: middle; }
+  .pv-paper .protocol-table td.cb { padding: 0; text-align: center; vertical-align: middle; font-weight: bold; line-height: 1; font-size: 7.5pt; }
+  .pv-paper .protocol-table td.pname { vertical-align: middle; }
+
+  .pv-paper .footer-table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  .pv-paper .footer-table td { border: 1px solid; padding: 2px 4px; vertical-align: top; }
+  .pv-paper .footer-hint { font-style: italic; font-size: 8pt; }
+  .pv-paper .fd-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+  .pv-paper .fd-right { text-align: right; white-space: nowrap; }
+  .pv-paper .footer-signatory { height: 60px; }
+  .pv-paper .footnote { padding-left: 30px; font-size: 8pt; font-style: italic; }
+
+  /* A5 panels — two per page, dashed separator */
+  .pv-paper .a5-panel {
+    width: 100%; height: 147mm; padding: 3mm 1mm;
+    overflow: hidden; border-bottom: 1px dashed #aaa;
+    font-size: 7.5pt;
+  }
+  .pv-paper .a5-panel:last-child { border-bottom: none; }
+  .pv-paper .a5-panel .protocol-header-line .logo { height: 24px; padding-left: 30px; }
+  .pv-paper .a5-panel .header-table th { padding: 1px 2px; font-size: 7.8pt; }
+  .pv-paper .a5-panel .header-table td { padding: 1px 2px; font-size: 8pt; }
+  .pv-paper .a5-panel .protocol-table th,
+  .pv-paper .a5-panel .protocol-table td { padding: 0px 3px; font-size: 9pt; }
+  .pv-paper .a5-panel .protocol-table td.cb { font-size: 7.5pt; }
+  .pv-paper .a5-panel .checkbox { width: 10px; height: 10px; font-size: 6.5pt; line-height: 8px; }
+  .pv-paper .a5-panel .footer-table { font-size: 9pt; }
+  .pv-paper .a5-panel .footer-table td { padding: 2px 4px; }
+  .pv-paper .a5-panel .footer-hint { font-size: 8pt; }
+  .pv-paper .a5-panel .footer-signatory { height: 60px; }
+  .pv-paper .a5-panel .footnote { padding-left: 30px; font-size: 8pt; }
+
+  /* Future-format placeholder */
+  .pv-future {
+    width: 515px; min-height: 500px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    background: white; color: #555;
+    box-shadow: 0 8px 30px rgba(40,28,30,.35); border-radius: 2px;
+    background-image: repeating-linear-gradient(45deg, transparent 0 14px, rgba(0,0,0,.025) 14px 28px);
+  }
+  .pv-future-inner { max-width: 360px; padding: 30px 24px; text-align: center; font-family: 'Times New Roman', serif; }
+  .pv-future-icon  { font-size: 32px; color: var(--c-coral); margin-bottom: 10px; }
+  .pv-future-title { font-size: 13.5px; font-weight: 700; color: #333; margin-bottom: 8px; }
+  .pv-future-body  { font-size: 11.5px; color: #555; line-height: 1.5; font-style: italic; }
+
+  /* Folder picker modal */
+  .pv-modal-veil {
+    position: fixed; inset: 0; background: rgba(40,28,30,.55);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px;
+  }
+  .pv-modal-card {
+    background: #fff; color: var(--text-primary);
+    border-radius: 10px; box-shadow: 0 20px 60px rgba(40,28,30,.4);
+    width: 100%; max-width: 540px; max-height: 80vh; display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .pv-modal-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--border-subtle);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--content-bg);
+  }
+  .pv-modal-title { font-size: 14.5px; font-weight: 700; }
+  .pv-modal-x { background: none; border: none; cursor: pointer; font-size: 22px; line-height: 1; color: var(--text-muted); padding: 0 4px; }
+  .pv-modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; }
+  .pv-modal-foot {
+    padding: 12px 18px; border-top: 1px solid var(--border-subtle);
+    display: flex; justify-content: flex-end; gap: 8px; background: var(--content-bg);
+  }
+  .pv-modal-btn {
+    padding: 8px 16px; border-radius: 5px; font-size: 12.5px; font-weight: 600;
+    font-family: inherit; cursor: pointer; transition: opacity .12s;
+  }
+  .pv-modal-btn.cancel { background: transparent; color: var(--text-muted); border: 1px solid var(--border-subtle); }
+  .pv-modal-btn.save   { background: var(--c-coral); color: #fff; border: none; }
+  .pv-modal-btn.save:disabled { opacity: .35; cursor: not-allowed; }
+
+  .pv-bc { font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .pv-bc-crumb {
+    cursor: pointer; padding: 2px 6px; border-radius: 3px;
+    background: var(--content-bg); color: var(--text-primary);
+  }
+  .pv-bc-crumb:hover { background: rgba(255,166,134,.18); }
+  .pv-bc-sep { color: var(--text-muted); }
+
+  .pv-folder-list { display: flex; flex-direction: column; gap: 4px; }
+  .pv-folder-row {
+    padding: 8px 12px; border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm); cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; gap: 8px;
+    transition: background .12s, border-color .12s;
+  }
+  .pv-folder-row:hover { background: rgba(255,166,134,.10); border-color: var(--c-clay); }
+  .pv-folder-icon { color: var(--c-coral); }
+  .pv-folder-empty { font-size: 12px; color: var(--text-muted); font-style: italic; padding: 8px 0; }
+
+  .pv-name-input {
+    width: 100%; margin-top: 14px; padding: 8px 10px;
+    border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+    font-size: 13px; color: var(--text-primary);
+  }
+  .pv-name-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+
+  /* ══════════════════════════════════════════════
+     Print styles.
+     beforeprint clones the two papers directly onto
+     body so Chrome sees them free of all flex /
+     overflow constraints.  afterprint removes them.
+     ══════════════════════════════════════════════ */
+  @media print {
+    /* When the print area is active, hide everything else on body */
+    body.pv-printing > *:not(#pv-print-area) { display: none !important; }
+
+    #pv-print-area {
+      margin: 0; padding: 0;
+      display: block;
+    }
+    #pv-print-area .pv-paper {
+      display: block !important;
+      width: 210mm !important;
+      height: 297mm !important;
+      min-height: unset !important;
+      overflow: hidden !important;
+      transform: none !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      margin: 0 !important;
+      /* Chrome: page-break-after on each paper works correctly */
+      page-break-after: always;
+      break-after: page;
+    }
+
+    /* Safari: height:297mm triggers top-trimming because Safari enforces a
+       minimum hardware margin that shifts the content area, and page-break-after
+       on an exact-page-height element creates extra blank pages.
+       Fix: let papers size to content (294mm from two 147mm panels — fits
+       within any hardware margin), and break only before the second paper.
+       JS in beforeprint detects Safari and adds .safari-print. */
+    #pv-print-area.safari-print .pv-paper {
+      height: auto !important;
+      min-height: unset !important;
+      page-break-after: auto !important;
+      break-after: auto !important;
+    }
+    #pv-print-area.safari-print .pv-paper:nth-child(2) {
+      page-break-before: always;
+      break-before: page;
+    }
+
+    @page { size: A4 portrait; margin: 0; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# Payload echoed by the server so we can re-POST it on action. #}
+<script id="preview-payload" type="application/json">{{ payload_json|safe }}</script>
+<script id="preview-folders" type="application/json">{{ folders_json|safe }}</script>
+
+<div x-data="protocolPreview()" x-cloak class="pv-root">
+
+  {% csrf_token %}
+
+  <!-- ═══ Action bar ═══ -->
+  <div class="pv-actionbar">
+    <div class="pv-fmt-tabs">
+      <button class="pv-fmt" :class="{active: fmt==='a5'}"      @click="fmt='a5'">A5 (2 стр.)</button>
+      <button class="pv-fmt" :class="{active: fmt==='a5-land'}" @click="fmt='a5-land'">A5 → A4 пейзаж</button>
+      <button class="pv-fmt" :class="{active: fmt==='a4-p'}"    @click="fmt='a4-p'">A4 портрет</button>
+    </div>
+    <div class="pv-action-buttons">
+      <button class="pv-btn pv-btn-secondary" @click="printPage()"             :disabled="busy">🖨 Печат</button>
+      <button class="pv-btn pv-btn-template"  @click="openFolderPicker()"     :disabled="busy">Запази като шаблон</button>
+      <button class="pv-btn pv-btn-secondary" @click="act('download')"        :disabled="busy">⤓ Изтегли (PDF)</button>
+      <button class="pv-btn pv-btn-primary"   @click="act('save')"            :disabled="busy">Запази протокол</button>
+    </div>
+  </div>
+
+  <div x-show="errMsg" x-cloak style="background:#fee;color:#a00;padding:10px 16px;border-radius:6px;margin-bottom:12px;font-size:13px;" x-text="errMsg"></div>
+  <div x-show="successMsg" x-cloak
+       style="background:rgba(74,160,100,.10);color:#2d7a4a;border:1px solid rgba(74,160,100,.35);padding:10px 16px;border-radius:6px;margin-bottom:12px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:10px;">
+    <span style="font-size:18px;">✓</span>
+    <span x-text="successMsg"></span>
+    <a x-show="successUrl" :href="successUrl"
+       style="color:#2d7a4a;text-decoration:underline;font-weight:600;margin-left:4px;">
+      Виж шаблона →
+    </a>
+    <button type="button" @click="successMsg='';successUrl=''" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#2d7a4a;font-size:18px;line-height:1;padding:0 6px;">×</button>
+  </div>
+
+  <!-- ═══ Paper area ═══ -->
+  <div class="pv-canvas">
+
+    <!-- Format 1: A5 — TRUE render via existing protocol partials
+         Using x-show (not x-if/template) so initial render fires immediately
+         and the user doesn't need to switch tabs to trigger it. -->
+    <div x-show="fmt==='a5'">
+      <div class="pv-paper">
+        {# Page 1: two FRONT copies #}
+        <div class="a5-panel">
+          {% include "protocol/_protocol_front.html" with protocol=preview_protocol %}
+        </div>
+        <div class="a5-panel">
+          {% include "protocol/_protocol_front.html" with protocol=preview_protocol %}
+        </div>
+      </div>
+      <div class="pv-paper-label">Лист 1 — лицева страна (2 копия)</div>
+
+      <div class="pv-paper" style="margin-top:24px;">
+        {# Page 2: two BACK copies #}
+        <div class="a5-panel">
+          {% include "protocol/_protocol_back.html" with protocol=preview_protocol %}
+        </div>
+        <div class="a5-panel">
+          {% include "protocol/_protocol_back.html" with protocol=preview_protocol %}
+        </div>
+      </div>
+      <div class="pv-paper-label">Лист 2 — гръб (2 копия)</div>
+    </div>
+
+    <!-- Format 2: A5 → A4 landscape — future -->
+    <div x-show="fmt==='a5-land'">
+      <div class="pv-future">
+        <div class="pv-future-inner">
+          <div class="pv-future-icon">⚙</div>
+          <div class="pv-future-title">A5 → A4 пейзаж</div>
+          <div class="pv-future-body">
+            Форматът е в процес на разработка и ще бъде достъпен в следващите обновления.
+          </div>
+        </div>
+      </div>
+      <div class="pv-paper-label">A4 пейзаж — 4 стр. A5 на 1 лист (двойно копие)</div>
+    </div>
+
+    <!-- Format 3: A4 portrait — future -->
+    <div x-show="fmt==='a4-p'">
+      <div class="pv-future">
+        <div class="pv-future-inner">
+          <div class="pv-future-icon">⚙</div>
+          <div class="pv-future-title">A4 портрет (цял лист)</div>
+          <div class="pv-future-body">
+            Форматът е в процес на разработка и ще бъде достъпен в следващите обновления.
+          </div>
+        </div>
+      </div>
+      <div class="pv-paper-label">A4 портрет — целият протокол на лист, в 2 копия</div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       MODAL — Folder picker (Save as template)
+       ═══════════════════════════════════════════ -->
+  <div x-show="picker.open" class="pv-modal-veil" @click.self="picker.open=false" x-cloak>
+    <div class="pv-modal-card">
+      <div class="pv-modal-head">
+        <div class="pv-modal-title">Запази като шаблон — изберете папка</div>
+        <button class="pv-modal-x" @click="picker.open=false">×</button>
+      </div>
+      <div class="pv-modal-body">
+        <!-- Breadcrumb -->
+        <div class="pv-bc">
+          <span class="pv-bc-crumb" @click="navTo(null)">Шаблони</span>
+          <template x-for="(c, i) in picker.breadcrumb" :key="c.id">
+            <template x-if="c">
+              <span style="display:inline-flex;gap:4px;align-items:center;">
+                <span class="pv-bc-sep">›</span>
+                <span class="pv-bc-crumb" @click="navTo(c.id)" x-text="c.name"></span>
+              </span>
+            </template>
+          </template>
+        </div>
+
+        <!-- Subfolders -->
+        <div class="pv-folder-list">
+          <template x-for="f in subfoldersOf(picker.currentId)" :key="f.id">
+            <div class="pv-folder-row" @click="navTo(f.id)">
+              <span class="pv-folder-icon">📁</span>
+              <span x-text="f.name"></span>
+            </div>
+          </template>
+          <div x-show="subfoldersOf(picker.currentId).length === 0" class="pv-folder-empty">
+            Тази папка няма подпапки.
+          </div>
+        </div>
+
+        <!-- Name input -->
+        <label class="pv-name-label" style="display:block;margin-top:14px;">Име на шаблона *</label>
+        <input class="pv-name-input" type="text" placeholder="напр. „Виктория Нутс — стандарт"" x-model="picker.presetName">
+      </div>
+      <div class="pv-modal-foot">
+        <button class="pv-modal-btn cancel" @click="picker.open=false">Отказ</button>
+        <button class="pv-modal-btn save" @click="confirmSaveAsTemplate()" :disabled="!picker.presetName || busy">
+          Запази тук
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>{# /pv-root #}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('alpine:init', () => {
+  Alpine.data('protocolPreview', () => ({
+
+    fmt: 'a5',
+    busy: false,
+    errMsg: '',
+    successMsg: '',
+    successUrl: '',     // populated after save_as_template — link to the saved folder
+    payload: {},
+    allFolders: [],
+    picker: { open: false, currentId: null, breadcrumb: [], presetName: '' },
+
+    init() {
+      this.payload    = JSON.parse(document.getElementById('preview-payload').textContent);
+      this.allFolders = JSON.parse(document.getElementById('preview-folders').textContent);
+
+      // Clone the two visible papers onto <body> before Chrome computes the
+      // print layout, then clean up.  This avoids every flex/overflow
+      // constraint in the page hierarchy interfering with page breaks.
+      window.addEventListener('beforeprint', () => {
+        const papers = [...document.querySelectorAll('.pv-canvas .pv-paper')];
+        const area = document.createElement('div');
+        area.id = 'pv-print-area';
+        // Detect Safari (excludes Chrome/Android which also carry the WebKit UA string).
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        if (isSafari) area.classList.add('safari-print');
+        papers.forEach(p => area.appendChild(p.cloneNode(true)));
+        // Insert as FIRST child so no preceding DOM nodes can create a top offset.
+        document.body.insertBefore(area, document.body.firstChild);
+        document.body.classList.add('pv-printing');
+      });
+      window.addEventListener('afterprint', () => {
+        const area = document.getElementById('pv-print-area');
+        if (area) area.remove();
+        document.body.classList.remove('pv-printing');
+      });
+    },
+
+    _csrf() {
+      const el = document.querySelector('input[name=csrfmiddlewaretoken]');
+      return el ? el.value : '';
+    },
+
+    // ── Single action endpoint — server saves (rewrite) + tells us where to go.
+    async act(action, extra = {}) {
+      this.busy = true; this.errMsg = ''; this.successMsg = ''; this.successUrl = '';
+      const body = { ...this.payload, ...extra, action, format: this.fmt };
+      try {
+        const r = await fetch('{% url "core:protocol_save_action" %}', {
+          method: 'POST',
+          body: JSON.stringify(body),
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._csrf() },
+        });
+        const data = await r.json();
+        console.log('save-action response:', data);
+        if (!r.ok || !data.ok) {
+          this.errMsg = (data && (data.error || data.detail)) || `HTTP ${r.status}`;
+          this.busy = false;
+          console.error('save-action failed:', data);
+          return;
+        }
+
+        // ─── save_as_template ───
+        // Stay on the preview page; show a success toast with a confirmation
+        // link to the folder where the template was saved.  Don't clear the
+        // editor draft — user may still want to "Запази протокол" too.
+        if (action === 'save_as_template') {
+          this.busy = false;
+          this.successMsg = 'Шаблонът е запазен успешно.';
+          this.successUrl = data.redirect_url || '';
+          return;
+        }
+
+        // ─── download ───
+        if (action === 'download') {
+          try { sessionStorage.removeItem('pdforge.editorDraft'); } catch (e) {}
+          if (window.pywebview && window.pywebview.api && window.pywebview.api.save_pdf) {
+            // Packaged app: native Save panel (WKWebView doesn't support
+            // <a download>, which was causing the blank-page freeze).
+            await window.pywebview.api.save_pdf(data.redirect_url, `protocol-${data.protocol_id}.pdf`);
+          } else {
+            const a = document.createElement('a');
+            a.href = data.redirect_url;
+            a.download = '';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }
+          this.busy = false;
+          return;
+        }
+
+        // ─── save ───
+        try { sessionStorage.removeItem('pdforge.editorDraft'); } catch (e) {}
+        window.location.href = data.redirect_url;
+      } catch (e) {
+        this.errMsg = String(e);
+        this.busy = false;
+        console.error('save-action threw:', e);
+      }
+    },
+
+    // ── Print — packaged app: export to PDF and open it in Preview.app for
+    //    printing (avoids WebKit's window.print()-on-HTML layout bug, and
+    //    avoids opening a second pywebview window, which corrupts the JS bridge).
+    //    Browser/dev fallback: existing beforeprint/afterprint cloning.
+    async printPage() {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.print_pdf) {
+        this.busy = true; this.errMsg = '';
+        try {
+          const r = await fetch('{% url "core:protocol_save_action" %}', {
+            method: 'POST',
+            body: JSON.stringify({ ...this.payload, action: 'download', format: this.fmt }),
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._csrf() },
+          });
+          const data = await r.json();
+          if (!r.ok || !data.ok) {
+            this.errMsg = (data && (data.error || data.detail)) || `HTTP ${r.status}`;
+            this.busy = false;
+            return;
+          }
+          try { sessionStorage.removeItem('pdforge.editorDraft'); } catch (e) {}
+          await window.pywebview.api.print_pdf(data.redirect_url);
+        } catch (e) {
+          this.errMsg = String(e);
+        }
+        this.busy = false;
+        return;
+      }
+
+      window.print();
+    },
+
+    // ── Folder picker
+    subfoldersOf(parentId) {
+      // parent_id stored as UUID string or null on the root
+      return this.allFolders.filter(f =>
+        String(f.parent_id || '') === String(parentId || ''));
+    },
+    navTo(folderId) {
+      this.picker.currentId = folderId;
+      this.picker.breadcrumb = this._breadcrumbFor(folderId);
+    },
+    _breadcrumbFor(folderId) {
+      if (!folderId) return [];
+      const trail = [];
+      let cursor = this.allFolders.find(f => String(f.id) === String(folderId));
+      const seen = new Set();
+      while (cursor && !seen.has(cursor.id)) {
+        trail.unshift(cursor);
+        seen.add(cursor.id);
+        cursor = cursor.parent_id
+          ? this.allFolders.find(f => String(f.id) === String(cursor.parent_id))
+          : null;
+      }
+      return trail;
+    },
+    openFolderPicker() {
+      this.picker = { open: true, currentId: null, breadcrumb: [],
+                      presetName: '' };
+    },
+    confirmSaveAsTemplate() {
+      const folderId = this.picker.currentId;
+      const presetName = this.picker.presetName.trim();
+      if (!presetName) return;
+      this.picker.open = false;
+      this.act('save_as_template', { folder_id: folderId, preset_name: presetName });
+    },
+
+  }));
+});
+</script>
+{% endblock %}

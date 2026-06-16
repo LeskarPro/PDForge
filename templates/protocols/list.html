@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+{% load core_tags %}
+
+{% block title %}Протоколи — PDForge{% endblock %}
+{% block topbar_title %}Протоколи{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'core:protocol_create' %}" class="btn-primary">
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+    Нов протокол
+  </a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── Toolbar ── */
+  .toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+  .search-wrap { position:relative; flex:1; max-width:340px; }
+  .search-wrap svg { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-muted); width:15px; height:15px; }
+  .search-input { width:100%; padding:8px 12px 8px 32px; border:1px solid var(--border-subtle); border-radius:var(--radius-sm); background:var(--card-bg); font-size:13px; color:var(--text-primary); outline:none; transition:border-color var(--t-fast); }
+  .search-input:focus { border-color:var(--c-clay); }
+  .btn-outline { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:var(--card-bg); color:var(--text-muted); font-size:13px; border:1px solid var(--border-subtle); border-radius:var(--radius-sm); transition:background var(--t-fast),color var(--t-fast); cursor:pointer; }
+  .btn-outline:hover { color:var(--text-primary); border-color:var(--c-clay); }
+  .btn-outline.active { background:rgba(255,166,134,.1); border-color:var(--c-clay); color:var(--text-primary); }
+  .filter-badge { display:inline-flex; align-items:center; justify-content:center; width:17px; height:17px; border-radius:50%; background:var(--c-coral); color:#fff; font-size:10px; font-weight:600; }
+  .records-count { margin-left:auto; font-size:12px; color:var(--text-muted); }
+
+  /* ── Active filter chips ── */
+  .active-chips { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .active-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 8px 3px 10px; border-radius:10px; background:rgba(255,166,134,.12); border:1px solid rgba(255,166,134,.35); color:#b05030; font-size:12px; }
+  .active-chip button { background:none; border:none; cursor:pointer; color:#b05030; font-size:15px; line-height:1; padding:0 0 0 2px; }
+  .chip-tag { background:rgba(170,118,124,.1); border-color:rgba(170,118,124,.3); color:var(--c-plum); }
+  .chip-tag button { color:var(--c-plum); }
+  .clear-all-link { font-size:12px; color:var(--text-muted); cursor:pointer; text-decoration:underline; text-underline-offset:2px; white-space:nowrap; }
+
+  /* ── Filter panel ── */
+  .filter-panel { background:var(--card-bg); border:1px solid var(--border-subtle); border-radius:var(--radius-md); margin-bottom:14px; overflow:hidden; }
+  .filter-panel-head { display:flex; align-items:center; justify-content:space-between; padding:12px 16px 10px; border-bottom:1px solid var(--border-subtle); background:#fdf9f6; }
+  .filter-panel-title { font-size:13px; font-weight:600; color:var(--text-primary); }
+  .filter-clear-link { font-size:12px; color:var(--text-muted); cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
+  .filter-section { padding:14px 16px; }
+  .filter-section + .filter-section { border-top:1px solid var(--border-subtle); }
+  .filter-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:8px; }
+  .cat-sub-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin:8px 0 4px; }
+  .cat-sub-label:first-child { margin-top:0; }
+  .chip-group { display:flex; flex-wrap:wrap; gap:6px; }
+  .filter-chip { display:inline-flex; align-items:center; padding:4px 10px; border-radius:10px; border:1px solid var(--border-subtle); font-size:12px; cursor:pointer; background:var(--card-bg); color:var(--text-primary); transition:all var(--t-fast); }
+  .filter-chip:hover { border-color:var(--c-clay); background:rgba(255,166,134,.08); }
+  .filter-chip.selected { background:rgba(255,166,134,.12); border-color:rgba(255,166,134,.45); color:#b05030; font-weight:500; }
+  .filter-chip.cat-der.selected { background:rgba(80,130,200,.1); border-color:rgba(80,130,200,.35); color:#185fa5; }
+  .filter-chip.cat-inf.selected { background:rgba(60,160,100,.1); border-color:rgba(60,160,100,.3); color:#1a6b3a; }
+  .tag-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; flex-shrink:0; }
+  .filter-foot { display:flex; justify-content:flex-end; gap:8px; padding:10px 16px; border-top:1px solid var(--border-subtle); background:#fdf9f6; }
+  .btn-apply { padding:7px 18px; background:var(--c-coral); color:#fff; border:none; border-radius:var(--radius-sm); font-size:13px; font-weight:500; cursor:pointer; }
+  .btn-apply:hover { background:#f09070; }
+  .btn-close-filter { padding:7px 14px; background:var(--card-bg); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); font-size:13px; color:var(--text-muted); cursor:pointer; }
+  .btn-close-filter:hover { color:var(--text-primary); }
+
+  /* ── Protocol list ── */
+  .protocol-list { display:flex; flex-direction:column; gap:8px; }
+
+  .protocol-card {
+    background:var(--card-bg);
+    border:1px solid var(--border-subtle);
+    border-radius:var(--radius-md);
+    display:flex;
+    align-items:stretch;
+    overflow:hidden;
+    min-height:86px;
+    transition:border-color var(--t-fast), box-shadow var(--t-fast);
+  }
+  .protocol-card:hover {
+    border-color:var(--c-clay);
+    box-shadow:0 2px 10px rgba(99,71,77,.08);
+  }
+
+  /* Col 1 — Date */
+  .col-date {
+    flex-shrink:0; width:62px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:#f6efe9; border-right:1px solid var(--border-subtle);
+    padding:10px 6px; text-align:center; gap:1px;
+  }
+  .date-day   { font-size:24px; font-weight:700; color:var(--text-primary); line-height:1; }
+  .date-month { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); line-height:1.4; }
+  .date-year  { font-size:10px; color:var(--text-muted); line-height:1.4; }
+  .date-none  { font-size:11px; color:var(--text-muted); font-style:italic; line-height:1.3; text-align:center; padding:0 4px; }
+
+  /* Col 2 — Main info */
+  .col-main {
+    flex:1; min-width:0;
+    padding:12px 16px;
+    display:flex; flex-direction:column; justify-content:center; gap:4px;
+  }
+  .main-pseudo    { font-size:17px; font-weight:800; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
+  .main-firm      { font-size:13.5px; color:#6b4e54; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .main-site      { display:flex; align-items:center; gap:6px; margin-top:2px; min-width:0; }
+  .main-site-name { font-size:12px; font-weight:600; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0; max-width:50%; }
+  .main-site-sep  { font-size:11px; color:var(--border-subtle); flex-shrink:0; }
+  .main-addr      { font-size:11.5px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:3px; opacity:.8; min-width:0; }
+  .main-addr svg  { flex-shrink:0; opacity:.6; }
+
+  /* Col 3 — Pests */
+  .col-pests {
+    flex-shrink:0; width:185px;
+    padding:10px 14px;
+    border-left:1px solid var(--border-subtle);
+    background:#fdf9f6;
+    display:flex; flex-wrap:wrap; align-content:center; gap:4px;
+  }
+  .pest-tag { display:inline-flex; align-items:center; padding:2px 8px; border-radius:var(--radius-sm); font-size:11px; font-weight:500; white-space:nowrap; }
+  .pest-di  { background:rgba(255,166,134,.13); color:#b05030; border:1px solid rgba(255,166,134,.35); }
+  .pest-dr  { background:rgba(170,118,124,.13); color:#6a3a42; border:1px solid rgba(170,118,124,.35); }
+  .pest-dn  { background:rgba(214,161,132,.13); color:#885030; border:1px solid rgba(214,161,132,.35); }
+
+  /* Col 4 — Tags + Price */
+  .col-meta {
+    flex-shrink:0; width:130px;
+    padding:10px 12px;
+    border-left:1px solid var(--border-subtle);
+    display:flex; flex-direction:column; justify-content:center; gap:8px;
+  }
+  .tags-row  { display:flex; flex-wrap:wrap; gap:4px; }
+  .tag       { display:inline-flex; align-items:center; padding:2px 8px; border-radius:10px; font-size:10.5px; font-weight:500; }
+  .price-val  { font-size:13px; font-weight:600; color:var(--text-primary); }
+  .price-none { font-size:12px; color:var(--text-muted); font-style:italic; }
+
+  /* Col 5 — Notes indicator */
+  .col-notes {
+    flex-shrink:0; width:36px;
+    border-left:1px solid var(--border-subtle);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .notes-icon         { width:18px; height:18px; color:var(--border-subtle); transition:color var(--t-fast); }
+  .notes-icon--active { color:var(--c-coral); }
+
+  /* Col 6 — Actions */
+  .col-actions {
+    flex-shrink:0; width:42px;
+    border-left:1px solid var(--border-subtle);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:4px; padding:8px 0;
+  }
+  .act-btn {
+    display:flex; align-items:center; justify-content:center;
+    width:28px; height:28px;
+    border-radius:var(--radius-sm);
+    color:var(--text-muted);
+    border:1px solid transparent;
+    transition:background var(--t-fast),color var(--t-fast),border-color var(--t-fast);
+    cursor:pointer;
+  }
+  .act-btn svg { width:14px; height:14px; }
+  .act-btn:hover    { background:var(--content-bg); border-color:var(--border-subtle); color:var(--text-primary); }
+  .act-edit:hover   { color:#b05030; background:rgba(255,166,134,.1); border-color:rgba(255,166,134,.3); }
+  .act-pdf:hover    { color:#2d5ca8; background:rgba(74,120,200,.08); border-color:rgba(74,120,200,.2); }
+  .act-copy:hover   { color:#2d7a4a; background:rgba(74,160,100,.08); border-color:rgba(74,160,100,.2); }
+  .act-del:hover    { color:#b03030 !important; background:rgba(200,80,80,.08); border-color:rgba(200,80,80,.25); }
+
+  /* ── Empty state ── */
+  .empty-state { text-align:center; padding:64px 24px; }
+  .empty-state p { font-size:14px; color:var(--text-muted); margin-top:8px; line-height:1.6; }
+
+  /* ── Protocol preview popup ── */
+  .pp-modal-veil {
+    position: fixed; inset: 0; background: rgba(40,28,30,.55);
+    display: none; align-items: center; justify-content: center;
+    z-index: 2000; padding: 24px;
+  }
+  .pp-modal-veil.open { display: flex; }
+  .pp-modal-frame {
+    background: #fff; width: 100%; max-width: 1440px; height: 94vh;
+    border-radius: 10px; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(40,28,30,.4);
+    display: flex; flex-direction: column;
+  }
+  .pp-modal-frame iframe { width: 100%; height: 100%; border: none; display: block; flex: 1; }
+
+  /* ── Pagination ── */
+  .pagination { display:flex; align-items:center; justify-content:center; gap:6px; margin-top:24px; }
+  .page-btn {
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:32px; height:32px; padding:0 8px;
+    border-radius:var(--radius-sm); font-size:13px;
+    border:1px solid var(--border-subtle);
+    color:var(--text-muted); background:var(--card-bg);
+    transition:background var(--t-fast),color var(--t-fast);
+    text-decoration:none;
+  }
+  .page-btn:hover   { background:var(--content-bg); color:var(--text-primary); }
+  .page-btn.current { background:var(--c-coral); color:#fff; border-color:var(--c-coral); font-weight:600; }
+  .page-btn.disabled { opacity:.4; pointer-events:none; }
+  .page-info { font-size:12px; color:var(--text-muted); margin:0 8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ── Toolbar + Filters (form so all inputs submit together) ── #}
+<form id="filter-form" method="get"
+      x-data="{
+        showFilters: false,
+        get filterCount() {
+          return document.querySelectorAll('#filter-form input[type=checkbox]:checked').length;
+        }
+      }">
+
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0Z"/></svg>
+      <input class="search-input" type="text" name="q"
+             value="{{ active_q }}"
+             placeholder="Търси по псевдоним, клиент, адрес…"
+             hx-get="{% url 'core:protocol_list_body' %}"
+             hx-trigger="keyup changed delay:300ms"
+             hx-target="#protocol-list-wrap"
+             hx-swap="innerHTML"
+             hx-include="#filter-form">
+    </div>
+    <button type="button" class="btn-outline" :class="{ active: filterCount > 0 }"
+            @click="showFilters = !showFilters">
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75 4.5 4.5m0 0-4.5 4.5m4.5-4.5H9.75"/></svg>
+      Филтри
+      <span x-show="filterCount > 0" class="filter-badge" x-text="filterCount"></span>
+    </button>
+    <span class="records-count" id="protocol-count">{{ page_obj.paginator.count }} протокол{{ page_obj.paginator.count|pluralize:",а" }}</span>
+  </div>
+
+  {# ── Active filter chips ── #}
+  {% if active_q or active_pests or active_tags %}
+  <div class="active-chips">
+    {% if active_q %}
+    <span class="active-chip">
+      „{{ active_q }}"
+      <button type="button" onclick="removeParam('q')">×</button>
+    </span>
+    {% endif %}
+    {% for pest in all_pests %}
+      {% if pest.id|stringformat:"s" in active_pests %}
+      <span class="active-chip">
+        {{ pest.name }}
+        <button type="button" onclick="removeParam('pests','{{ pest.id }}')">×</button>
+      </span>
+      {% endif %}
+    {% endfor %}
+    {% for tag in all_tags %}
+      {% if tag.id|stringformat:"s" in active_tags %}
+      <span class="active-chip chip-tag">
+        <span class="tag-dot" style="background:{{ tag.color }}"></span>{{ tag.name }}
+        <button type="button" onclick="removeParam('tags','{{ tag.id }}')">×</button>
+      </span>
+      {% endif %}
+    {% endfor %}
+    <a href="{% url 'core:protocol_list' %}" class="clear-all-link">Изчисти всички</a>
+  </div>
+  {% endif %}
+
+  {# ── Filter panel ── #}
+  <div class="filter-panel" x-show="showFilters" x-cloak style="display:none">
+    <div class="filter-panel-head">
+      <span class="filter-panel-title">Филтри</span>
+      <span class="filter-clear-link" onclick="clearCheckboxes()">Изчисти филтрите</span>
+    </div>
+
+    {% if all_pests %}
+    <div class="filter-section">
+      <div class="filter-label">Вредители</div>
+      {% regroup all_pests by category as pest_categories %}
+      {% for cat in pest_categories %}
+        <div class="cat-sub-label">{{ cat.grouper|category_bg }}</div>
+        <div class="chip-group">
+          {% for pest in cat.list %}
+          <label class="filter-chip {% if pest.id|stringformat:"s" in active_pests %}selected{% endif %}">
+            <input type="checkbox" name="pests" value="{{ pest.id }}"
+                   {% if pest.id|stringformat:"s" in active_pests %}checked{% endif %}
+                   style="display:none"
+                   onchange="this.closest('label').classList.toggle('selected', this.checked)">
+            {{ pest.name }}
+          </label>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if all_tags %}
+    <div class="filter-section">
+      <div class="filter-label">Етикети</div>
+      <div class="chip-group">
+        {% for tag in all_tags %}
+        <label class="filter-chip {% if tag.id|stringformat:"s" in active_tags %}selected{% endif %}">
+          <input type="checkbox" name="tags" value="{{ tag.id }}"
+                 {% if tag.id|stringformat:"s" in active_tags %}checked{% endif %}
+                 style="display:none"
+                 onchange="this.closest('label').classList.toggle('selected', this.checked)">
+          <span class="tag-dot" style="background:{{ tag.color }}"></span>{{ tag.name }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="filter-foot">
+      <button type="button" class="btn-close-filter" @click="showFilters = false">Затвори</button>
+      <button type="submit" class="btn-apply">Приложи</button>
+    </div>
+  </div>
+
+</form>
+
+{# ── Protocol list (HTMX target) ── #}
+<div id="protocol-list-wrap">
+  {% include "protocols/_list_body.html" %}
+</div>
+
+{# ── Protocol preview popup ── #}
+<div id="protocol-preview-modal" class="pp-modal-veil" onclick="if(event.target===this) closeProtocolPreview()">
+  <div class="pp-modal-frame">
+    <iframe id="protocol-preview-iframe" src="" title="Преглед на протокол"></iframe>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener('htmx:configRequest', e => {
+    e.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+  });
+
+  /* Remove a single filter param and reload */
+  function removeParam(name, value) {
+    const params = new URLSearchParams(window.location.search);
+    if (value === undefined) {
+      params.delete(name);
+    } else {
+      const kept = params.getAll(name).filter(v => v !== value);
+      params.delete(name);
+      kept.forEach(v => params.append(name, v));
+    }
+    params.delete('page');
+    window.location.search = params.toString();
+  }
+
+  /* Uncheck all checkboxes in the filter panel */
+  function clearCheckboxes() {
+    document.querySelectorAll('#filter-form input[type=checkbox]').forEach(cb => {
+      cb.checked = false;
+      cb.closest('label').classList.remove('selected');
+    });
+  }
+
+  /* Download a protocol PDF — packaged app: native Save panel (avoids
+     WKWebView navigating to a Content-Disposition: attachment URL, which
+     causes a blank page / stuck in-window PDF). Browser: default <a href>
+     download proceeds unchanged. */
+  async function downloadProtocolPdf(event, url, filename) {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.save_pdf) {
+      event.preventDefault();
+      await window.pywebview.api.save_pdf(url, filename);
+    }
+  }
+
+  /* ── Protocol preview popup ──
+     Clicking a protocol card (anywhere except the action icons) opens a
+     big modal with the protocol rendered read-only, in the editor layout.
+     Clicking the dark overlay (handled inline on the veil) closes it. */
+  function openProtocolPreview(pk) {
+    const modal  = document.getElementById('protocol-preview-modal');
+    const iframe = document.getElementById('protocol-preview-iframe');
+    iframe.src = `/protocols/${pk}/view/?embed=1`;
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeProtocolPreview() {
+    const modal  = document.getElementById('protocol-preview-modal');
+    const iframe = document.getElementById('protocol-preview-iframe');
+    modal.classList.remove('open');
+    iframe.src = 'about:blank';
+    document.body.style.overflow = '';
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeProtocolPreview();
+  });
+  // Delegated click — survives htmx swaps of #protocol-list-wrap's contents.
+  document.getElementById('protocol-list-wrap').addEventListener('click', e => {
+    if (e.target.closest('.col-actions')) return;
+    const card = e.target.closest('.protocol-card');
+    if (card) openProtocolPreview(card.dataset.pk);
+  });
+</script>
+{% endblock %}

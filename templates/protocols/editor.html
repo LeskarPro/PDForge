@@ -1,0 +1,1963 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Нов протокол — PDForge{% endblock %}
+{% block topbar_title %}Нов протокол{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'core:protocol_list' %}" class="btn-outline" style="text-decoration:none;">
+    ← Откажи
+  </a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ══════════════════════════════════════════════
+     Stage 2b — Editor styles
+     All colors via base.html CSS variables; the
+     "paper" palette below scopes to .pe-* so we
+     don't bleed the chrome's light text into the
+     white card areas (root-cause bug found in v6).
+     ══════════════════════════════════════════════ */
+  .pe-root {
+    /* Paper palette */
+    --p-bg:        #ffffff;
+    --p-surface:   #eef0f5;
+    --p-border:    #a8aebd;
+    --p-borderL:   #c8cdd6;
+    --p-text:      #0d1117;
+    --p-textM:     #3a4154;
+    --p-textD:     #0d1117;
+
+    /* Service column header — single theme color (v6 decision) */
+    --col-hdr-bg:    #fdeadd;
+    --col-hdr-on:    var(--c-coral);
+    --col-hdr-fg:    #5a3522;
+    --col-hdr-fg-on: #ffffff;
+
+    color: var(--p-text);    /* stop chrome's light text from leaking in */
+    max-width: 1380px;
+    margin: 0 auto;
+    padding: 12px 0 60px;
+  }
+
+  [x-cloak] { display: none !important; }
+
+  /* ── Inputs ── */
+  .pe-root input[type=text], .pe-root input[type=date],
+  .pe-root input[type=time], .pe-root input[type=number],
+  .pe-root select, .pe-root textarea {
+    background: var(--p-bg); border: 1px solid var(--p-border);
+    border-radius: 4px; color: var(--p-text);
+    padding: 5px 8px; font-size: 12.5px; width: 100%;
+    outline: none; font-family: inherit;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .pe-root input:focus, .pe-root select:focus, .pe-root textarea:focus {
+    border-color: var(--c-coral);
+    box-shadow: 0 0 0 3px rgba(255,166,134,.22);
+  }
+  .pe-root input:disabled, .pe-root select:disabled, .pe-root textarea:disabled {
+    background: var(--p-surface); color: var(--p-textM);
+  }
+
+  /* ── Header (3 panels) ── */
+  .pe-header-wrap {
+    background: var(--p-bg); color: var(--p-text);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    box-shadow: 0 1px 6px rgba(99,71,77,.08);
+  }
+  .pe-panels { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+  .pe-panel { padding: 12px 14px; border-right: 1px solid var(--p-border); }
+  .pe-panel:last-child { border-right: none; }
+  .pe-panel-title {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--p-text);
+    background: var(--p-surface);
+    margin: -12px -14px 10px; padding: 7px 14px;
+    border-bottom: 1px solid var(--p-border);
+  }
+  .pe-field-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; min-height: 18px; }
+  .pe-field-lbl { font-weight: 700; color: var(--p-textD); font-size: 11.5px; white-space: nowrap; min-width: 52px; }
+  .pe-field-val { color: var(--p-text); font-size: 12.5px; font-weight: 500; }
+
+  .pe-pick-row { display: flex; gap: 6px; margin-bottom: 8px; }
+  .pe-pick-row > :first-child { flex: 1; min-width: 0; }
+
+  .pe-btn-new {
+    flex-shrink: 0; padding: 5px 9px; font-size: 11.5px; font-weight: 600;
+    font-family: inherit; cursor: pointer; white-space: nowrap;
+    background: var(--p-bg); color: var(--c-coral);
+    border: 1px solid var(--c-coral); border-radius: 4px;
+    transition: all .12s;
+  }
+  .pe-btn-new:hover  { background: var(--c-coral); color: #fff; }
+  .pe-btn-new:disabled { opacity: .35; cursor: not-allowed; }
+
+  .pe-btn-clear {
+    flex-shrink: 0; padding: 4px 8px;
+    background: var(--p-bg); color: var(--p-textM);
+    border: 1px solid var(--p-border); border-radius: 4px;
+    cursor: pointer; font-size: 14px; line-height: 1;
+  }
+  .pe-btn-clear:hover { color: #b30000; }
+
+  /* Client typeahead dropdown */
+  .pe-search-wrap { position: relative; }
+  .pe-client-dd {
+    position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--p-bg); border: 1px solid var(--p-border);
+    border-top: none; border-radius: 0 0 6px 6px;
+    z-index: 200; max-height: 220px; overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(99,71,77,.18);
+  }
+  .pe-c-opt   { padding: 7px 11px; cursor: pointer; border-bottom: 1px solid var(--p-borderL); }
+  .pe-c-opt:hover,
+  .pe-c-opt.active { background: var(--p-surface); }
+  .pe-c-firm  { font-weight: 600; font-size: 12px; color: var(--p-text); }
+  .pe-c-meta  { font-size: 10.5px; color: var(--p-textM); margin-top: 1px; }
+
+  /* Contract checkboxes */
+  .pe-contract-opts { display: flex; gap: 14px; margin-top: 6px; }
+  .pe-contract-opt {
+    display: flex; align-items: center; gap: 5px; cursor: pointer;
+    font-size: 12.5px; font-weight: 500; color: var(--p-text); user-select: none;
+  }
+  .pe-mcb {
+    width: 14px; height: 14px;
+    border: 1.5px solid var(--p-border); border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 900; flex-shrink: 0; transition: all .12s;
+  }
+  .pe-mcb.on { background: var(--c-coral); border-color: var(--c-coral); color: #fff; }
+
+  /* ── Main table ── */
+  .pe-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border-subtle);
+    border-top: none;
+    background: var(--p-bg); color: var(--p-text);
+    box-shadow: 0 1px 6px rgba(99,71,77,.08);
+  }
+  .pe-ptable { width: 100%; min-width: 1060px; border-collapse: collapse; }
+  .pe-ptable th, .pe-ptable td {
+    border: 1px solid var(--p-border);
+    padding: 4px 6px; vertical-align: top;
+    background: var(--p-bg); color: var(--p-text);
+  }
+  .pe-ptable thead th {
+    background: var(--p-surface);
+    font-size: 10.5px; font-weight: 700; text-align: center;
+    text-transform: uppercase; letter-spacing: .04em; padding: 7px 6px;
+  }
+  .pe-th-main { text-align: left !important; padding-left: 10px !important; }
+  .pe-th-svc {
+    color: var(--col-hdr-fg);
+    background: var(--col-hdr-bg) !important;
+    transition: background .2s, color .2s;
+  }
+  .pe-th-svc.on {
+    background: var(--col-hdr-on) !important;
+    color: var(--col-hdr-fg-on) !important;
+  }
+
+  .pe-col-num   { text-align: center; font-weight: 700; color: var(--p-textM); font-size: 11.5px; background: var(--p-surface) !important; white-space: nowrap; }
+  .pe-row-label { font-size: 11.5px; color: var(--p-text); background: var(--p-surface) !important; line-height: 1.4; min-width: 185px; }
+
+  /* Inactive column cells */
+  .pe-c-dis.off, .pe-c-der.off, .pe-c-dinf.off { opacity: .35; pointer-events: none; }
+
+  /* Row 1 — pest cells */
+  .pe-r1cb { width: 20px !important; min-width: 20px; padding: 2px 3px; text-align: center; vertical-align: middle; cursor: pointer; user-select: none; background: var(--p-bg) !important; }
+  .pe-r1nm {
+    font-size: 12px; font-weight: 500; padding: 2px 5px; vertical-align: middle;
+    cursor: pointer; user-select: none;
+    background: var(--p-bg) !important; color: var(--p-text) !important;
+    white-space: nowrap;
+  }
+  .pe-r1cb:hover, .pe-r1nm:hover { background: #f0f4ff !important; }
+
+  .pe-pcb {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 13px; height: 13px;
+    border: 1.5px solid #9ca3af; border-radius: 1px;
+    font-size: 10px; font-weight: 900; color: transparent; transition: all .12s;
+  }
+  .pe-pcb.on { border-color: var(--c-coral); background: var(--c-coral); color: #fff; }
+
+  .pe-pest-txt {
+    font-size: 11.5px; padding: 2px 5px; margin-top: 3px;
+    background: var(--p-bg); border: 1px solid var(--p-border);
+    border-radius: 3px; color: var(--p-text); width: 100%; font-family: inherit;
+  }
+
+  /* Treatment-method pills */
+  .pe-mpills { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 4px; }
+  .pe-mpill {
+    padding: 2px 8px; border-radius: 10px;
+    border: 1px solid var(--p-border);
+    background: transparent; color: var(--p-textM);
+    cursor: pointer; font-size: 10.5px; font-family: inherit;
+    transition: all .12s; white-space: nowrap;
+  }
+  .pe-mpill:hover { border-color: var(--c-coral); color: var(--p-text); }
+  .pe-mpill.on { background: rgba(255,166,134,.18); border-color: var(--c-coral); color: var(--p-text); font-weight: 600; }
+  .pe-mpill:disabled { opacity: .35; cursor: not-allowed; }
+
+  /* Picker rows (products / NCM) */
+  .pe-picker-row td { background: #f9fafb !important; border-top: 2px solid var(--p-borderL); }
+  .pe-ppick { display: flex; gap: 5px; align-items: center; }
+  .pe-ppick select { flex: 1; font-size: 11.5px; padding: 3px 6px; }
+  .pe-btn-add {
+    padding: 4px 10px; background: var(--c-coral); border: none;
+    border-radius: 4px; color: #fff; cursor: pointer; font-size: 11.5px;
+    font-family: inherit; white-space: nowrap; flex-shrink: 0;
+    transition: opacity .15s;
+  }
+  .pe-btn-add:hover { opacity: .88; }
+  .pe-btn-add:disabled { opacity: .35; cursor: not-allowed; }
+
+  .pe-pchips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .pe-pchip {
+    display: flex; align-items: center; gap: 4px;
+    background: var(--p-surface); border: 1px solid var(--p-border);
+    border-radius: 4px; padding: 2px 6px; font-size: 11.5px; color: var(--p-text);
+  }
+  .pe-cx {
+    background: none; border: none; color: var(--p-textM); cursor: pointer;
+    font-size: 14px; line-height: 1; padding: 0 1px; font-family: inherit;
+  }
+  .pe-cx:hover { color: #b30000; }
+  .pe-pchip-count {
+    width: 50px; padding: 1px 4px; font-size: 11px; margin: 0 2px;
+    border: 1px solid var(--p-borderL); border-radius: 3px;
+  }
+
+  /* Read-only product lines */
+  .pe-pline { padding: 2px 0; border-bottom: 1px dashed var(--p-borderL); font-size: 11.5px; color: var(--p-text); }
+  .pe-pline:last-child { border-bottom: none; }
+  .pe-empty { color: var(--p-textM); font-size: 11.5px; font-style: italic; }
+
+  /* Cell-level inputs (textareas, single-line) */
+  .pe-ci  { background: transparent; border: none; border-bottom: 1px solid var(--p-borderL); border-radius: 0; padding: 3px 2px; color: var(--p-text); width: 100%; font-size: 12.5px; font-family: inherit; }
+  .pe-ci:focus { outline: none; border-bottom-color: var(--c-coral); }
+  .pe-cta { background: transparent; border: 1px solid var(--p-borderL); border-radius: 3px; padding: 3px 5px; color: var(--p-text); width: 100%; font-size: 11.5px; resize: vertical; min-height: 36px; font-family: inherit; }
+  .pe-cta:focus { outline: none; border-color: var(--c-coral); }
+
+  /* Footer */
+  .pe-footnote {
+    font-size: 11px; color: var(--p-textM); font-style: italic;
+    padding: 4px 10px; background: var(--p-bg);
+    border: 1px solid var(--border-subtle); border-top: none;
+  }
+  .pe-footer-table {
+    width: 100%; border-collapse: collapse;
+    background: var(--p-bg); color: var(--p-text);
+    border: 1px solid var(--border-subtle);
+    border-top: none; border-radius: 0 0 var(--radius-md) var(--radius-md);
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(99,71,77,.08);
+  }
+  .pe-footer-table td {
+    border: 1px solid var(--p-border);
+    padding: 10px 14px; vertical-align: top;
+  }
+  .pe-footer-hint { font-size: 10.5px; color: var(--p-textM); margin-top: 3px; }
+  .pe-sig-line { border-bottom: 1px solid var(--p-border); margin-top: 24px; width: 70%; margin-left: auto; margin-right: auto; }
+
+  /* Action bar */
+  /* ── Pseudonym bar (top) ── */
+  .pe-pseudonym-bar {
+    display: grid; grid-template-columns: max-content 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 12px; row-gap: 2px;
+    background: var(--p-bg); color: var(--p-text);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 10px 14px; margin-bottom: 10px;
+    box-shadow: 0 1px 6px rgba(99,71,77,.06);
+  }
+  .pe-pseudonym-bar label {
+    font-size: 11.5px; font-weight: 700; color: var(--p-textD);
+    text-transform: uppercase; letter-spacing: .05em;
+    align-self: center;
+  }
+  .pe-pseudonym-bar input {
+    background: var(--p-bg); border: 1px solid var(--p-border);
+    border-radius: 4px; color: var(--p-text);
+    padding: 6px 10px; font-size: 13px; width: 100%;
+    outline: none; font-family: inherit;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .pe-pseudonym-bar input:focus {
+    border-color: var(--c-coral);
+    box-shadow: 0 0 0 3px rgba(255,166,134,.22);
+  }
+  .pe-pseudonym-bar .pe-hint {
+    grid-column: 2; font-size: 10.5px; color: var(--p-textM); font-style: italic;
+  }
+
+  /* ── Metadata card (bottom) — notes, price, tags ── */
+  .pe-meta-card {
+    background: var(--p-bg); color: var(--p-text);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 14px 16px; margin-top: 16px;
+    box-shadow: 0 1px 6px rgba(99,71,77,.06);
+  }
+  .pe-meta-title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--p-text); margin-bottom: 2px;
+  }
+  .pe-meta-hint {
+    font-size: 10.5px; color: var(--p-textM); font-style: italic;
+    margin-bottom: 12px;
+  }
+  .pe-meta-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px 18px;
+  }
+  .pe-meta-row { display: flex; flex-direction: column; gap: 4px; }
+  .pe-meta-row-wide { grid-column: 1 / -1; }
+  .pe-meta-row label {
+    font-size: 11px; font-weight: 700; color: var(--p-textD);
+    text-transform: uppercase; letter-spacing: .05em;
+  }
+  .pe-meta-row input,
+  .pe-meta-row textarea {
+    background: var(--p-bg); border: 1px solid var(--p-border);
+    border-radius: 4px; color: var(--p-text);
+    padding: 6px 10px; font-size: 13px; width: 100%;
+    outline: none; font-family: inherit;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .pe-meta-row textarea { resize: vertical; min-height: 60px; }
+  .pe-meta-row input:focus,
+  .pe-meta-row textarea:focus {
+    border-color: var(--c-coral);
+    box-shadow: 0 0 0 3px rgba(255,166,134,.22);
+  }
+  .pe-meta-empty { font-size: 11px; color: var(--p-textM); font-style: italic; }
+
+  /* Tag chips */
+  .pe-tag-chips { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
+  .pe-tag-chip {
+    padding: 4px 10px; border-radius: 12px;
+    border: 1px solid var(--p-border);
+    background: var(--p-bg); color: var(--p-textM);
+    cursor: pointer; font-size: 11.5px; font-weight: 500;
+    font-family: inherit; user-select: none;
+    transition: all .12s;
+  }
+  .pe-tag-chip:hover { border-color: var(--c-clay); color: var(--p-text); }
+  /* When .on, the inline :style provides the color theming */
+  .pe-tag-chip.on { font-weight: 600; }
+
+  /* Toast for save-as-template success — sits above the action bar */
+  .pe-toast {
+    margin: 14px 0 0;
+    padding: 10px 14px;
+    background: rgba(74,160,100,.10);
+    border: 1px solid rgba(74,160,100,.35);
+    border-radius: var(--radius-sm);
+    color: #2d7a4a; font-size: 13px; font-weight: 500;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .pe-action-bar {
+    display: flex; gap: 10px; justify-content: flex-end;
+    margin-top: 20px; padding-top: 16px;
+    border-top: 1px solid var(--border-subtle);
+  }
+  .pe-btn {
+    padding: 9px 22px; border-radius: var(--radius-sm); border: none;
+    cursor: pointer; font-size: 13.5px; font-weight: 600; font-family: inherit;
+    transition: opacity .15s, background .15s;
+  }
+  .pe-btn:hover { opacity: .92; }
+  .pe-btn-primary   { background: var(--c-coral); color: #fff; }
+  .pe-btn-primary:hover { background: var(--btn-primary-hover); opacity: 1; }
+  .pe-btn-secondary { background: #fff; color: var(--text-muted); border: 1px solid var(--border-subtle); }
+  .pe-btn-template  { background: #fff; color: #b06030; border: 1px solid #d6a184; }
+  .pe-btn-template:hover { background: #fdf2e8; opacity: 1; }
+
+  /* ══════════════════════════════════════════════
+     View mode (read-only protocol preview popup)
+     Disables every native control and hides the
+     editing-only chrome (search boxes, +/× buttons,
+     "add product" rows) while leaving everything
+     else visible exactly as in the editor.
+     ══════════════════════════════════════════════ */
+  .pe-source-tpl {
+    font-size: 12px; color: var(--p-textM);
+  }
+  .pe-source-tpl strong { color: var(--p-text); }
+
+  .pe-root.pe-view-mode input,
+  .pe-root.pe-view-mode select,
+  .pe-root.pe-view-mode textarea,
+  .pe-root.pe-view-mode button {
+    pointer-events: none !important;
+  }
+  .pe-root.pe-view-mode input,
+  .pe-root.pe-view-mode select,
+  .pe-root.pe-view-mode textarea {
+    background: var(--p-surface) !important;
+    cursor: default;
+  }
+  .pe-root.pe-view-mode .pe-pcb,
+  .pe-root.pe-view-mode .pe-mcb,
+  .pe-root.pe-view-mode .pe-r1cb,
+  .pe-root.pe-view-mode .pe-r1nm,
+  .pe-root.pe-view-mode .pe-c-opt,
+  .pe-root.pe-view-mode .pe-contract-opt,
+  .pe-root.pe-view-mode .pe-mpill,
+  .pe-root.pe-view-mode .pe-tag-chip {
+    pointer-events: none !important;
+    cursor: default !important;
+  }
+  /* Editing-only chrome: search boxes, new/clear buttons, add-product
+     rows, remove-chip "×" buttons — hidden entirely in view mode. */
+  .pe-root.pe-view-mode .pe-pick-row .pe-btn-new,
+  .pe-root.pe-view-mode .pe-pick-row .pe-btn-clear,
+  .pe-root.pe-view-mode .pe-search-wrap,
+  .pe-root.pe-view-mode .pe-btn-clear,
+  .pe-root.pe-view-mode .pe-btn-new,
+  .pe-root.pe-view-mode .pe-picker-row,
+  .pe-root.pe-view-mode .pe-ppick,
+  .pe-root.pe-view-mode .pe-cx {
+    display: none !important;
+  }
+  /* The site <select> picker row is redundant in view mode — the
+     read-only "Обект:" field row below already shows the value. */
+  .pe-root.pe-view-mode .pe-panel .pe-pick-row {
+    display: none !important;
+  }
+  /* Action bar + "Save as template" modal stay fully interactive. */
+  .pe-root.pe-view-mode .pe-action-bar button,
+  .pe-root.pe-view-mode .pe-action-bar a,
+  .pe-root.pe-view-mode .pe-modal-veil button,
+  .pe-root.pe-view-mode .pe-modal-veil input,
+  .pe-root.pe-view-mode .pe-modal-veil select,
+  .pe-root.pe-view-mode .pe-modal-veil textarea {
+    pointer-events: auto !important;
+  }
+  .pe-root.pe-view-mode .pe-modal-veil input,
+  .pe-root.pe-view-mode .pe-modal-veil select,
+  .pe-root.pe-view-mode .pe-modal-veil textarea {
+    background: var(--p-bg) !important;
+    cursor: text;
+  }
+
+  /* Modal */
+  .pe-modal-veil {
+    position: fixed; inset: 0; background: rgba(40,28,30,.55);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px;
+  }
+  .pe-modal-card {
+    background: #fff; color: var(--p-text);
+    border-radius: 10px; box-shadow: 0 20px 60px rgba(40,28,30,.4);
+    width: 100%; max-width: 480px; overflow: hidden;
+  }
+  .pe-modal-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--p-borderL);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--p-surface);
+  }
+  .pe-modal-title { font-size: 14.5px; font-weight: 700; color: var(--p-text); }
+  .pe-modal-x {
+    background: none; border: none; cursor: pointer; font-size: 22px;
+    line-height: 1; color: var(--p-textM); padding: 0 4px;
+    transition: color .12s;
+  }
+  .pe-modal-x:hover { color: #b30000; }
+  .pe-modal-body { padding: 16px 18px; display: grid; gap: 10px; }
+  .pe-modal-body label {
+    font-size: 11px; font-weight: 600; color: var(--p-textM);
+    text-transform: uppercase; letter-spacing: .05em;
+  }
+  .pe-ml-row { display: grid; gap: 4px; }
+  .pe-modal-foot {
+    padding: 12px 18px; border-top: 1px solid var(--p-borderL);
+    display: flex; justify-content: flex-end; gap: 8px; background: var(--p-surface);
+  }
+  .pe-modal-btn {
+    padding: 8px 18px; border-radius: 5px; font-size: 12.5px; font-weight: 600;
+    font-family: inherit; cursor: pointer; transition: opacity .12s;
+  }
+  .pe-modal-btn.cancel { background: transparent; color: var(--p-textM); border: 1px solid var(--p-border); }
+  .pe-modal-btn.save   { background: var(--c-coral); color: #fff; border: none; }
+  .pe-modal-btn.save:disabled { opacity: .35; cursor: not-allowed; }
+  .pe-modal-err { color: #b30000; font-size: 11px; }
+
+  /* Folder picker (Save as template) */
+  .pe-bc { font-size: 11.5px; color: var(--p-textM); margin-bottom: 10px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .pe-bc-crumb {
+    cursor: pointer; padding: 2px 6px; border-radius: 3px;
+    background: var(--p-surface); color: var(--p-text);
+  }
+  .pe-bc-crumb:hover { background: rgba(255,166,134,.18); }
+  .pe-bc-sep { color: var(--p-textM); }
+  .pe-folder-list { display: flex; flex-direction: column; gap: 4px; }
+  .pe-folder-row {
+    padding: 8px 12px; border: 1px solid var(--p-border);
+    border-radius: var(--radius-sm); cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; gap: 8px;
+    transition: background .12s, border-color .12s;
+  }
+  .pe-folder-row:hover { background: rgba(255,166,134,.10); border-color: var(--c-clay); }
+  .pe-folder-icon { color: var(--c-coral); }
+  .pe-folder-empty { font-size: 12px; color: var(--p-textM); font-style: italic; padding: 8px 0; }
+  .pe-name-input {
+    width: 100%; margin-top: 14px; padding: 8px 10px;
+    border: 1px solid var(--p-border); border-radius: var(--radius-sm);
+    font-size: 13px; color: var(--p-text);
+  }
+  .pe-name-label { font-size: 11px; font-weight: 600; color: var(--p-textM); text-transform: uppercase; letter-spacing: .05em; }
+
+  /* Cancel link in topbar */
+  .btn-outline {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; background: var(--card-bg); color: var(--text-muted);
+    font-size: 13px; border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm); cursor: pointer;
+  }
+  .btn-outline:hover { color: var(--text-primary); border-color: var(--c-clay); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# Bootstrap blob: catalogs + defaults, parsed by Alpine on init. #}
+<script id="editor-bootstrap" type="application/json">{{ bootstrap_json|safe }}</script>
+
+<div x-data="protocolEditor({% if editor_mode == 'view' %}true{% else %}false{% endif %})" x-cloak
+     class="pe-root" :class="{'pe-view-mode': viewMode}">
+
+  {% csrf_token %}
+
+  <!-- ═══ Pseudonym (display name) — sits above the 3-col header ═══ -->
+  <div class="pe-pseudonym-bar">
+    <label for="pe-pseudonym-input">Псевдоним</label>
+    <input id="pe-pseudonym-input" type="text" x-model="pseudonym"
+           placeholder="напр. „Виктория Нутс — стандартна обработка"  (по избор)">
+    <span class="pe-hint">Кратко име за списъка с протоколи. Ако е празно, се ползва името на клиента.</span>
+  </div>
+
+  <!-- ═══ Header panels ═══ -->
+  <div class="pe-header-wrap">
+    <div class="pe-panels">
+
+      <!-- PANEL 1 — Company (executor) -->
+      <div class="pe-panel">
+        <div class="pe-panel-title">Данни за извършителя на ДДД обработката</div>
+        <div style="margin-bottom:8px;">
+          <select x-model="companyId" @change="pickCompany()">
+            <option value="">— изберете фирма —</option>
+            <template x-for="c in companies" :key="c.id">
+              <option :value="c.id" x-text="c.name"></option>
+            </template>
+          </select>
+        </div>
+        <div class="pe-field-row"><span class="pe-field-lbl">Фирма:</span><span class="pe-field-val" x-text="companyName||'—'"></span></div>
+        <div class="pe-field-row"><span class="pe-field-lbl">ЕИК:</span><span class="pe-field-val" x-text="companyEik||'—'"></span></div>
+        <div class="pe-field-row"><span class="pe-field-lbl">Адрес:</span><span class="pe-field-val" x-text="companyAddress||'—'"></span></div>
+        <div class="pe-field-row"><span class="pe-field-lbl">Тел:</span><span class="pe-field-val" x-text="companyPhone||'—'"></span></div>
+      </div>
+
+      <!-- PANEL 2 — Client (search) -->
+      <div class="pe-panel">
+        <div class="pe-panel-title">Данни за заявителя на извършената ДДД обработка</div>
+        <template x-if="!clientId">
+          <div class="pe-pick-row">
+            <div class="pe-search-wrap" style="margin:0;" @click.outside="showClientDD=false">
+              <input type="text" placeholder="Търси по фирма, псевдоним или ЕИК…"
+                x-model="clientQ"
+                @focus="showClientDD=true; highlightedIndex=-1"
+                @input="showClientDD=true; highlightedIndex=-1"
+                @keydown.escape="showClientDD=false"
+                @keydown.down.prevent="highlightedIndex = Math.min(highlightedIndex+1, filteredClients.length-1); scrollClientOptIntoView($el)"
+                @keydown.up.prevent="highlightedIndex = Math.max(highlightedIndex-1, 0); scrollClientOptIntoView($el)"
+                @keydown.enter.prevent="if (showClientDD && filteredClients[highlightedIndex]) pickClient(filteredClients[highlightedIndex])">
+              <div class="pe-client-dd" x-show="showClientDD && filteredClients.length > 0">
+                <template x-for="(c, i) in filteredClients" :key="c.id">
+                  <div class="pe-c-opt" :class="{active: i === highlightedIndex}"
+                       @click="pickClient(c)" @mouseenter="highlightedIndex = i">
+                    <div class="pe-c-firm" x-text="c.firm"></div>
+                    <div class="pe-c-meta" x-text="'ЕИК: '+c.eik+' · '+c.address + (c.name ? ' · '+c.name : '')"></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+            <button type="button" class="pe-btn-new" @click="openNewClient()">+ Нов</button>
+          </div>
+        </template>
+        <template x-if="clientId">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+            <span style="font-size:13px;font-weight:700;color:var(--p-text);flex:1" x-text="clientFirm"></span>
+            <button type="button" class="pe-btn-clear" @click="clearClient()" title="Изчисти заявителя">×</button>
+          </div>
+        </template>
+        <div class="pe-field-row"><span class="pe-field-lbl">Фирма:</span><span class="pe-field-val" x-text="clientFirm||'—'"></span></div>
+        <div class="pe-field-row"><span class="pe-field-lbl">ЕИК:</span><span class="pe-field-val" x-text="clientEik||'—'"></span></div>
+        <div class="pe-field-row"><span class="pe-field-lbl">Адрес:</span><span class="pe-field-val" x-text="clientAddress||'—'"></span></div>
+        <div class="pe-field-row"><span class="pe-field-lbl">Тел:</span><span class="pe-field-val" x-text="clientPhone||'—'"></span></div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--p-borderL);">
+          <span style="font-size:11px;color:var(--p-textM);">Обработката е по:</span>
+          <div class="pe-contract-opts">
+            <div class="pe-contract-opt" @click="isLongTerm=false">
+              <div class="pe-mcb" :class="{on:!isLongTerm}"><span x-show="!isLongTerm">✓</span></div>
+              <span>Еднократна заявка</span>
+            </div>
+            <div class="pe-contract-opt" @click="isLongTerm=true">
+              <div class="pe-mcb" :class="{on:isLongTerm}"><span x-show="isLongTerm">✓</span></div>
+              <span>Дългосрочен договор</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 3 — Site -->
+      <div class="pe-panel">
+        <div class="pe-panel-title">Данни за обекта, в който е извършена ДДД обработката</div>
+        <div class="pe-pick-row">
+          <select x-model="siteId" @change="pickSite()" :disabled="!clientId">
+            <option value="">— изберете обект —</option>
+            <template x-for="s in filteredSites" :key="s.id">
+              <option :value="s.id" x-text="s.pseudonym"></option>
+            </template>
+          </select>
+          <button type="button" class="pe-btn-new" @click="openNewSite()" :disabled="!clientId" title="Нов обект за избрания клиент">+ Нов</button>
+          <button type="button" class="pe-btn-clear" x-show="siteId" @click="clearSite()" title="Изчисти обекта">×</button>
+        </div>
+        <div x-show="!clientId" style="font-size:10.5px;color:var(--p-textM);margin-top:3px;">Първо изберете заявител</div>
+        <div class="pe-field-row"><span class="pe-field-lbl">Обект:</span><span class="pe-field-val" x-text="siteName||'—'"></span></div>
+        <div class="pe-field-row"><span class="pe-field-lbl">Адрес:</span><span class="pe-field-val" x-text="siteAddress||'—'"></span></div>
+        <div class="pe-field-row"><span class="pe-field-lbl">Площ:</span><span class="pe-field-val" x-text="siteArea ? siteArea+' m²' : '—'"></span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ Main protocol table ═══ -->
+  <div class="pe-table-wrap">
+    <table class="pe-ptable">
+      <colgroup>
+        <col style="width:3%">
+        <col style="width:25%">
+        <col style="width:20px"><col style="width:8%">
+        <col style="width:20px"><col style="width:8%">
+        <col style="width:20px"><col style="width:13%">
+        <col style="width:20px"><col style="width:13%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="pe-col-num">№</th>
+          <th class="pe-th-main">Данни за извършените в обекта ДДД обработки</th>
+          <th colspan="4" class="pe-th-svc" :class="{on: disActive}">Дезинсекция и дезакаризация</th>
+          <th colspan="2" class="pe-th-svc" :class="{on: derActive}">Дератизация</th>
+          <th colspan="2" class="pe-th-svc" :class="{on: dinfActive}">Дезинфекция</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- ═══ ROW 1 — Pest grid (dynamic; mirrors Protocol.pest_grid_rows) ═══ -->
+        <template x-for="(row, rIdx) in pestGridRows" :key="'pgrow-'+rIdx">
+          <tr>
+            <template x-if="rIdx === 0">
+              <td class="pe-col-num" :rowspan="pestGridRows.length">1</td>
+            </template>
+            <template x-if="rIdx === 0">
+              <td class="pe-row-label" :rowspan="pestGridRows.length">Вид на вредителите, срещу които е извършена обработката/спектър на действие при дезинфектантите</td>
+            </template>
+            <template x-for="(p, cIdx) in cellsForRow(rIdx)" :key="'pg-'+rIdx+'-'+cIdx">
+              <td :class="p.kind === 'cb' || p.kind === 'other-cb' ? 'pe-r1cb' : 'pe-r1nm'"
+                  :colspan="p.colspan||1" :rowspan="p.rowspan||1"
+                  @click="p.id ? togglePest(p.col, p.id) : null">
+                <template x-if="p.kind === 'cb' || p.kind === 'other-cb'">
+                  <span class="pe-pcb" :class="{on: p.id && isPest(p.col, p.id)}">✓</span>
+                </template>
+                <template x-if="p.kind === 'nm'">
+                  <span x-text="p.name"></span>
+                </template>
+                <template x-if="p.kind === 'other-nm'">
+                  <div>
+                    <span x-text="p.name"></span>
+                    <input x-show="isPest(p.col, p.id)" class="pe-pest-txt" type="text"
+                           placeholder="опишете…" x-model="otherText[p.col]" @click.stop>
+                  </div>
+                </template>
+              </td>
+            </template>
+          </tr>
+        </template>
+
+        <!-- ═══ ROW 2 ═══ -->
+        <tr>
+          <td class="pe-col-num">2</td>
+          <td class="pe-row-label">Обработена площ (m²)</td>
+          <td colspan="4" class="pe-c-dis" :class="{off:!disActive}"><input class="pe-ci" type="number" placeholder="m²" x-model="cols.dis.treated_area_m2" :disabled="!disActive"></td>
+          <td colspan="2" class="pe-c-der" :class="{off:!derActive}"><input class="pe-ci" type="number" placeholder="m²" x-model="cols.der.treated_area_m2" :disabled="!derActive"></td>
+          <td colspan="2" class="pe-c-dinf" :class="{off:!dinfActive}"><input class="pe-ci" type="number" placeholder="m²" x-model="cols.dinf.treated_area_m2" :disabled="!dinfActive"></td>
+        </tr>
+
+        <!-- ═══ ROW 3 ═══ -->
+        <tr>
+          <td class="pe-col-num">3</td>
+          <td class="pe-row-label">Вид на обработените площи/помещения/повърхности</td>
+          <td colspan="4" class="pe-c-dis" :class="{off:!disActive}"><input class="pe-ci" type="text" placeholder="напр. складови помещения, коридори…" x-model="cols.dis.surface_description" :disabled="!disActive"></td>
+          <td colspan="2" class="pe-c-der" :class="{off:!derActive}"><input class="pe-ci" type="text" placeholder="напр. мазета, складове…" x-model="cols.der.surface_description" :disabled="!derActive"></td>
+          <td colspan="2" class="pe-c-dinf" :class="{off:!dinfActive}"><input class="pe-ci" type="text" placeholder="напр. работни повърхности…" x-model="cols.dinf.surface_description" :disabled="!dinfActive"></td>
+        </tr>
+
+        <!-- ═══ ROW 4 — Treatment methods ═══ -->
+        <tr>
+          <td class="pe-col-num">4</td>
+          <td class="pe-row-label">Вид на обработката (механична, физична, биологична, химична с биоцидни препарати)</td>
+          <template x-for="svc in ['dis','der','dinf']" :key="'r4-'+svc">
+            <td :colspan="svc==='dis'?4:2" :class="['pe-c-'+svc, {off: !isActive(svc)}]">
+              <div class="pe-mpills">
+                <template x-for="m in methods" :key="svc+'-m-'+m.value">
+                  <button type="button" class="pe-mpill"
+                          :class="{on: cols[svc].treatment_methods.includes(m.value)}"
+                          @click="toggleMethod(svc, m.value)" :disabled="!isActive(svc)"
+                          x-text="m.label"></button>
+                </template>
+              </div>
+            </td>
+          </template>
+        </tr>
+
+        <!-- ═══ ROW 5 — Non-chemical means multi-select ═══ -->
+        <tr>
+          <td class="pe-col-num">5</td>
+          <td class="pe-row-label">Брой и вид (убиващи, живоловни, лепливи) на използваните капани</td>
+
+          <!-- Disinsection -->
+          <td colspan="4" class="pe-c-dis" :class="{off:!disActive}">
+            <div class="pe-ppick">
+              <select x-model="cols.dis.ncm_sel" :disabled="!disActive">
+                <option value="">— нехим. средство (Дезинсекция) —</option>
+                <template x-for="m in availNCM('dis')" :key="m.id">
+                  <option :value="m.id" x-text="m.name"></option>
+                </template>
+              </select>
+              <button type="button" class="pe-btn-add" @click="addNCM('dis')" :disabled="!disActive||!cols.dis.ncm_sel">+ Добави</button>
+            </div>
+            <div class="pe-pchips">
+              <template x-for="m in cols.dis.ncm" :key="m.id">
+                <div class="pe-pchip">
+                  <span x-text="m.name"></span>
+                  <input type="text" class="pe-pchip-count" placeholder="бр." x-model="m.count">
+                  <button type="button" class="pe-cx" @click="rmNCM('dis', m.id)">×</button>
+                </div>
+              </template>
+            </div>
+          </td>
+
+          <!-- Deratization -->
+          <td colspan="2" class="pe-c-der" :class="{off:!derActive}">
+            <div class="pe-ppick">
+              <select x-model="cols.der.ncm_sel" :disabled="!derActive">
+                <option value="">— нехим. средство (Дератизация) —</option>
+                <template x-for="m in availNCM('der')" :key="m.id">
+                  <option :value="m.id" x-text="m.name"></option>
+                </template>
+              </select>
+              <button type="button" class="pe-btn-add" @click="addNCM('der')" :disabled="!derActive||!cols.der.ncm_sel">+ Добави</button>
+            </div>
+            <div class="pe-pchips">
+              <template x-for="m in cols.der.ncm" :key="m.id">
+                <div class="pe-pchip">
+                  <span x-text="m.name"></span>
+                  <input type="text" class="pe-pchip-count" placeholder="бр." x-model="m.count">
+                  <button type="button" class="pe-cx" @click="rmNCM('der', m.id)">×</button>
+                </div>
+              </template>
+            </div>
+          </td>
+
+          <td colspan="2" style="text-align:center;">
+            <span class="pe-empty">—</span>
+          </td>
+        </tr>
+
+        <!-- ═══ PRODUCT PICKER ROW ═══ -->
+        <tr class="pe-picker-row">
+          <td class="pe-col-num" style="font-size:9px;color:var(--c-coral);">+</td>
+          <td class="pe-row-label" style="font-style:italic;font-size:11px;color:var(--c-coral);">Добави препарат →</td>
+          <template x-for="svc in ['dis','der','dinf']" :key="'pp-'+svc">
+            <td :colspan="svc==='dis'?4:2" :class="['pe-c-'+svc, {off: !isActive(svc)}]">
+              <div class="pe-ppick">
+                <select x-model="cols[svc].prod_sel" :disabled="!isActive(svc)">
+                  <option value="">— препарат —</option>
+                  <template x-for="p in availProducts(svc)" :key="p.id">
+                    <option :value="p.id" x-text="p.name"></option>
+                  </template>
+                </select>
+                <button type="button" class="pe-btn-add" @click="addProduct(svc)" :disabled="!isActive(svc)||!cols[svc].prod_sel">+ Добави</button>
+              </div>
+              <div class="pe-pchips">
+                <template x-for="p in cols[svc].products" :key="p.id">
+                  <div class="pe-pchip">
+                    <span x-text="p.name"></span>
+                    <button type="button" class="pe-cx" @click="rmProduct(svc, p.id)">×</button>
+                  </div>
+                </template>
+              </div>
+            </td>
+          </template>
+        </tr>
+
+        <!-- ═══ ROWS 6–10 — auto-fill from product snapshots ═══ -->
+        <template x-for="row in productRows" :key="row.key">
+          <tr>
+            <td class="pe-col-num" x-text="row.num"></td>
+            <td class="pe-row-label" x-text="row.label"></td>
+            <template x-for="svc in ['dis','der','dinf']" :key="row.key+'-'+svc">
+              <td :colspan="svc==='dis'?4:2" :class="['pe-c-'+svc, {off: !isActive(svc)}]">
+                <template x-for="(p, i) in cols[svc].products" :key="p.id">
+                  <div class="pe-pline" x-text="(i+1)+'. '+(p[row.key]||'—')"></div>
+                </template>
+                <span x-show="cols[svc].products.length===0" class="pe-empty">—</span>
+              </td>
+            </template>
+          </tr>
+        </template>
+
+        <!-- ═══ ROW 11a — Общо количество ═══ -->
+        <tr>
+          <td class="pe-col-num" rowspan="2">11</td>
+          <td class="pe-row-label">Общо количество изразходван препарат / работен разтвор.</td>
+          <td colspan="4" class="pe-c-dis" :class="{off:!disActive}"><input class="pe-ci" type="text" placeholder="напр. 500 мл…" x-model="cols.dis.total_used" :disabled="!disActive"></td>
+          <td colspan="2"><span class="pe-empty">—</span></td>
+          <td colspan="2" class="pe-c-dinf" :class="{off:!dinfActive}"><input class="pe-ci" type="text" placeholder="напр. 1 л…" x-model="cols.dinf.total_used" :disabled="!dinfActive"></td>
+        </tr>
+
+        <!-- ═══ ROW 11b — Брой кутии (auto-computed from selected dera products) ═══ -->
+        <tr>
+          <td class="pe-row-label">Брой на поставените/заредени дератизациони кутии* и количеството родентицид, заложено в една дератизационна кутия (g).</td>
+          <td colspan="4"><span class="pe-empty">—</span></td>
+          <td colspan="2" :class="['pe-c-der', {off: !derActive}]">
+            <div x-show="derBaitText" x-text="derBaitText"
+                 style="font-size:11.5px;color:var(--p-text);line-height:1.4;padding:2px 0;"></div>
+            <div x-show="!derBaitText" class="pe-empty">
+              Авт. от избраните дератизационни препарати.
+            </div>
+          </td>
+          <td colspan="2"><span class="pe-empty">—</span></td>
+        </tr>
+
+        <!-- ═══ ROWS 12–12.4 — auto-fill from product snapshots ═══ -->
+        <template x-for="row in safetyRows" :key="row.key">
+          <tr>
+            <td class="pe-col-num" x-text="row.num"></td>
+            <td class="pe-row-label" x-text="row.label"></td>
+            <template x-for="svc in ['dis','der','dinf']" :key="row.key+'-'+svc">
+              <td :colspan="svc==='dis'?4:2" :class="['pe-c-'+svc, {off: !isActive(svc)}]">
+                <template x-for="(p, i) in cols[svc].products" :key="p.id">
+                  <div class="pe-pline" x-text="(i+1)+'. '+(p[row.key]||'—')"></div>
+                </template>
+                <span x-show="cols[svc].products.length===0" class="pe-empty">—</span>
+              </td>
+            </template>
+          </tr>
+        </template>
+
+        <!-- ═══ ROW 12.5 ═══ -->
+        <tr>
+          <td class="pe-col-num">12.5</td>
+          <td class="pe-row-label">Други</td>
+          <td colspan="4" class="pe-c-dis" :class="{off:!disActive}"><input class="pe-ci" type="text" placeholder="Допълнителни указания…" x-model="cols.dis.safety_other" :disabled="!disActive"></td>
+          <td colspan="2" class="pe-c-der" :class="{off:!derActive}"><input class="pe-ci" type="text" placeholder="Допълнителни указания…" x-model="cols.der.safety_other" :disabled="!derActive"></td>
+          <td colspan="2" class="pe-c-dinf" :class="{off:!dinfActive}"><input class="pe-ci" type="text" placeholder="Допълнителни указания…" x-model="cols.dinf.safety_other" :disabled="!dinfActive"></td>
+        </tr>
+
+        <!-- ═══ ROW 13 ═══ -->
+        <tr>
+          <td class="pe-col-num">13</td>
+          <td class="pe-row-label">Препоръки към заявителя за подобряване на санитарно-хигиенните и технически условия в обекта</td>
+          <td colspan="4" class="pe-c-dis" :class="{off:!disActive}"><textarea class="pe-cta" rows="2" placeholder="Препоръки…" x-model="cols.dis.recommendations" :disabled="!disActive"></textarea></td>
+          <td colspan="2" class="pe-c-der" :class="{off:!derActive}"><textarea class="pe-cta" rows="2" placeholder="Препоръки…" x-model="cols.der.recommendations" :disabled="!derActive"></textarea></td>
+          <td colspan="2" class="pe-c-dinf" :class="{off:!dinfActive}"><textarea class="pe-cta" rows="2" placeholder="Препоръки…" x-model="cols.dinf.recommendations" :disabled="!dinfActive"></textarea></td>
+        </tr>
+
+        <!-- ═══ ROW 14 ═══ -->
+        <tr>
+          <td class="pe-col-num">14</td>
+          <td class="pe-row-label">Наложили се промени и корекции на данните в протокола</td>
+          <td colspan="4" class="pe-c-dis" :class="{off:!disActive}"><textarea class="pe-cta" rows="2" placeholder="Корекции…" x-model="cols.dis.corrections" :disabled="!disActive"></textarea></td>
+          <td colspan="2" class="pe-c-der" :class="{off:!derActive}"><textarea class="pe-cta" rows="2" placeholder="Корекции…" x-model="cols.der.corrections" :disabled="!derActive"></textarea></td>
+          <td colspan="2" class="pe-c-dinf" :class="{off:!dinfActive}"><textarea class="pe-cta" rows="2" placeholder="Корекции…" x-model="cols.dinf.corrections" :disabled="!dinfActive"></textarea></td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pe-footnote">* Прилага се картосхема на местоположението им в обекта.</div>
+
+  <!-- ═══ Footer table ═══ -->
+  <table class="pe-footer-table">
+    <colgroup><col style="width:42%"><col style="width:13%"><col style="width:45%"></colgroup>
+    <tr>
+      <td>
+        <div style="font-size:11.5px;color:var(--p-textM);margin-bottom:5px;">Протоколът е подготвен от:</div>
+        <select x-model="preparedById">
+          <option value="">— изберете ръководител —</option>
+          <template x-for="w in workers" :key="w.id">
+            <option :value="w.id" x-text="w.name"></option>
+          </template>
+        </select>
+        <div class="pe-footer-hint">(Ръководител / Инспектор ДДД)</div>
+      </td>
+      <td style="text-align:center;">
+        <div style="font-size:11.5px;color:var(--p-textM);">Подпис:</div>
+        <div class="pe-sig-line"></div>
+      </td>
+      <td>
+        <div style="font-size:11.5px;color:var(--p-textM);margin-bottom:5px;">Дата:</div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="date" x-model="date1" style="width:55%">
+          <button type="button" class="pe-btn-clear" x-show="date1" @click="date1=''" title="Изчисти датата">×</button>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div style="font-size:11.5px;color:var(--p-textM);margin-bottom:5px;">Обработката е извършена от:</div>
+        <select x-model="executedById">
+          <option value="">— изберете изпълнител —</option>
+          <template x-for="w in workers" :key="w.id">
+            <option :value="w.id" x-text="w.name"></option>
+          </template>
+        </select>
+        <div class="pe-footer-hint">(Изпълнител на ДДД)</div>
+      </td>
+      <td style="text-align:center;">
+        <div style="font-size:11.5px;color:var(--p-textM);">Подпис:</div>
+        <div class="pe-sig-line"></div>
+      </td>
+      <td>
+        <div style="font-size:11.5px;color:var(--p-textM);margin-bottom:5px;">Дата и час на обработката:</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="date" x-model="date2" style="width:40%">
+          <button type="button" class="pe-btn-clear" x-show="date2" @click="date2=''" title="Изчисти датата">×</button>
+          <span style="font-size:11.5px;color:var(--p-textM);">от</span>
+          <input type="time" x-model="timeFrom" style="width:20%">
+          <span style="font-size:11.5px;color:var(--p-textM);">до</span>
+          <input type="time" x-model="timeTo"   style="width:20%">
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="3">
+        <div style="font-size:11.5px;color:var(--p-textM);margin-bottom:5px;">
+          Подпис на заявителя на обработката или на упълномощено от него лице (три имена):
+        </div>
+        <input type="text" placeholder="Три имена на подписалия…" x-model="signatory" style="width:55%">
+      </td>
+    </tr>
+  </table>
+
+  <!-- ═══ Metadata strip — Notes / Price / Tags (not printed on the protocol) ═══ -->
+  <div class="pe-meta-card">
+    <div class="pe-meta-title">Допълнителна информация</div>
+    <div class="pe-meta-hint">
+      Тези полета не се отпечатват върху протокола, но се пазят в базата данни за справки и филтри.
+    </div>
+
+    <div class="pe-meta-grid">
+      <!-- Notes (textarea, takes full width on the top row) -->
+      <div class="pe-meta-row pe-meta-row-wide">
+        <label>Бележки</label>
+        <textarea rows="3" x-model="notes"
+                  placeholder="Вътрешни бележки за този протокол…"></textarea>
+      </div>
+
+      <!-- Price -->
+      <div class="pe-meta-row">
+        <label>Цена (лв)</label>
+        <input type="number" min="0" step="0.01" x-model="price"
+               placeholder="напр. 150.00">
+      </div>
+
+      <!-- Tags multi-select -->
+      <div class="pe-meta-row pe-meta-row-wide">
+        <label>Етикети</label>
+        <div class="pe-tag-chips">
+          <template x-for="t in allTags" :key="t.id">
+            <button type="button" class="pe-tag-chip"
+                    :class="{on: tagIds.includes(t.id)}"
+                    :style="tagIds.includes(t.id)
+                            ? ('background:' + t.color + '20;border-color:' + t.color + ';color:' + t.color + ';')
+                            : ''"
+                    @click="toggleTag(t.id)">
+              <span x-text="t.name"></span>
+            </button>
+          </template>
+          <span x-show="allTags.length === 0" class="pe-meta-empty">
+            Няма налични етикети. Добавяте ги от страница „Етикети".
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Action bar ═══ -->
+  <div class="pe-action-bar" {% if editor_mode == 'view' %}style="justify-content:space-between;align-items:center;"{% endif %}>
+    {% if editor_mode == 'view' %}
+      {# View mode: read-only protocol preview popup #}
+      <div class="pe-source-tpl">
+        {% if protocol.source_template_id %}
+          Създаден от шаблон: <strong>{{ protocol.source_template.preset_name|default:protocol.source_template.pseudonym|default:"—" }}</strong>
+        {% else %}
+          Не е създаден от шаблон
+        {% endif %}
+      </div>
+      <div style="display:flex;gap:10px;">
+        <a href="{% url 'core:protocol_print_choose' protocol.pk %}" target="_top" class="pe-btn pe-btn-secondary" style="text-decoration:none;display:inline-flex;align-items:center;">
+          🖨 Печат
+        </a>
+        <a href="{% url 'core:protocol_pdf' protocol.pk %}" target="_top" class="pe-btn pe-btn-secondary" style="text-decoration:none;display:inline-flex;align-items:center;"
+           onclick="if (window.parent && window.parent.downloadProtocolPdf) { window.parent.downloadProtocolPdf(event, '{% url "core:protocol_pdf" protocol.pk %}', 'protocol-{{ protocol.pk }}.pdf'); }">
+          ⤓ Изтегли PDF
+        </a>
+        <button type="button" class="pe-btn pe-btn-template" @click="openTemplatePicker()">
+          Запази като шаблон
+        </button>
+      </div>
+    {% else %}
+      <a href="{% url 'core:protocol_list' %}" class="pe-btn pe-btn-secondary" style="text-decoration:none;display:inline-flex;align-items:center;">Отказ</a>
+
+      {% if editor_mode == 'edit' %}
+        {# Edit mode: save directly (no preview) + delete #}
+        <button type="button" class="pe-btn pe-btn-secondary"
+                style="color:#b03030;border-color:rgba(200,80,80,.35);"
+                @click="deleteProtocol()"
+                :disabled="saving">
+          Изтрий
+        </button>
+        <button type="button" class="pe-btn pe-btn-primary"
+                @click="saveDirectly()" :disabled="!canPreview || saving">
+          <span x-show="!saving">Запази протокола</span>
+          <span x-show="saving">Запазване…</span>
+        </button>
+      {% else %}
+        {# Normal and create-from: go to preview page #}
+        <button type="button" class="pe-btn pe-btn-primary" @click="goPreview()" :disabled="!canPreview">
+          Преглед →
+        </button>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  <!-- ═══ Toast — "Save as template" success message (view mode) ═══ -->
+  {% if editor_mode == 'view' %}
+  <div x-show="tplToast" x-cloak class="pe-toast" style="margin-top:10px;">
+    <span style="font-size:18px;">✓</span>
+    <span x-text="tplToast"></span>
+    <button type="button" @click="tplToast=''" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#2d7a4a;font-size:18px;line-height:1;padding:0 6px;">×</button>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════
+       MODAL — + Нов клиент
+       ═══════════════════════════════════════════ -->
+  <div x-show="modal.newClient.open" class="pe-modal-veil" x-cloak>
+    <div class="pe-modal-card">
+      <div class="pe-modal-head">
+        <div class="pe-modal-title">Нов клиент</div>
+        <button class="pe-modal-x" @click="modal.newClient.open=false">×</button>
+      </div>
+      <div class="pe-modal-body">
+        <div class="pe-ml-row"><label>Фирма *</label>
+          <input type="text" x-model="modal.newClient.firm" placeholder="„Виктория Нутс" ЕООД">
+          <div class="pe-modal-err" x-show="modal.newClient.errors.firm" x-text="(modal.newClient.errors.firm||[''])[0]"></div>
+        </div>
+        <div class="pe-ml-row"><label>Име *</label>
+          <input type="text" x-model="modal.newClient.name" placeholder="Виктория Нутс">
+          <div class="pe-modal-err" x-show="modal.newClient.errors.name" x-text="(modal.newClient.errors.name||[''])[0]"></div>
+        </div>
+        <div class="pe-ml-row"><label>ЕИК *</label>
+          <input type="text" x-model="modal.newClient.eik" placeholder="9 цифри" maxlength="9">
+          <div class="pe-modal-err" x-show="modal.newClient.errors.eik" x-text="(modal.newClient.errors.eik||[''])[0]"></div>
+        </div>
+        <div class="pe-ml-row"><label>Адрес *</label>
+          <input type="text" x-model="modal.newClient.address" placeholder="гр., ул., №…">
+          <div class="pe-modal-err" x-show="modal.newClient.errors.address" x-text="(modal.newClient.errors.address||[''])[0]"></div>
+        </div>
+        <div class="pe-ml-row"><label>Телефон</label>
+          <input type="text" x-model="modal.newClient.phone" placeholder="0888 …">
+        </div>
+        <div style="font-size:10.5px;color:var(--p-textM);margin-top:2px;">
+          След запис клиентът ще бъде автоматично избран в текущия протокол.
+        </div>
+      </div>
+      <div class="pe-modal-foot">
+        <button class="pe-modal-btn cancel" @click="modal.newClient.open=false" :disabled="modal.newClient.saving">Отказ</button>
+        <button class="pe-modal-btn save" @click="saveNewClient()" :disabled="modal.newClient.saving">
+          <span x-show="!modal.newClient.saving">Запази</span>
+          <span x-show="modal.newClient.saving">Запазване…</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       MODAL — + Нов обект
+       ═══════════════════════════════════════════ -->
+  <div x-show="modal.newSite.open" class="pe-modal-veil" x-cloak>
+    <div class="pe-modal-card">
+      <div class="pe-modal-head">
+        <div class="pe-modal-title">
+          Нов обект <span style="font-weight:400;color:var(--p-textM);font-size:12px;">за <span x-text="clientFirm"></span></span>
+        </div>
+        <button class="pe-modal-x" @click="modal.newSite.open=false">×</button>
+      </div>
+      <div class="pe-modal-body">
+        <div class="pe-ml-row"><label>Псевдоним *</label>
+          <input type="text" x-model="modal.newSite.pseudonym" placeholder="напр. Магазин Център">
+          <div class="pe-modal-err" x-show="modal.newSite.errors.pseudonym" x-text="(modal.newSite.errors.pseudonym||[''])[0]"></div>
+        </div>
+        <div class="pe-ml-row"><label>Име на обекта *</label>
+          <input type="text" x-model="modal.newSite.name" placeholder="напр. Магазин №1">
+          <div class="pe-modal-err" x-show="modal.newSite.errors.name" x-text="(modal.newSite.errors.name||[''])[0]"></div>
+        </div>
+        <div class="pe-ml-row"><label>Адрес</label>
+          <input type="text" x-model="modal.newSite.address" placeholder="ул., №, ет…">
+        </div>
+        <div class="pe-ml-row"><label>Обща площ (m²)</label>
+          <input type="number" x-model="modal.newSite.area_m2" placeholder="напр. 120" min="0">
+        </div>
+        <div style="font-size:10.5px;color:var(--p-textM);margin-top:2px;">
+          След запис обектът ще бъде автоматично избран в текущия протокол.
+        </div>
+      </div>
+      <div class="pe-modal-foot">
+        <button class="pe-modal-btn cancel" @click="modal.newSite.open=false" :disabled="modal.newSite.saving">Отказ</button>
+        <button class="pe-modal-btn save" @click="saveNewSite()" :disabled="modal.newSite.saving">
+          <span x-show="!modal.newSite.saving">Запази</span>
+          <span x-show="modal.newSite.saving">Запазване…</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {% if editor_mode == 'view' %}
+  <!-- ═══════════════════════════════════════════
+       MODAL — Запази като шаблон (view mode only)
+       ═══════════════════════════════════════════ -->
+  <div x-show="modal.saveTemplate.open" class="pe-modal-veil" @click.self="modal.saveTemplate.open=false" x-cloak>
+    <div class="pe-modal-card">
+      <div class="pe-modal-head">
+        <div class="pe-modal-title">Запази като шаблон — изберете папка</div>
+        <button class="pe-modal-x" @click="modal.saveTemplate.open=false">×</button>
+      </div>
+      <div class="pe-modal-body">
+        <!-- Breadcrumb -->
+        <div class="pe-bc">
+          <span class="pe-bc-crumb" @click="tplNavTo(null)">Шаблони</span>
+          <template x-for="(c, i) in modal.saveTemplate.breadcrumb" :key="c.id">
+            <template x-if="c">
+              <span style="display:inline-flex;gap:4px;align-items:center;">
+                <span class="pe-bc-sep">›</span>
+                <span class="pe-bc-crumb" @click="tplNavTo(c.id)" x-text="c.name"></span>
+              </span>
+            </template>
+          </template>
+        </div>
+
+        <!-- Subfolders -->
+        <div class="pe-folder-list">
+          <template x-for="f in tplSubfoldersOf(modal.saveTemplate.currentId)" :key="f.id">
+            <div class="pe-folder-row" @click="tplNavTo(f.id)">
+              <span class="pe-folder-icon">📁</span>
+              <span x-text="f.name"></span>
+            </div>
+          </template>
+          <div x-show="tplSubfoldersOf(modal.saveTemplate.currentId).length === 0" class="pe-folder-empty">
+            Тази папка няма подпапки.
+          </div>
+        </div>
+
+        <!-- Name input -->
+        <label class="pe-name-label" style="display:block;margin-top:14px;">Име на шаблона *</label>
+        <input class="pe-name-input" type="text" placeholder="напр. „Виктория Нутс — стандарт"" x-model="modal.saveTemplate.presetName">
+        <div class="pe-modal-err" x-show="modal.saveTemplate.error" x-text="modal.saveTemplate.error"></div>
+      </div>
+      <div class="pe-modal-foot">
+        <button class="pe-modal-btn cancel" @click="modal.saveTemplate.open=false" :disabled="modal.saveTemplate.saving">Отказ</button>
+        <button class="pe-modal-btn save" @click="confirmSaveAsTemplateCopy()" :disabled="!modal.saveTemplate.presetName || modal.saveTemplate.saving">
+          <span x-show="!modal.saveTemplate.saving">Запази тук</span>
+          <span x-show="modal.saveTemplate.saving">Запазване…</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>{# /pe-root #}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   Stage 2b — Editor Alpine component
+   • Bootstrap JSON parsed from #editor-bootstrap on init.
+   • clientUuid generated client-side and stays stable for the editor session.
+   • "Преглед" submits all state as JSON to /protocols/preview/ which renders
+     the preview page.  Save / Print / Download / Save-as-template happen
+     ONLY from the preview page (next file).
+   ═══════════════════════════════════════════════════════════════════════════ */
+document.addEventListener('alpine:init', () => {
+  Alpine.data('protocolEditor', (viewMode = false) => ({
+
+    // ── view mode (read-only protocol preview popup) ──
+    viewMode: viewMode,
+    tplToast: '',
+
+    // ── catalogs (from bootstrap JSON) ──
+    companies: [], allClients: [], allSites: [],
+    allProducts: { disinsection: [], deratization: [], disinfection: [] },
+    allPests:    { disinsection: [], deratization: [], disinfection: [] },
+    allNCM:      { disinsection: [], deratization: [], disinfection: [] },
+    workers: [], methods: [], folders: [], allTags: [],
+
+    // ── form state ──
+    clientUuid: null,           // stable PK for idempotent save
+    companyId: '', companyName: '', companyEik: '', companyAddress: '', companyPhone: '',
+    clientId: '', clientFirm: '', clientEik: '', clientAddress: '', clientPhone: '',
+    clientQ: '', showClientDD: false, highlightedIndex: -1,
+    siteId: '', siteName: '', siteAddress: '', siteArea: '',
+    isLongTerm: false,
+    preparedById: '', executedById: '',
+    date1: '', date2: '',
+    timeFrom: '', timeTo: '',
+    signatory: '',
+    otherText: { dis: '', der: '', dinf: '' },
+
+    // ── metadata (not printed on the protocol body, but persisted) ──
+    pseudonym: '',
+    notes:     '',
+    price:     '',
+    tagIds:    [],
+
+    // Per-service column state.  Keys "dis", "der", "dinf" map to model
+    // services "disinsection", "deratization", "disinfection".
+    cols: {
+      dis:  { pest_ids: [], treatment_methods: [], products: [], prod_sel: '',
+              ncm: [], ncm_sel: '',
+              treated_area_m2: '', surface_description: '',
+              total_used: '', safety_other: '', recommendations: '', corrections: '' },
+      der:  { pest_ids: [], treatment_methods: [], products: [], prod_sel: '',
+              ncm: [], ncm_sel: '',
+              treated_area_m2: '', surface_description: '',
+              total_used: '', safety_other: '', recommendations: '', corrections: '' },
+      dinf: { pest_ids: [], treatment_methods: [], products: [], prod_sel: '',
+              ncm: [], ncm_sel: '',
+              treated_area_m2: '', surface_description: '',
+              total_used: '', safety_other: '', recommendations: '', corrections: '' },
+    },
+
+    // ── modal state ──
+    modal: {
+      newClient: { open: false, saving: false, errors: {},
+                   firm: '', name: '', eik: '', address: '', phone: '' },
+      newSite:   { open: false, saving: false, errors: {},
+                   pseudonym: '', name: '', address: '', area_m2: '' },
+      saveTemplate: { open: false, saving: false, error: '',
+                      currentId: null, breadcrumb: [], presetName: '' },
+    },
+
+    // ── row metadata for the auto-fill loops ──
+    productRows: [
+      { num: '6',  label: 'Търговско наименование на биоцида',                              key: 'name' },
+      { num: '7',  label: 'Номер на разрешението за пускане на пазара на биоцида',          key: 'authorization_no' },
+      { num: '8',  label: 'Формулация на биоцида',                                          key: 'formulation' },
+      { num: '9',  label: 'Активни вещества и концентрация',                                key: 'active_substances' },
+      { num: '10', label: 'Работен разтвор - концентрация и норма',                          key: 'working_solution' },
+    ],
+    safetyRows: [
+      { num: '12',   label: 'Указания за мерки за безопасност в обекта',                                                          key: 'safety_instructions' },
+      { num: '12.1', label: 'Време на въздействие на биоцида',                                                                    key: 'action_time' },
+      { num: '12.2', label: 'Достъп на хора и животни до обработените площи. Време за проветряване.',                              key: 'access_info' },
+      { num: '12.3', label: 'Повърхности, подлежащи на забърсване / изплакване след времето на въздействие',                       key: 'surfaces_to_wipe' },
+      { num: '12.4', label: 'Антидот',                                                                                            key: 'antidote' },
+    ],
+
+    // ─────────────────────────────────────────────────────────────────
+    // INIT — parse bootstrap JSON, apply defaults
+    // ─────────────────────────────────────────────────────────────────
+    init() {
+      const raw = document.getElementById('editor-bootstrap');
+      const data = JSON.parse(raw.textContent);
+
+      this.companies   = data.companies   || [];
+      this.allClients  = data.clients     || [];
+      this.allSites    = data.sites       || [];
+      this.allProducts = data.products    || this.allProducts;
+      this.allPests    = data.pests       || this.allPests;
+      this.allNCM      = data.non_chem_means || this.allNCM;
+      this.workers     = data.workers     || [];
+      this.methods     = data.treatment_methods || [];
+      this.folders     = data.folders     || [];
+      this.allTags     = data.tags        || [];
+
+      const d = data.defaults || {};
+      // date1 = "Подготвено от → Дата" (Protocol.prepared_date) — defaults to
+      // today on a new protocol, but is editable/clearable.
+      // date2 = "Дата и час на обработката" (Protocol.date) — left blank on
+      // a new protocol; the user fills it in once the work is done.
+      this.date1 = d.prepared_date || new Date().toISOString().split('T')[0];
+      this.date2 = '';
+
+      // Stable idempotency key — stays the same for the whole editor session.
+      this.clientUuid = (crypto.randomUUID
+                         ? crypto.randomUUID()
+                         : ('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                             const r = Math.random()*16|0, v = c==='x'?r:(r&0x3|0x8);
+                             return v.toString(16); })));
+
+      // Defer <select x-model> defaults to after Alpine renders the <option>s.
+      // Without $nextTick, the value is set BEFORE the x-for produces options,
+      // so the select sticks to the placeholder.
+      this.$nextTick(() => {
+        if (d.company_id)     { this.companyId    = String(d.company_id);    this.pickCompany(); }
+        if (d.prepared_by_id) { this.preparedById = String(d.prepared_by_id); }
+        if (d.executed_by_id) { this.executedById = String(d.executed_by_id); }
+      });
+
+      // If prefill data was supplied (edit / create-from flow), apply it
+      // and skip the session-draft restore so it doesn't overwrite the prefill.
+      if (data.prefill) {
+        this.$nextTick(() => this._applyDraft(data.prefill));
+        return;
+      }
+
+      // If the user came back from the preview page, restore the form they
+      // had filled in (rather than wiping it clean).
+      this._restoreDraftIfAny();
+    },
+
+    // ─────────────────────────────────────────────────────────────────
+    // COMPUTED
+    // ─────────────────────────────────────────────────────────────────
+    get filteredClients() {
+      if (!this.clientQ) return this.allClients;
+      const q = this.clientQ.toLowerCase();
+      return this.allClients.filter(c =>
+        (c.firm||'').toLowerCase().includes(q) ||
+        (c.name||'').toLowerCase().includes(q) ||
+        (c.eik||'').includes(q));
+    },
+    get filteredSites() {
+      if (!this.clientId) return [];
+      return this.allSites.filter(s => String(s.client_id) === String(this.clientId));
+    },
+    get disActive()  { return this.cols.dis .pest_ids.length > 0; },
+    get derActive()  { return this.cols.der .pest_ids.length > 0; },
+    get dinfActive() { return this.cols.dinf.pest_ids.length > 0; },
+    isActive(svc)    { return svc === 'dis' ? this.disActive
+                              : svc === 'der' ? this.derActive
+                              : this.dinfActive; },
+    get canPreview() { return !!(this.clientId && this.siteId && this.companyId); },
+
+    // Row 11b text — auto-computed from selected deratization products'
+    // `bait_descriptor` field, mirroring Protocol.deratization_bait_text in
+    // core/models.py.  The leading "..." / "...." is space for the field
+    // worker to handwrite the count on the printed paper.
+    get derBaitText() {
+      const descriptors = this.cols.der.products
+        .map(p => (p.bait_descriptor || '').trim())
+        .filter(Boolean);
+      if (descriptors.length === 0) return '';
+      if (descriptors.length === 1) return `...бр. ${descriptors[0]}`;
+      return '....бр. комбинирани примамки - ' + descriptors.join(' + ');
+    },
+
+    // ─────────────────────────────────────────────────────────────────
+    // PICKERS
+    // ─────────────────────────────────────────────────────────────────
+    pickCompany() {
+      const c = this.companies.find(x => String(x.id) === String(this.companyId));
+      if (c) { this.companyName=c.name; this.companyEik=c.eik;
+               this.companyAddress=c.address; this.companyPhone=c.phone; }
+      else   { this.companyName=this.companyEik=this.companyAddress=this.companyPhone=''; }
+    },
+    // Keep the highlighted dropdown row visible when arrow keys move it
+    // outside the scrollable area.
+    scrollClientOptIntoView(inputEl) {
+      this.$nextTick(() => {
+        const wrap = inputEl.closest('.pe-search-wrap');
+        const active = wrap && wrap.querySelector('.pe-c-opt.active');
+        if (active) active.scrollIntoView({ block: 'nearest' });
+      });
+    },
+    pickClient(c) {
+      this.clientId=String(c.id); this.clientFirm=c.firm; this.clientEik=c.eik;
+      this.clientAddress=c.address; this.clientPhone=c.phone;
+      this.clientQ=c.firm; this.showClientDD=false;
+      this.clearSite();
+    },
+    clearClient() {
+      this.clientId=''; this.clientFirm=''; this.clientEik='';
+      this.clientAddress=''; this.clientPhone=''; this.clientQ='';
+      this.clearSite();
+    },
+    pickSite() {
+      const s = this.allSites.find(x => String(x.id) === String(this.siteId));
+      if (s) { this.siteName=s.pseudonym; this.siteAddress=s.address; this.siteArea=s.area_m2; }
+      else   { this.siteName=''; this.siteAddress=''; this.siteArea=''; }
+    },
+    clearSite() {
+      this.siteId=''; this.siteName=''; this.siteAddress=''; this.siteArea='';
+    },
+
+    // ─────────────────────────────────────────────────────────────────
+    // ROW 1 — pest grid (dynamic, all pests from catalog)
+    //
+    // Mirrors Protocol.pest_grid_rows in core/models.py so the editor
+    // grid matches the printed protocol exactly:
+    //   • disinsection — pests in pairs (2 per row), "Друго" full-width
+    //   • deratization — pests one-per-row, "Друго" with rowspan to cover
+    //                    all remaining rows; rows after that = "covered"
+    //   • disinfection — pests one-per-row, NO "Друго"
+    // Row count n = max(disPairs+1, derNormal+1, dinfRows). Dis and dinf
+    // are padded with "empty" rows to match n.
+    // ─────────────────────────────────────────────────────────────────
+    _svcKey(svcShort) {
+      return svcShort === 'dis'  ? 'disinsection'
+           : svcShort === 'der'  ? 'deratization'
+           : 'disinfection';
+    },
+    _pestsFor(svcShort) {
+      return this.allPests[this._svcKey(svcShort)] || [];
+    },
+
+    // High-level grid structure (one entry per visual row, with dis/der/dinf
+    // sub-objects keyed by `kind`).  Computed reactively.
+    get pestGridRows() {
+      const disPests  = this._pestsFor('dis');
+      const derPests  = this._pestsFor('der');
+      const dinfPests = this._pestsFor('dinf');
+
+      // DIS — pairs, then "Друго" full-width row
+      const disRows = [];
+      for (let i = 0; i < disPests.length; i += 2) {
+        disRows.push({
+          kind: 'pairs',
+          left:  { id: disPests[i].id,   name: disPests[i].name },
+          right: disPests[i + 1] ? { id: disPests[i + 1].id, name: disPests[i + 1].name } : null,
+        });
+      }
+      disRows.push({ kind: 'other',
+                     entry: { id: 'dis-other', name: 'Друго' } });
+
+      // DINF — pests, no "Друго"
+      const dinfRows = dinfPests.map(p => ({
+        kind: 'pest', entry: { id: p.id, name: p.name }
+      }));
+
+      // DER — pests then single "Друго" row with rowspan covering remaining rows
+      const derNormal = derPests.map(p => ({ id: p.id, name: p.name }));
+      const n = Math.max(disRows.length, derNormal.length + 1, dinfRows.length);
+
+      const derRows = derNormal.map(e => ({ kind: 'pest', entry: e }));
+      derRows.push({
+        kind: 'other',
+        entry: { id: 'der-other', name: 'Друго' },
+        rowspan: n - derNormal.length,
+      });
+      while (derRows.length < n) derRows.push({ kind: 'covered' });
+
+      while (disRows.length  < n) disRows.push({  kind: 'empty' });
+      while (dinfRows.length < n) dinfRows.push({ kind: 'empty' });
+
+      return Array.from({ length: n }, (_, i) => ({
+        dis:  disRows[i],  der:  derRows[i],  dinf: dinfRows[i],
+      }));
+    },
+
+    // Flatten one row's dis/der/dinf into the renderable cell list for
+    // the template loop.  Each cell: { col, kind, id, name, colspan, rowspan }.
+    cellsForRow(rIdx) {
+      const row = this.pestGridRows[rIdx];
+      if (!row) return [];
+      const out = [];
+
+      // DIS — 4 cells worth (cb,nm,cb,nm), or other (colspan 3), or empty pair
+      if (row.dis.kind === 'pairs') {
+        const l = row.dis.left, r = row.dis.right;
+        out.push({ col: 'dis', kind: 'cb', id: l.id });
+        out.push({ col: 'dis', kind: 'nm', id: l.id, name: l.name });
+        if (r) {
+          out.push({ col: 'dis', kind: 'cb', id: r.id });
+          out.push({ col: 'dis', kind: 'nm', id: r.id, name: r.name });
+        } else {
+          out.push({ col: 'dis', kind: 'cb', id: null });
+          out.push({ col: 'dis', kind: 'nm', id: null, name: '' });
+        }
+      } else if (row.dis.kind === 'other') {
+        out.push({ col: 'dis', kind: 'other-cb', id: row.dis.entry.id });
+        out.push({ col: 'dis', kind: 'other-nm', id: row.dis.entry.id,
+                   name: row.dis.entry.name, colspan: 3 });
+      } else { /* empty */
+        out.push({ col: 'dis', kind: 'cb', id: null });
+        out.push({ col: 'dis', kind: 'nm', id: null, name: '' });
+        out.push({ col: 'dis', kind: 'cb', id: null });
+        out.push({ col: 'dis', kind: 'nm', id: null, name: '' });
+      }
+
+      // DER — 2 cells, or "other" with rowspan, or covered (no cells), or empty
+      if (row.der.kind === 'pest') {
+        out.push({ col: 'der', kind: 'cb', id: row.der.entry.id });
+        out.push({ col: 'der', kind: 'nm', id: row.der.entry.id, name: row.der.entry.name });
+      } else if (row.der.kind === 'other') {
+        out.push({ col: 'der', kind: 'other-cb', id: row.der.entry.id,
+                   rowspan: row.der.rowspan });
+        out.push({ col: 'der', kind: 'other-nm', id: row.der.entry.id,
+                   name: row.der.entry.name, rowspan: row.der.rowspan });
+      } else if (row.der.kind === 'covered') {
+        // intentionally no cells — the previous row's rowspan covers this
+      } else { /* empty */
+        out.push({ col: 'der', kind: 'cb', id: null });
+        out.push({ col: 'der', kind: 'nm', id: null, name: '' });
+      }
+
+      // DINF — 2 cells (no "other" in disinfection)
+      if (row.dinf.kind === 'pest') {
+        out.push({ col: 'dinf', kind: 'cb', id: row.dinf.entry.id });
+        out.push({ col: 'dinf', kind: 'nm', id: row.dinf.entry.id, name: row.dinf.entry.name });
+      } else { /* empty */
+        out.push({ col: 'dinf', kind: 'cb', id: null });
+        out.push({ col: 'dinf', kind: 'nm', id: null, name: '' });
+      }
+
+      return out;
+    },
+
+    togglePest(svcShort, id) {
+      if (id == null) return;
+      const arr = this.cols[svcShort].pest_ids;
+      const idx = arr.indexOf(id);
+      if (idx >= 0) arr.splice(idx, 1); else arr.push(id);
+    },
+    isPest(svcShort, id) {
+      if (id == null) return false;
+      return this.cols[svcShort].pest_ids.includes(id);
+    },
+
+    // ─────────────────────────────────────────────────────────────────
+    // ROW 4 — treatment methods
+    // ─────────────────────────────────────────────────────────────────
+    toggleMethod(svcShort, value) {
+      const arr = this.cols[svcShort].treatment_methods;
+      const idx = arr.indexOf(value);
+      if (idx >= 0) arr.splice(idx, 1); else arr.push(value);
+    },
+
+    // ─────────────────────────────────────────────────────────────────
+    // ROW 5 — non-chemical means
+    // ─────────────────────────────────────────────────────────────────
+    availNCM(svcShort) {
+      const all = this.allNCM[this._svcKey(svcShort)] || [];
+      const added = this.cols[svcShort].ncm.map(m => String(m.id));
+      return all.filter(m => !added.includes(String(m.id)));
+    },
+    addNCM(svcShort) {
+      const sel = this.cols[svcShort].ncm_sel;
+      if (!sel) return;
+      const all = this.allNCM[this._svcKey(svcShort)] || [];
+      const m = all.find(x => String(x.id) === String(sel));
+      if (m) {
+        this.cols[svcShort].ncm.push({ id: m.id, name: m.name, count: '' });
+        this.cols[svcShort].ncm_sel = '';
+      }
+    },
+    rmNCM(svcShort, id) {
+      this.cols[svcShort].ncm = this.cols[svcShort].ncm.filter(m => String(m.id) !== String(id));
+    },
+
+    // ─────────────────────────────────────────────────────────────────
+    // PRODUCT picker
+    // ─────────────────────────────────────────────────────────────────
+    availProducts(svcShort) {
+      const all = this.allProducts[this._svcKey(svcShort)] || [];
+      const added = this.cols[svcShort].products.map(p => String(p.id));
+      return all.filter(p => !added.includes(String(p.id)));
+    },
+    addProduct(svcShort) {
+      const sel = this.cols[svcShort].prod_sel;
+      if (!sel) return;
+      const all = this.allProducts[this._svcKey(svcShort)] || [];
+      const p = all.find(x => String(x.id) === String(sel));
+      if (p) {
+        this.cols[svcShort].products.push({ ...p });
+        this.cols[svcShort].prod_sel = '';
+      }
+    },
+    rmProduct(svcShort, id) {
+      this.cols[svcShort].products = this.cols[svcShort].products.filter(p => String(p.id) !== String(id));
+    },
+
+    // ─────────────────────────────────────────────────────────────────
+    // TAGS multi-select (metadata strip)
+    // ─────────────────────────────────────────────────────────────────
+    toggleTag(id) {
+      const idx = this.tagIds.findIndex(x => String(x) === String(id));
+      if (idx >= 0) this.tagIds.splice(idx, 1);
+      else          this.tagIds.push(id);
+    },
+
+    // ─────────────────────────────────────────────────────────────────
+    // MODALS — inline create via ?as=json
+    // ─────────────────────────────────────────────────────────────────
+    _csrf() {
+      const el = document.querySelector('input[name=csrfmiddlewaretoken]');
+      return el ? el.value : '';
+    },
+
+    openNewClient() {
+      // Re-open without wiping any draft the user already typed — only
+      // reset transient saving/error state.  Fields are cleared only after
+      // a successful save (see saveNewClient).
+      this.modal.newClient.open = true;
+      this.modal.newClient.saving = false;
+      this.modal.newClient.errors = {};
+    },
+    async saveNewClient() {
+      const m = this.modal.newClient;
+      m.saving = true; m.errors = {};
+      const fd = new FormData();
+      fd.append('firm', m.firm); fd.append('name', m.name);
+      fd.append('eik', m.eik);   fd.append('address', m.address);
+      fd.append('phone', m.phone);
+      fd.append('as', 'json');
+      try {
+        const r = await fetch('{% url "core:client_create" %}', {
+          method: 'POST', body: fd,
+          headers: { 'X-CSRFToken': this._csrf() },
+        });
+        const data = await r.json();
+        if (!r.ok || !data.ok) { m.errors = data.errors || {}; m.saving = false; return; }
+        // Push new client into the in-memory list, auto-select it.
+        this.allClients.push(data.client);
+        this.pickClient(data.client);
+        // Success — clear the draft and close.
+        this.modal.newClient = { open: false, saving: false, errors: {},
+          firm: '', name: '', eik: '', address: '', phone: '' };
+      } catch (e) {
+        m.errors = { __all__: [String(e)] }; m.saving = false;
+      }
+    },
+
+    openNewSite() {
+      if (!this.clientId) return;
+      // Re-open without wiping any draft the user already typed — only
+      // reset transient saving/error state.  Fields are cleared only after
+      // a successful save (see saveNewSite).
+      this.modal.newSite.open = true;
+      this.modal.newSite.saving = false;
+      this.modal.newSite.errors = {};
+    },
+    async saveNewSite() {
+      const m = this.modal.newSite;
+      m.saving = true; m.errors = {};
+      const fd = new FormData();
+      fd.append('client', this.clientId);
+      fd.append('pseudonym', m.pseudonym);
+      fd.append('name', m.name); fd.append('address', m.address);
+      if (m.area_m2) fd.append('area_m2', m.area_m2);
+      fd.append('as', 'json');
+      try {
+        const r = await fetch('{% url "core:site_create_full" %}', {
+          method: 'POST', body: fd,
+          headers: { 'X-CSRFToken': this._csrf() },
+        });
+        const data = await r.json();
+        if (!r.ok || !data.ok) { m.errors = data.errors || {}; m.saving = false; return; }
+        this.allSites.push(data.site);
+        this.siteId = String(data.site.id);
+        this.pickSite();
+        // Success — clear the draft and close.
+        this.modal.newSite = { open: false, saving: false, errors: {},
+          pseudonym: '', name: '', address: '', area_m2: '' };
+      } catch (e) {
+        m.errors = { __all__: [String(e)] }; m.saving = false;
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────
+    // PREVIEW — POST full state, browser navigates to rendered page
+    // ─────────────────────────────────────────────────────────────────
+    buildPayload() {
+      const colOut = (svc) => {
+        const c = this.cols[svc];
+        const realPestIds = c.pest_ids.filter(id =>
+          typeof id !== 'string' || !id.endsWith('-other'));
+        const otherSelected = c.pest_ids.includes(svc + '-other');
+        return {
+          is_active: this.isActive(svc),
+          pest_ids: realPestIds,
+          pests_other: otherSelected ? (this.otherText[svc] || '') : '',
+          treated_area_m2: c.treated_area_m2 ? parseInt(c.treated_area_m2, 10) : null,
+          surface_description: c.surface_description || '',
+          treatment_methods: c.treatment_methods,
+          ncm_ids: c.ncm.map(m => m.id),
+          total_used: c.total_used || '',
+          safety_other: c.safety_other || '',
+          recommendations: c.recommendations || '',
+          corrections: c.corrections || '',
+          products: c.products.map(p => ({ id: p.id })),
+        };
+      };
+      return {
+        client_uuid: this.clientUuid,
+        client_id:  this.clientId,
+        site_id:    this.siteId,
+        company_id: this.companyId,
+        date:          this.date2 || null,
+        prepared_date: this.date1 || null,
+        time_from:  this.timeFrom || null,
+        time_to:    this.timeTo   || null,
+        is_long_term_contract: this.isLongTerm,
+        prepared_by_id: this.preparedById || null,
+        executed_by_id: this.executedById || null,
+        client_signatory: this.signatory || '',
+        columns: {
+          disinsection: colOut('dis'),
+          deratization: colOut('der'),
+          disinfection: colOut('dinf'),
+        },
+        // Metadata strip — not printed on the protocol body
+        pseudonym: this.pseudonym || '',
+        notes:     this.notes     || '',
+        price:     this.price === '' ? null : this.price,
+        tag_ids:   this.tagIds.slice(),
+      };
+    },
+
+    // Navigate to preview via a real form-POST.  Previously used
+    // fetch() + document.write() which left Alpine half-initialised on the
+    // new page (preview wouldn't render until a tab toggle).  Form-POST
+    // does a real browser navigation, so Alpine re-initialises cleanly.
+    goPreview() {
+      if (!this.canPreview) return;
+      const payload = this.buildPayload();
+
+      // Remember the editor state so "← Към редактиране" on the preview
+      // can restore it instead of dropping the user into an empty form.
+      try {
+        sessionStorage.setItem('pdforge.editorDraft', JSON.stringify(payload));
+      } catch (e) { /* sessionStorage may be unavailable; non-critical */ }
+
+      // Build a hidden form and submit it — triggers a real navigation.
+      const f = document.createElement('form');
+      f.method = 'POST';
+      f.action = '{% url "core:protocol_preview" %}';
+      f.style.display = 'none';
+
+      const csrf = document.createElement('input');
+      csrf.type = 'hidden';
+      csrf.name = 'csrfmiddlewaretoken';
+      csrf.value = this._csrf();
+      f.appendChild(csrf);
+
+      const data = document.createElement('input');
+      data.type  = 'hidden';
+      data.name  = 'payload';
+      data.value = JSON.stringify(payload);
+      f.appendChild(data);
+
+      document.body.appendChild(f);
+      f.submit();
+    },
+
+    // ── Edit mode: save directly without going through preview ──────────
+    saving: false,
+
+    async saveDirectly() {
+      if (!this.canPreview || this.saving) return;
+      this.saving = true;
+      const body = { ...this.buildPayload(), action: 'save' };
+      try {
+        const r = await fetch('{% url "core:protocol_save_action" %}', {
+          method: 'POST',
+          body: JSON.stringify(body),
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._csrf() },
+        });
+        const data = await r.json();
+        if (r.ok && data.ok) {
+          window.location.href = data.redirect_url;
+        } else {
+          alert('Грешка при запазване: ' + (data.error || r.status));
+        }
+      } catch (e) {
+        alert('Грешка при запазване: ' + e);
+      } finally {
+        this.saving = false;
+      }
+    },
+
+    async deleteProtocol() {
+      if (!confirm('Сигурни ли сте, че искате да изтриете този протокол? Действието е необратимо.')) return;
+      const pk = '{{ protocol_pk|default:"" }}';
+      if (!pk) return;
+      try {
+        const r = await fetch(`/protocols/${pk}/delete/`, {
+          method: 'DELETE',
+          headers: { 'X-CSRFToken': this._csrf() },
+        });
+        if (r.ok) window.location.href = '{% url "core:protocol_list" %}';
+        else alert('Грешка при изтриване.');
+      } catch (e) {
+        alert('Грешка при изтриване: ' + e);
+      }
+    },
+
+    // Restore the editor state from sessionStorage if the user is coming
+    // back from the preview page via "← Към редактиране".
+    _restoreDraftIfAny() {
+      let saved;
+      try {
+        const raw = sessionStorage.getItem('pdforge.editorDraft');
+        if (!raw) return;
+        saved = JSON.parse(raw);
+      } catch (e) { return; }
+      if (!saved || typeof saved !== 'object') return;
+
+      // Defer until after the catalogs have loaded so .find() lookups work.
+      this.$nextTick(() => this._applyDraft(saved));
+    },
+
+    _applyDraft(d) {
+      // Top-level state
+      if (d.client_uuid)    this.clientUuid    = String(d.client_uuid);
+      if (d.company_id)     { this.companyId    = String(d.company_id);     this.pickCompany(); }
+      if (d.client_id) {
+        const c = this.allClients.find(x => String(x.id) === String(d.client_id));
+        if (c) this.pickClient(c);
+      }
+      if (d.site_id) {
+        this.siteId = String(d.site_id);
+        this.pickSite();
+      }
+      this.isLongTerm    = !!d.is_long_term_contract;
+      if (d.prepared_by_id) this.preparedById  = String(d.prepared_by_id);
+      if (d.executed_by_id) this.executedById  = String(d.executed_by_id);
+      // Unconditional: a blank value here must clear the init() default
+      // (today for date1, '' for date2) rather than leaving it untouched.
+      this.date1            = d.prepared_date || '';
+      this.date2            = d.date          || '';
+      if (d.time_from)      this.timeFrom      = d.time_from;
+      if (d.time_to)        this.timeTo        = d.time_to;
+      if (d.client_signatory) this.signatory   = d.client_signatory;
+
+      // Metadata strip
+      if (d.pseudonym)        this.pseudonym   = d.pseudonym;
+      if (d.notes)            this.notes       = d.notes;
+      if (d.price != null)    this.price       = d.price;
+      if (Array.isArray(d.tag_ids)) this.tagIds = [...d.tag_ids];
+
+      // Per-service columns
+      const map = { dis: 'disinsection', der: 'deratization', dinf: 'disinfection' };
+      Object.entries(map).forEach(([short, full]) => {
+        const c = (d.columns || {})[full];
+        if (!c) return;
+        const col = this.cols[short];
+
+        col.pest_ids = [...(c.pest_ids || [])];
+        if (c.pests_other) {
+          col.pest_ids.push(`${short}-other`);
+          this.otherText[short] = c.pests_other;
+        }
+        col.treated_area_m2     = c.treated_area_m2 ?? '';
+        col.surface_description = c.surface_description || '';
+        col.treatment_methods   = [...(c.treatment_methods || [])];
+        col.safety_other        = c.safety_other || '';
+        col.recommendations     = c.recommendations || '';
+        col.corrections         = c.corrections || '';
+        col.total_used          = c.total_used || '';
+
+        // Re-hydrate NCM chips by looking up names from the catalog
+        const ncmCat = this.allNCM[full] || [];
+        col.ncm = (c.ncm_ids || [])
+          .map(id => ncmCat.find(m => String(m.id) === String(id)))
+          .filter(Boolean)
+          .map(m => ({ id: m.id, name: m.name, count: '' }));
+
+        // Re-hydrate products by full catalog lookup (we need snapshot fields
+        // for the auto-fill rows 6-10 and 12.x to populate)
+        const prodCat = this.allProducts[full] || [];
+        col.products = (c.products || [])
+          .map(p => prodCat.find(x => String(x.id) === String(p.id)))
+          .filter(Boolean)
+          .map(p => ({ ...p }));
+      });
+    },
+
+    // ─────────────────────────────────────────────────────────────────
+    // VIEW MODE — "Запази като шаблон" (saves a separate template copy
+    // of this already-saved protocol; the original record is untouched).
+    // ─────────────────────────────────────────────────────────────────
+    openTemplatePicker() {
+      this.modal.saveTemplate = {
+        open: true, saving: false, error: '',
+        currentId: null, breadcrumb: [], presetName: '',
+      };
+    },
+    tplSubfoldersOf(parentId) {
+      return this.folders.filter(f =>
+        String(f.parent_id || '') === String(parentId || ''));
+    },
+    tplNavTo(folderId) {
+      this.modal.saveTemplate.currentId = folderId;
+      this.modal.saveTemplate.breadcrumb = this._tplBreadcrumbFor(folderId);
+    },
+    _tplBreadcrumbFor(folderId) {
+      if (!folderId) return [];
+      const trail = [];
+      let cursor = this.folders.find(f => String(f.id) === String(folderId));
+      const seen = new Set();
+      while (cursor && !seen.has(cursor.id)) {
+        trail.unshift(cursor);
+        seen.add(cursor.id);
+        cursor = cursor.parent_id
+          ? this.folders.find(f => String(f.id) === String(cursor.parent_id))
+          : null;
+      }
+      return trail;
+    },
+    async confirmSaveAsTemplateCopy() {
+      const m = this.modal.saveTemplate;
+      const presetName = (m.presetName || '').trim();
+      if (!presetName || m.saving) return;
+      m.saving = true; m.error = '';
+      const pk = '{{ protocol_pk|default:"" }}';
+      try {
+        const r = await fetch(`/protocols/${pk}/save-as-template/`, {
+          method: 'POST',
+          body: JSON.stringify({ folder_id: m.currentId, preset_name: presetName }),
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._csrf() },
+        });
+        const data = await r.json();
+        if (!r.ok || !data.ok) {
+          m.error = (data && (data.error || data.detail)) || `HTTP ${r.status}`;
+          m.saving = false;
+          return;
+        }
+        m.open = false; m.saving = false;
+        this.tplToast = 'Шаблонът е запазен успешно.';
+      } catch (e) {
+        m.error = String(e);
+        m.saving = false;
+      }
+    },
+
+  }));
+});
+</script>
+{% endblock %}

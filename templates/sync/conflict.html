@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Конфликт при синхронизация — PDForge{% endblock %}
+{% block topbar_title %}Конфликт при синхронизация{% endblock %}
+
+{% block content %}
+<style>
+  .conflict-wrap { max-width: 720px; display: flex; flex-direction: column; gap: 22px; }
+
+  .conflict-banner {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: rgba(214,67,58,.08); border: 1px solid rgba(214,67,58,.25);
+    border-radius: var(--radius-lg); padding: 16px 20px;
+  }
+  .conflict-banner .dot {
+    width: 10px; height: 10px; border-radius: 50%; background: #d6433a;
+    margin-top: 5px; flex-shrink: 0;
+    animation: sync-dot-pulse 1.4s ease-in-out infinite;
+  }
+  .conflict-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+  .conflict-desc  { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+
+  .choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .choice-card {
+    background: #fff; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
+    padding: 20px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .choice-title { font-size: 13.5px; font-weight: 700; color: var(--text-primary); }
+  .choice-desc  { font-size: 12px; color: var(--text-muted); line-height: 1.5; flex: 1; }
+  .choice-meta  { font-size: 11.5px; color: var(--text-muted); }
+  .choice-meta b { color: var(--text-primary); }
+
+  .btn-choice {
+    margin-top: 4px; padding: 9px 18px; font-size: 13px; font-weight: 600;
+    border-radius: var(--radius-sm); border: none; cursor: pointer;
+    transition: background var(--t-fast);
+  }
+  .btn-choice--local { background: var(--c-coral); color: #fff; }
+  .btn-choice--local:hover { background: var(--btn-primary-hover, #f09070); }
+  .btn-choice--remote { background: #fff; color: var(--text-primary); border: 1px solid var(--border-subtle); }
+  .btn-choice--remote:hover { border-color: var(--c-clay); }
+
+  @keyframes sync-dot-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+</style>
+
+<div class="conflict-wrap">
+
+  <div class="conflict-banner">
+    <span class="dot"></span>
+    <div>
+      <div class="conflict-title">Локалните данни и резервното копие са се променили независимо едно от друго</div>
+      <div class="conflict-desc">
+        Откакто за последно е правена синхронизация, има промени както в данните на това устройство,
+        така и в резервното копие в папката за синхронизация (вероятно направени от друго устройство).
+        Изберете кой вариант да остане — другият ще бъде презаписан.
+      </div>
+    </div>
+  </div>
+
+  <div class="choice-grid">
+
+    <form method="post" class="choice-card">
+      {% csrf_token %}
+      <div class="choice-title">Запази локалните данни</div>
+      <div class="choice-desc">
+        Текущите данни на това устройство ще бъдат записани като ново резервно копие
+        и ще презапишат версията в папката за синхронизация.
+      </div>
+      <div class="choice-meta">
+        Локални данни последно променени:<br>
+        <b>{{ settings.data_version|date:"d.m.Y H:i" }}</b>
+      </div>
+      <button type="submit" name="action" value="keep_local" class="btn-choice btn-choice--local">
+        Запази локалните данни
+      </button>
+    </form>
+
+    <form method="post" class="choice-card">
+      {% csrf_token %}
+      <div class="choice-title">Изтегли от резервното копие</div>
+      <div class="choice-desc">
+        Текущата база данни на това устройство ще бъде заменена с последното резервно копие
+        от папката за синхронизация. Локалните промени след последната синхронизация ще бъдат загубени.
+      </div>
+      <div class="choice-meta">
+        Резервно копие:<br>
+        {% if backup_info %}
+          <b>{{ backup_info.name }}</b><br>
+          от {{ backup_info.mtime|date:"d.m.Y H:i" }}
+        {% else %}
+          <b>—</b>
+        {% endif %}
+      </div>
+      <button type="submit" name="action" value="pull_remote" class="btn-choice btn-choice--remote">
+        Изтегли от резервното копие
+      </button>
+    </form>
+
+  </div>
+
+</div>
+{% endblock %}

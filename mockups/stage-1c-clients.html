@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <title>Клиенти — Stage 1c Mockup</title>
+  <style>
+    :root {
+      --c-peach:#fec196; --c-coral:#ffa686; --c-clay:#d6a184; --c-mauve:#aa767c; --c-plum:#63474d;
+      --sidebar-width:240px; --sidebar-bg:var(--c-plum); --sidebar-brand-bg:#4a343a;
+      --nav-text:rgba(255,255,255,.82); --nav-text-hover:rgba(255,255,255,.97); --nav-text-active:var(--c-peach);
+      --nav-bg-hover:#74565c; --nav-bg-active:#7d5f66; --nav-accent-active:var(--c-coral);
+      --nav-label-text:rgba(255,255,255,.35); --version-text:#7d5f66;
+      --content-bg:#f6efe9; --card-bg:#fff; --text-primary:#3d2b2f; --text-muted:#9a7a80;
+      --border-subtle:rgba(170,118,124,.15);
+      --radius-sm:4px; --radius-md:6px; --t-fast:140ms ease; --t-med:200ms ease;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px}
+    a{text-decoration:none;cursor:pointer}
+    button{border:none;background:none;cursor:pointer;font:inherit;text-align:left}
+
+    /* ── Layout ── */
+    .app-layout{display:flex;height:100vh;overflow:hidden}
+    .sidebar{width:var(--sidebar-width);min-width:var(--sidebar-width);background:var(--sidebar-bg);display:flex;flex-direction:column;height:100vh}
+    .sidebar-brand{background:var(--sidebar-brand-bg);padding:18px 16px 16px;display:flex;flex-direction:column;gap:3px}
+    .brand-appname{font-size:17px;font-weight:700;color:var(--c-peach)}
+    .brand-company{font-size:12px;color:rgba(255,255,255,.6)}
+    .sidebar-nav{flex:1;padding:8px 0}
+    .sidebar-management{flex-shrink:0;padding:6px 0 4px;border-top:1px solid rgba(255,255,255,.08)}
+    .sidebar-version{flex-shrink:0;padding:8px 16px 12px;font-size:11px;color:var(--version-text)}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;color:var(--nav-text);border-left:3px solid transparent;border-radius:0 var(--radius-sm) var(--radius-sm) 0;transition:background var(--t-fast),color var(--t-fast);width:100%}
+    .nav-item:hover{background:var(--nav-bg-hover);color:var(--nav-text-hover)}
+    .nav-item.active{background:var(--nav-bg-active);color:var(--nav-text-active);border-left-color:var(--nav-accent-active);font-weight:500}
+    .nav-text{flex:1;font-size:13.5px}
+    .nav-section-label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--nav-label-text);padding:6px 18px 2px}
+    .main-content{flex:1;background:var(--content-bg);display:flex;flex-direction:column;overflow:hidden}
+    .topbar{background:var(--card-bg);border-bottom:1px solid var(--border-subtle);padding:0 28px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .topbar-title{font-size:16px;font-weight:600;color:var(--text-primary)}
+    .page-body{flex:1;overflow-y:auto;padding:24px 28px}
+
+    /* ── Buttons ── */
+    .btn-primary{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--c-coral);color:#fff;font-size:13.5px;font-weight:500;border-radius:var(--radius-sm);transition:background var(--t-fast)}
+    .btn-primary:hover{background:#f09070}
+    .btn-outline{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--card-bg);color:var(--text-muted);font-size:13px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);transition:background var(--t-fast),color var(--t-fast)}
+    .btn-outline:hover{color:var(--text-primary);border-color:var(--c-clay)}
+
+    /* ── Toolbar ── */
+    .toolbar{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+    .search-wrap{position:relative;flex:1;max-width:320px}
+    .search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);width:15px;height:15px}
+    .search-input{width:100%;padding:8px 12px 8px 32px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);background:var(--card-bg);font-size:13px;color:var(--text-primary);outline:none}
+    .search-input:focus{border-color:var(--c-clay)}
+    .records-count{margin-left:auto;font-size:12px;color:var(--text-muted)}
+    .expand-link{font-size:12px;color:var(--c-mauve);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+    .expand-link:hover{color:var(--c-plum)}
+
+    /* ══════════════════════════════════════
+       CLIENT CARD
+    ══════════════════════════════════════ */
+    .client-list{display:flex;flex-direction:column;gap:10px}
+
+    .client-card{
+      background:var(--card-bg);
+      border:1px solid var(--border-subtle);
+      border-radius:var(--radius-md);
+      overflow:hidden;
+      transition:border-color var(--t-fast);
+    }
+    .client-card.is-open{border-color:rgba(170,118,124,.3)}
+
+    /* ── Card header (always visible) ── */
+    .client-header{
+      display:flex;align-items:center;gap:14px;
+      padding:14px 18px;
+      cursor:pointer;
+      user-select:none;
+      transition:background var(--t-fast);
+    }
+    .client-header:hover{background:#fdf7f2}
+
+    .client-avatar{
+      flex-shrink:0;width:38px;height:38px;
+      border-radius:var(--radius-sm);
+      background:rgba(170,118,124,.14);
+      display:flex;align-items:center;justify-content:center;
+      font-size:15px;font-weight:700;color:var(--c-mauve);
+    }
+
+    .client-header-info{flex:1;min-width:0}
+    .client-firm{font-size:15px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .client-eik {font-size:11.5px;color:var(--text-muted);margin-top:2px}
+
+    /* Right-side header actions */
+    .client-header-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+
+    .notes-icon        {width:17px;height:17px;color:var(--border-subtle);transition:color var(--t-fast)}
+    .notes-icon--active{color:var(--c-coral)}
+
+    .hdr-btn{
+      display:flex;align-items:center;justify-content:center;
+      width:30px;height:30px;border-radius:var(--radius-sm);
+      color:var(--text-muted);border:1px solid transparent;
+      transition:background var(--t-fast),color var(--t-fast),border-color var(--t-fast);
+    }
+    .hdr-btn svg{width:14px;height:14px}
+    .hdr-btn:hover{background:var(--content-bg);border-color:var(--border-subtle);color:var(--text-primary)}
+    .hdr-btn.edit:hover{color:#b05030;background:rgba(255,166,134,.1);border-color:rgba(255,166,134,.3)}
+    .hdr-btn.del:hover {color:#b03030;background:rgba(200, 80, 80,.08);border-color:rgba(200,80,80,.25)}
+
+    .chevron{width:16px;height:16px;color:var(--text-muted);transition:transform var(--t-med);flex-shrink:0}
+    .chevron.open{transform:rotate(90deg)}
+
+    /* ── Expanded body ── */
+    .client-body{border-top:1px solid var(--border-subtle);display:none}
+    .client-body.open{display:block}
+
+    /* Info grid */
+    .client-info-grid{
+      display:grid;grid-template-columns:1fr 1fr 1fr;
+      gap:0;
+      padding:16px 18px;
+      border-bottom:1px solid var(--border-subtle);
+    }
+    .info-cell{padding:4px 12px 4px 0}
+    .info-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:3px}
+    .info-value{font-size:13px;color:var(--text-primary);font-weight:500;line-height:1.4}
+    .info-value.muted{color:var(--text-muted);font-style:italic;font-weight:400}
+
+    /* ── Sites section ── */
+    .sites-section{padding:14px 18px 16px}
+
+    .sites-header{
+      display:flex;align-items:center;justify-content:space-between;
+      margin-bottom:10px;
+    }
+    .sites-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted)}
+    .btn-add-site{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:5px 12px;
+      background:rgba(255,166,134,.12);color:var(--c-coral);
+      font-size:12px;font-weight:500;
+      border-radius:var(--radius-sm);
+      border:1px solid rgba(255,166,134,.3);
+      transition:background var(--t-fast);
+    }
+    .btn-add-site:hover{background:rgba(255,166,134,.22)}
+
+    /* Sites table */
+    .sites-table{width:100%;border-collapse:collapse}
+    .sites-table th{
+      font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;
+      color:var(--text-muted);padding:0 10px 7px 0;
+      border-bottom:1px solid var(--border-subtle);
+      text-align:left;white-space:nowrap;
+    }
+    .sites-table td{
+      padding:9px 10px 9px 0;
+      border-bottom:1px solid var(--border-subtle);
+      vertical-align:middle;
+      font-size:13px;color:var(--text-primary);
+    }
+    .sites-table tr:last-child td{border-bottom:none}
+    .sites-table tr:hover td{background:#fdf9f6}
+
+    .site-name{font-weight:600;color:var(--text-primary)}
+    .site-addr{font-size:12px;color:var(--text-muted);margin-top:1px}
+    .site-area{color:var(--text-muted);font-size:12.5px;white-space:nowrap}
+
+    /* Contact cell */
+    .site-contact-name{font-size:12.5px;color:var(--text-primary);font-weight:500}
+    .site-contact-phone{font-size:11.5px;color:var(--text-muted);margin-top:1px}
+    .site-contact-empty{font-size:12px;color:var(--text-muted);font-style:italic}
+
+    /* Site-level notes icon */
+    .site-notes-icon{width:15px;height:15px;color:var(--border-subtle);transition:color var(--t-fast);flex-shrink:0}
+    .site-notes-icon--active{color:var(--c-coral)}
+
+    /* Tag pills inside table */
+    .tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:500;margin:1px 2px 1px 0}
+    .tag-green{background:rgba(74,160,100,.12);color:#2d7a4a;border:1px solid rgba(74,160,100,.3)}
+    .tag-blue {background:rgba(74,120,200,.12);color:#2d5ca8;border:1px solid rgba(74,120,200,.3)}
+    .tag-mauve{background:rgba(170,118,124,.12);color:#6a3a42;border:1px solid rgba(170,118,124,.3)}
+
+    .site-actions{display:flex;align-items:center;gap:4px;white-space:nowrap}
+    .site-btn{
+      display:flex;align-items:center;justify-content:center;
+      width:26px;height:26px;border-radius:var(--radius-sm);
+      color:var(--text-muted);border:1px solid transparent;
+      transition:background var(--t-fast),color var(--t-fast),border-color var(--t-fast);
+    }
+    .site-btn svg{width:13px;height:13px}
+    .site-btn:hover{background:var(--content-bg);border-color:var(--border-subtle);color:var(--text-primary)}
+    .site-btn.edit:hover{color:#b05030;background:rgba(255,166,134,.1);border-color:rgba(255,166,134,.3)}
+    .site-btn.del:hover {color:#b03030;background:rgba(200,80,80,.08);border-color:rgba(200,80,80,.25)}
+
+    .no-sites{font-size:12.5px;color:var(--text-muted);font-style:italic;padding:10px 0 4px}
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-appname">PDForge</span>
+      <span class="brand-company">ДДД Про ЕООД</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item"><span class="nav-text">Табло</span></a>
+      <a class="nav-item"><span class="nav-text">Протоколи</span></a>
+      <a class="nav-item"><span class="nav-text">Шаблони</span></a>
+      <a class="nav-item"><span class="nav-text">Еднократни обработки</span></a>
+      <a class="nav-item"><span class="nav-text">Справки</span></a>
+      <a class="nav-item active"><span class="nav-text">Клиенти</span></a>
+      <a class="nav-item"><span class="nav-text">Обекти</span></a>
+      <a class="nav-item"><span class="nav-text">Етикети</span></a>
+    </nav>
+    <div class="sidebar-management">
+      <span class="nav-section-label">Управление</span>
+      <a class="nav-item"><span class="nav-text">Справочници</span></a>
+      <a class="nav-item"><span class="nav-text">База данни</span></a>
+      <a class="nav-item"><span class="nav-text">Настройки</span></a>
+    </div>
+    <div class="sidebar-version">v1.0.0 Beta</div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+    <div class="topbar">
+      <span class="topbar-title">Клиенти</span>
+      <button class="btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        Нов клиент
+      </button>
+    </div>
+
+    <div class="page-body">
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="search-wrap">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0Z"/></svg>
+          <input class="search-input" placeholder="Търси по фирма, ЕИК, телефон…">
+        </div>
+        <span class="expand-link" onclick="toggleAll(true)">Разгъни всички</span>
+        <span class="expand-link" onclick="toggleAll(false)">Свий всички</span>
+        <span class="records-count">5 клиента</span>
+      </div>
+
+      <!-- Client list -->
+      <div class="client-list">
+
+        <!-- ── Client 1: Виктория Нутс ── -->
+        <div class="client-card" id="c1">
+          <div class="client-header" onclick="toggle('c1')">
+            <div class="client-avatar">В</div>
+            <div class="client-header-info">
+              <div class="client-firm">„Виктория Нутс" ЕООД</div>
+              <div class="client-eik">ЕИК: 111111111</div>
+            </div>
+            <div class="client-header-actions" onclick="event.stopPropagation()">
+              <!-- Notes indicator -->
+              <svg class="notes-icon notes-icon--active" title="Има бележки"
+                   xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/>
+              </svg>
+              <button class="hdr-btn edit" title="Редактирай клиент">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+              </button>
+              <button class="hdr-btn del" title="Изтрий клиент">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+              </button>
+            </div>
+            <svg class="chevron" id="c1-chev" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+          </div>
+
+          <div class="client-body" id="c1-body">
+            <div class="client-info-grid">
+              <div class="info-cell">
+                <div class="info-label">Кратко наименование</div>
+                <div class="info-value">Виктория Нутс</div>
+              </div>
+              <div class="info-cell">
+                <div class="info-label">Адрес</div>
+                <div class="info-value">гр. София, бул. Дондуков 22</div>
+              </div>
+              <div class="info-cell">
+                <div class="info-label">Телефон</div>
+                <div class="info-value">02 123 4567</div>
+              </div>
+            </div>
+
+            <div class="sites-section">
+              <div class="sites-header">
+                <span class="sites-title">Обекти (3)</span>
+                <button class="btn-add-site">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                  Нов обект
+                </button>
+              </div>
+              <table class="sites-table">
+                <thead>
+                  <tr>
+                    <th>Обект</th>
+                    <th>Адрес</th>
+                    <th>Площ</th>
+                    <th>Контакт</th>
+                    <th>Етикети</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><div class="site-name">Магазин №1</div></td>
+                    <td><div class="site-addr">ул. Витоша 15, гр. София</div></td>
+                    <td><span class="site-area">120 м²</span></td>
+                    <td>
+                      <div class="site-contact-name">Иван Петров</div>
+                      <div class="site-contact-phone">0888 123 456</div>
+                    </td>
+                    <td><span class="tag tag-green">Хранителен</span><span class="tag tag-blue">Месечно</span></td>
+                    <td>
+                      <div class="site-actions">
+                        <svg class="site-notes-icon site-notes-icon--active" title="Има бележки" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></svg>
+                        <button class="site-btn edit" title="Редактирай"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg></button>
+                        <button class="site-btn del" title="Изтрий"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><div class="site-name">Магазин №3</div></td>
+                    <td><div class="site-addr">бул. Дондуков 22, гр. София</div></td>
+                    <td><span class="site-area">95 м²</span></td>
+                    <td><span class="site-contact-empty">—</span></td>
+                    <td><span class="tag tag-green">Хранителен</span></td>
+                    <td>
+                      <div class="site-actions">
+                        <svg class="site-notes-icon" title="Няма бележки" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></svg>
+                        <button class="site-btn edit" title="Редактирай"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg></button>
+                        <button class="site-btn del" title="Изтрий"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><div class="site-name">Склад Люлин</div></td>
+                    <td><div class="site-addr">ул. Народни Будители 8, гр. София</div></td>
+                    <td><span class="site-area">340 м²</span></td>
+                    <td>
+                      <div class="site-contact-name">Мария Колева</div>
+                      <div class="site-contact-phone">0878 654 321</div>
+                    </td>
+                    <td><span class="tag tag-mauve">Договор</span></td>
+                    <td>
+                      <div class="site-actions">
+                        <svg class="site-notes-icon" title="Няма бележки" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></svg>
+                        <button class="site-btn edit" title="Редактирай"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg></button>
+                        <button class="site-btn del" title="Изтрий"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Client 2: Комета ── -->
+        <div class="client-card" id="c2">
+          <div class="client-header" onclick="toggle('c2')">
+            <div class="client-avatar">К</div>
+            <div class="client-header-info">
+              <div class="client-firm">„Комета III" ООД</div>
+              <div class="client-eik">ЕИК: 222222222</div>
+            </div>
+            <div class="client-header-actions" onclick="event.stopPropagation()">
+              <svg class="notes-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></svg>
+              <button class="hdr-btn edit"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg></button>
+              <button class="hdr-btn del"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>
+            </div>
+            <svg class="chevron" id="c2-chev" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+          </div>
+          <div class="client-body" id="c2-body">
+            <div class="client-info-grid">
+              <div class="info-cell"><div class="info-label">Кратко наименование</div><div class="info-value">Комета</div></div>
+              <div class="info-cell"><div class="info-label">Адрес</div><div class="info-value">бул. Пролет 42, гр. Варна</div></div>
+              <div class="info-cell"><div class="info-label">Телефон</div><div class="info-value muted">—</div></div>
+            </div>
+            <div class="sites-section">
+              <div class="sites-header">
+                <span class="sites-title">Обекти (1)</span>
+                <button class="btn-add-site"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg> Нов обект</button>
+              </div>
+              <table class="sites-table">
+                <thead><tr><th>Обект</th><th>Адрес</th><th>Площ</th><th>Етикети</th><th></th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><div class="site-name">Офис Варна</div></td>
+                    <td><div class="site-addr">бул. Пролет 42, гр. Варна</div></td>
+                    <td><span class="site-area">—</span></td>
+                    <td>
+                      <div class="site-contact-name">Петър Иванов</div>
+                      <div class="site-contact-phone">0899 111 222</div>
+                    </td>
+                    <td><span class="tag tag-mauve">Договор</span></td>
+                    <td><div class="site-actions">
+                      <svg class="site-notes-icon site-notes-icon--active" title="Има бележки" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></svg>
+                      <button class="site-btn edit"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg></button>
+                      <button class="site-btn del"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>
+                    </div></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Client 3: Транс Ком ── -->
+        <div class="client-card" id="c3">
+          <div class="client-header" onclick="toggle('c3')">
+            <div class="client-avatar">Т</div>
+            <div class="client-header-info">
+              <div class="client-firm">Транс Ком ООД</div>
+              <div class="client-eik">ЕИК: 333333333</div>
+            </div>
+            <div class="client-header-actions" onclick="event.stopPropagation()">
+              <svg class="notes-icon notes-icon--active" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></svg>
+              <button class="hdr-btn edit"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg></button>
+              <button class="hdr-btn del"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>
+            </div>
+            <svg class="chevron" id="c3-chev" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+          </div>
+          <div class="client-body" id="c3-body">
+            <div class="client-info-grid">
+              <div class="info-cell"><div class="info-label">Кратко наименование</div><div class="info-value">Транс Ком</div></div>
+              <div class="info-cell"><div class="info-label">Адрес</div><div class="info-value">ул. Индустриална 7, гр. Пловдив</div></div>
+              <div class="info-cell"><div class="info-label">Телефон</div><div class="info-value">032 555 777</div></div>
+            </div>
+            <div class="sites-section">
+              <div class="sites-header">
+                <span class="sites-title">Обекти (2)</span>
+                <button class="btn-add-site"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg> Нов обект</button>
+              </div>
+              <table class="sites-table">
+                <thead><tr><th>Обект</th><th>Адрес</th><th>Площ</th><th>Етикети</th><th></th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><div class="site-name">Склад Банишора</div></td>
+                    <td><div class="site-addr">ул. Индустриална 7, гр. Пловдив</div></td>
+                    <td><span class="site-area">520 м²</span></td>
+                    <td><span class="site-contact-empty">—</span></td>
+                    <td><span class="tag tag-mauve">Договор</span><span class="tag tag-blue">Месечно</span></td>
+                    <td><div class="site-actions">
+                      <svg class="site-notes-icon" title="Няма бележки" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></svg>
+                      <button class="site-btn edit"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg></button>
+                      <button class="site-btn del"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>
+                    </div></td>
+                  </tr>
+                  <tr>
+                    <td><div class="site-name">Гараж</div></td>
+                    <td><div class="site-addr">ул. Магистрална 3, гр. Пловдив</div></td>
+                    <td><span class="site-area">—</span></td>
+                    <td><span class="site-contact-empty">—</span></td>
+                    <td></td>
+                    <td><div class="site-actions">
+                      <svg class="site-notes-icon" title="Няма бележки" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></svg>
+                      <button class="site-btn edit"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg></button>
+                      <button class="site-btn del"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>
+                    </div></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Client 4: Строй (no sites) ── -->
+        <div class="client-card" id="c4">
+          <div class="client-header" onclick="toggle('c4')">
+            <div class="client-avatar">С</div>
+            <div class="client-header-info">
+              <div class="client-firm">Строй ООД</div>
+              <div class="client-eik">ЕИК: 444444444</div>
+            </div>
+            <div class="client-header-actions" onclick="event.stopPropagation()">
+              <svg class="notes-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></svg>
+              <button class="hdr-btn edit"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg></button>
+              <button class="hdr-btn del"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>
+            </div>
+            <svg class="chevron" id="c4-chev" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+          </div>
+          <div class="client-body" id="c4-body">
+            <div class="client-info-grid">
+              <div class="info-cell"><div class="info-label">Кратко наименование</div><div class="info-value">Строй</div></div>
+              <div class="info-cell"><div class="info-label">Адрес</div><div class="info-value">ул. Строителна 3, гр. Бургас</div></div>
+              <div class="info-cell"><div class="info-label">Телефон</div><div class="info-value muted">—</div></div>
+            </div>
+            <div class="sites-section">
+              <div class="sites-header">
+                <span class="sites-title">Обекти (0)</span>
+                <button class="btn-add-site"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg> Нов обект</button>
+              </div>
+              <div class="no-sites">Няма въведени обекти за този клиент.</div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /client-list -->
+    </div>
+  </main>
+</div>
+
+<script>
+function toggle(id) {
+  const card  = document.getElementById(id);
+  const body  = document.getElementById(id + '-body');
+  const chev  = document.getElementById(id + '-chev');
+  const open  = body.classList.contains('open');
+  body.classList.toggle('open', !open);
+  card.classList.toggle('is-open', !open);
+  chev.classList.toggle('open', !open);
+}
+
+function toggleAll(state) {
+  ['c1','c2','c3','c4'].forEach(id => {
+    const card = document.getElementById(id);
+    const body = document.getElementById(id + '-body');
+    const chev = document.getElementById(id + '-chev');
+    body.classList.toggle('open', state);
+    card.classList.toggle('is-open', state);
+    chev.classList.toggle('open', state);
+  });
+}
+</script>
+</body>
+</html>

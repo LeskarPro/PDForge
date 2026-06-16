@@ -1,0 +1,217 @@
+{% load core_tags %}
+
+<div class="modal-hdr">
+  <div class="modal-title">
+    {% if mode == 'edit' %}Редактирай обработка{% else %}Нова еднократна обработка{% endif %}
+  </div>
+</div>
+
+<form hx-post="{% if mode == 'edit' %}{% url 'core:one_time_edit' treatment.pk %}{% else %}{% url 'core:one_time_create' %}{% endif %}"
+      hx-target="#treatment-list"
+      hx-swap="innerHTML">
+  {% csrf_token %}
+
+  <div class="modal-scroll">
+
+    <!-- ── 1. Basic info ── -->
+    <div class="fsection">
+      <div class="fsection-title">Основна информация</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Псевдоним <span class="req">*</span></label>
+          <input class="form-input" name="pseudonym"
+                 value="{{ form.pseudonym.value|default:'' }}"
+                 placeholder="напр. Ап. Иванови, Фризьорски салон" required>
+          {% for e in form.pseudonym.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="form-group">
+          <label class="form-label">Адрес</label>
+          <input class="form-input" name="address"
+                 value="{{ form.address.value|default:'' }}"
+                 placeholder="ул. Витоша 15, ет. 3, ап. 8">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Контактно лице</label>
+          <input class="form-input" name="contact_name"
+                 value="{{ form.contact_name.value|default:'' }}"
+                 placeholder="Иван Иванов">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Телефон</label>
+          <input class="form-input" name="phone"
+                 value="{{ form.phone.value|default:'' }}"
+                 placeholder="0888 123 456">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group" style="flex:1.4">
+          <label class="form-label">Дата <span class="req">*</span></label>
+          <input class="form-input" type="date" name="date"
+                 value="{% if form.date.value %}{{ form.date.value|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}"
+                 required>
+          {% for e in form.date.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="form-group">
+          <label class="form-label">Час от</label>
+          <input class="form-input" type="time" name="time_from"
+                 value="{{ form.time_from.value|default:'' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Час до</label>
+          <input class="form-input" type="time" name="time_to"
+                 value="{{ form.time_to.value|default:'' }}">
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 2. Services ── -->
+    <div class="fsection">
+      <div class="fsection-title">Услуги</div>
+      <div class="toggle-group">
+        {% for val, label in form.service_types.field.choices %}
+          <label class="toggle-tag">
+            <input type="checkbox" name="service_types" value="{{ val }}"
+              {% if val in form.service_types.value %}checked{% endif %}>
+            <span class="svc-pill">{{ label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ── 3. Pests ── -->
+    <div class="fsection">
+      <div class="fsection-title">Вредители / спектър</div>
+      <div class="toggle-group">
+        {% for pest in form.pests.field.queryset %}
+          <label class="toggle-tag">
+            <input type="checkbox" name="pests" value="{{ pest.pk }}"
+              {% if pest.pk|stringformat:"s" in selected_pest_ids %}checked{% endif %}>
+            <span class="pest-tag {{ pest.category|service_css }}">{{ pest.name }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      {% for e in form.pests.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+    </div>
+
+    <!-- ── 4. Workers ── -->
+    <div class="fsection">
+      <div class="fsection-title">Изпълнители</div>
+      <div class="check-group">
+        {% for worker in form.executed_by.field.queryset %}
+          <label class="check-item">
+            <input type="checkbox" name="executed_by" value="{{ worker.pk }}"
+              {% if worker.pk|stringformat:"s" in selected_worker_ids %}checked{% endif %}>
+            {{ worker.name }}
+          </label>
+        {% endfor %}
+      </div>
+      {% for e in form.executed_by.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+    </div>
+
+    <!-- ── 5. Products ── -->
+    <div class="fsection">
+      <div class="fsection-title">Използвани препарати</div>
+
+      <select id="product-select-tpl" style="display:none" aria-hidden="true">
+        <option value="">— изберете препарат —</option>
+        {% for product in all_products %}
+          <option value="{{ product.pk }}">{{ product.name }}</option>
+        {% endfor %}
+      </select>
+
+      <table class="ptable">
+        <thead>
+          <tr>
+            <th>Препарат</th>
+            <th style="width:120px">Концентрация</th>
+            <th style="width:120px">Количество</th>
+            <th style="width:30px"></th>
+          </tr>
+        </thead>
+        <tbody id="product-rows">
+          {% for item in existing_products %}
+            <tr>
+              <td>
+                <select name="product_id">
+                  <option value="">— изберете препарат —</option>
+                  {% for product in all_products %}
+                    <option value="{{ product.pk }}"
+                      {% if product.pk == item.product.pk %}selected{% endif %}>
+                      {{ product.name }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td><input type="text" name="quantity_text" value="{{ item.quantity_text }}" placeholder="50 мл"></td>
+              <td><input type="text" name="concentration" value="{{ item.concentration }}" placeholder="0.1%"></td>
+              <td style="text-align:center">
+                <button type="button" class="btn-rm" onclick="removeProductRow(this)" title="Премахни">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <button type="button" class="btn-add-row" onclick="addProductRow()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+        </svg>
+        Добави препарат
+      </button>
+    </div>
+
+    <!-- ── 6. Tags + Price ── -->
+    <div class="fsection">
+      <div class="fsection-title">Етикети и цена</div>
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label class="form-label">Етикети</label>
+          <div class="toggle-group">
+            {% for tag in form.tags.field.queryset %}
+              <label class="toggle-tag">
+                <input type="checkbox" name="tags" value="{{ tag.pk }}"
+                  {% if tag.pk|stringformat:"s" in selected_tag_ids %}checked{% endif %}>
+                <span class="tag-pill" style="{{ tag.color|tag_style }}">{{ tag.name }}</span>
+              </label>
+            {% endfor %}
+          </div>
+          {% for e in form.tags.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Цена (лв.)</label>
+          <input class="form-input" type="number" name="price"
+                 step="0.01" min="0"
+                 value="{{ form.price.value|default:'' }}"
+                 placeholder="85.00">
+          {% for e in form.price.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 7. Notes ── -->
+    <div class="fsection">
+      <div class="fsection-title">Бележка</div>
+      <textarea class="form-input" name="notes" rows="3"
+                placeholder="Бележки…">{{ form.notes.value|default:'' }}</textarea>
+      {% for e in form.notes.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+    </div>
+
+  </div><!-- /modal-scroll -->
+
+  <div class="modal-footer">
+    <button type="button" class="btn-cancel" onclick="closeModal()">Откажи</button>
+    <button type="submit" class="btn-save">
+      {% if mode == 'edit' %}Запази промените{% else %}Създай обработка{% endif %}
+    </button>
+  </div>
+
+</form>

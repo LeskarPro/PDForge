@@ -1,0 +1,245 @@
+{% load core_tags %}
+
+{% if search_query %}
+
+  {# ── Search results header ── #}
+  <div class="breadcrumb">
+    <span class="crumb-current">
+      Резултати за „{{ search_query }}“ —
+      {{ search_results|length }} {{ search_results|length|pluralize:"резултат,резултата" }}
+    </span>
+  </div>
+
+  {% if search_results %}
+    <div class="file-list" id="templates-list">
+      {% for tpl in search_results %}
+      <div class="template-card">
+        <div class="tpl-strip"></div>
+
+        {# Main info #}
+        <div class="tpl-main">
+          <div class="tpl-path">
+            <a href="{% url 'core:template_list' %}">Шаблони</a>
+            {% for folder in tpl.folder_path %}
+              <span class="tpl-path-sep">/</span>
+              <a href="{% url 'core:template_folder' folder.pk %}">{{ folder.name }}</a>
+            {% endfor %}
+          </div>
+          <div class="tpl-pseudo">{{ tpl.display_name }}</div>
+          <div class="tpl-firm">{{ tpl.client.firm }}</div>
+          {% if tpl.site %}
+          <div class="tpl-site">
+            <span class="tpl-site-name">{{ tpl.site.name }}</span>
+            {% if tpl.site.address %}
+            <span class="tpl-site-sep">·</span>
+            <div class="tpl-addr">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/></svg>
+              <span>{{ tpl.site.address }}</span>
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+
+        {# Pests #}
+        <div class="tpl-pests">
+          {% for column in tpl.columns.all %}
+            {% if column.is_active %}
+              {% for pest in column.pests.all %}
+                <span class="pest-tag {{ column.service|service_css }}">{{ pest.name }}</span>
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        {# Tags + Price #}
+        <div class="tpl-meta">
+          <div class="tags-row">
+            {% for tag in tpl.tags.all %}
+              <span class="tag" style="{{ tag.color|tag_style }}">{{ tag.name }}</span>
+            {% endfor %}
+          </div>
+          <div>
+            {% if tpl.price %}
+              <span class="price-val">{{ tpl.price }} лв</span>
+            {% else %}
+              <span class="price-none">без цена</span>
+            {% endif %}
+          </div>
+        </div>
+
+        {# Actions #}
+        <div class="tpl-actions">
+          <a href="{% url 'core:template_use' tpl.pk %}" class="btn-use" style="text-decoration:none;">Използвай</a>
+          <div style="display:flex;gap:4px;margin-top:4px">
+            <button class="row-icon-btn edit" title="Редактирай шаблон"
+                    onclick="window.location.href='{% url "core:template_edit" tpl.pk %}'">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+            </button>
+            <button class="row-icon-btn" title="Промени местоположение"
+                    style="color:var(--text-muted)"
+                    hx-get="{% url 'core:template_move' tpl.pk %}"
+                    hx-target="#modal-content" hx-swap="innerHTML">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v8.25m19.5 0v-7.5a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44l-2.122-2.12a1.5 1.5 0 0 0-1.06-.44H4.5m19.5 9v6.75A2.25 2.25 0 0 1 21.75 21H2.25A2.25 2.25 0 0 1 0 18.75v-7.5"/></svg>
+            </button>
+            <button class="row-icon-btn del" title="Изтрий шаблон"
+                    hx-delete="{% url 'core:template_delete' tpl.pk %}"
+                    hx-confirm="Изтрий шаблон „{{ tpl.display_name }}"?"
+                    hx-on:htmx:after-request="window.location.reload()">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <p>Няма намерени резултати.</p>
+    </div>
+  {% endif %}
+
+{% else %}
+
+  {# ── Breadcrumb ── #}
+  <div class="breadcrumb">
+    <a href="{% url 'core:template_list' %}" class="crumb">Шаблони</a>
+    {% for folder in breadcrumb %}
+      <span class="crumb-sep">
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+      </span>
+      {% if not forloop.last %}
+        <a href="{% url 'core:template_folder' folder.pk %}" class="crumb">{{ folder.name }}</a>
+      {% else %}
+        <span class="crumb-current">{{ folder.name }}</span>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  {# ── Content ── #}
+  {% if not subfolders and not templates %}
+    <div class="empty-state">
+      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="var(--c-clay)"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v8.25m19.5 0v-7.5a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44l-2.122-2.12a1.5 1.5 0 0 0-1.06-.44H4.5m19.5 9v6.75A2.25 2.25 0 0 1 21.75 21H2.25A2.25 2.25 0 0 1 0 18.75v-7.5"/></svg>
+      <p>Тази папка е празна.<br>Добавете шаблон или нова подпапка.</p>
+    </div>
+
+  {% else %}
+
+    {# ── Folders ── #}
+    {% if subfolders %}
+      {% if templates %}<div class="section-label">Папки</div>{% endif %}
+      <div class="file-list">
+        {% for folder in subfolders %}
+        <a href="{% url 'core:template_folder' folder.pk %}" class="folder-row">
+          <div class="folder-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v8.25m19.5 0v-7.5a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44l-2.122-2.12a1.5 1.5 0 0 0-1.06-.44H4.5m19.5 9v6.75A2.25 2.25 0 0 1 21.75 21H2.25A2.25 2.25 0 0 1 0 18.75v-7.5"/></svg>
+          </div>
+          <span class="folder-name">{{ folder.name }}</span>
+          <span class="folder-count">
+            {% with sub_count=folder.subfolders.count tpl_count=folder.templates.count %}
+              {% with total=sub_count|add:tpl_count %}
+                {{ total }} {{ total|pluralize:"елемент,елемента" }}
+              {% endwith %}
+            {% endwith %}
+          </span>
+          <div style="display:flex;gap:4px" onclick="event.preventDefault();event.stopPropagation()">
+            <button class="row-icon-btn edit" title="Редактирай папка"
+                    hx-get="{% url 'core:folder_edit' folder.pk %}"
+                    hx-target="#modal-content" hx-swap="innerHTML">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+            </button>
+            <button class="row-icon-btn del" title="Изтрий папка"
+                    hx-delete="{% url 'core:folder_delete' folder.pk %}"
+                    hx-confirm="Изтрий папка „{{ folder.name }}"? Протоколите вътре няма да се изтрият."
+                    hx-on:htmx:after-request="window.location.reload()">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+            </button>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {# ── Templates ── #}
+    {% if templates %}
+      {% if subfolders %}<div class="section-label section-gap">Шаблони</div>{% endif %}
+      <div class="file-list">
+        {% for tpl in templates %}
+        <div class="template-card">
+          <div class="tpl-strip"></div>
+
+          {# Main info #}
+          <div class="tpl-main">
+            <div class="tpl-pseudo">{{ tpl.display_name }}</div>
+            <div class="tpl-firm">{{ tpl.client.firm }}</div>
+            {% if tpl.site %}
+            <div class="tpl-site">
+              <span class="tpl-site-name">{{ tpl.site.name }}</span>
+              {% if tpl.site.address %}
+              <span class="tpl-site-sep">·</span>
+              <div class="tpl-addr">
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/></svg>
+                <span>{{ tpl.site.address }}</span>
+              </div>
+              {% endif %}
+            </div>
+            {% endif %}
+          </div>
+
+          {# Pests #}
+          <div class="tpl-pests">
+            {% for column in tpl.columns.all %}
+              {% if column.is_active %}
+                {% for pest in column.pests.all %}
+                  <span class="pest-tag {{ column.service|service_css }}">{{ pest.name }}</span>
+                {% endfor %}
+              {% endif %}
+            {% endfor %}
+          </div>
+
+          {# Tags + Price #}
+          <div class="tpl-meta">
+            <div class="tags-row">
+              {% for tag in tpl.tags.all %}
+                <span class="tag" style="{{ tag.color|tag_style }}">{{ tag.name }}</span>
+              {% endfor %}
+            </div>
+            <div>
+              {% if tpl.price %}
+                <span class="price-val">{{ tpl.price }} лв</span>
+              {% else %}
+                <span class="price-none">без цена</span>
+              {% endif %}
+            </div>
+          </div>
+
+          {# Actions #}
+          <div class="tpl-actions">
+            <a href="{% url 'core:template_use' tpl.pk %}" class="btn-use" style="text-decoration:none;">Използвай</a>
+            <div style="display:flex;gap:4px;margin-top:4px">
+              <button class="row-icon-btn edit" title="Редактирай шаблон"
+                      onclick="window.location.href='{% url "core:template_edit" tpl.pk %}'">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+              </button>
+              <button class="row-icon-btn" title="Промени местоположение"
+                      style="color:var(--text-muted)"
+                      hx-get="{% url 'core:template_move' tpl.pk %}"
+                      hx-target="#modal-content" hx-swap="innerHTML">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v8.25m19.5 0v-7.5a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44l-2.122-2.12a1.5 1.5 0 0 0-1.06-.44H4.5m19.5 9v6.75A2.25 2.25 0 0 1 21.75 21H2.25A2.25 2.25 0 0 1 0 18.75v-7.5"/></svg>
+              </button>
+              <button class="row-icon-btn del" title="Изтрий шаблон"
+                      hx-delete="{% url 'core:template_delete' tpl.pk %}"
+                      hx-confirm="Изтрий шаблон „{{ tpl.display_name }}"?"
+                      hx-on:htmx:after-request="window.location.reload()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+  {% endif %}
+
+{% endif %}

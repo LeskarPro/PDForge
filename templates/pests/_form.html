@@ -1,0 +1,36 @@
+<form method="post"
+      hx-post="{% if pest %}{% url 'core:pest_edit' pest.pk %}{% else %}{% url 'core:pest_create' %}{% endif %}"
+      hx-target="#modal-content" hx-swap="innerHTML">
+  {% csrf_token %}
+  <div class="modal-title">{% if pest %}Редактирай вредител{% else %}Нов вредител{% endif %}</div>
+
+  <div class="form-section-label">Информация</div>
+  <div class="form-inner">
+    <div class="form-row cols1">
+      <div class="form-group">
+        <label class="form-label">Наименование <span class="req">*</span></label>
+        {{ form.name }}
+        {% if form.name.errors %}<span class="form-error">{{ form.name.errors.0 }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="form-row cols1">
+      <div class="form-group">
+        <label class="form-label">Категория <span class="req">*</span></label>
+        {{ form.category }}
+        {% if form.category.errors %}<span class="form-error">{{ form.category.errors.0 }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn-cancel" onclick="closeModal()">Отказ</button>
+    <button type="submit" class="btn-save">Запази</button>
+  </div>
+</form>
+<script>
+  document.addEventListener('htmx:afterRequest', e => {
+    if (e.detail.xhr.status === 204) document.body.dispatchEvent(new Event('pestsChanged'));
+  });
+  document.querySelectorAll('#modal-content input, #modal-content select')
+    .forEach(el => el.classList.add('form-input'));
+</script>

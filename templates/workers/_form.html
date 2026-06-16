@@ -1,0 +1,63 @@
+<form method="post"
+      hx-post="{% if worker %}{% url 'core:worker_edit' worker.pk %}{% else %}{% url 'core:worker_create' %}{% endif %}"
+      hx-target="#modal-content"
+      hx-swap="innerHTML">
+  {% csrf_token %}
+
+  <div class="modal-title">
+    {% if worker %}Редактирай работник{% else %}Нов работник{% endif %}
+  </div>
+
+  <div class="form-section-label">Информация</div>
+  <div class="form-inner">
+    <div class="form-row cols2">
+      <div class="form-group">
+        <label class="form-label">Име и фамилия <span class="req">*</span></label>
+        {{ form.name }}
+        {% if form.name.errors %}<span class="form-error">{{ form.name.errors.0 }}</span>{% endif %}
+      </div>
+      <div class="form-group">
+        <label class="form-label">Длъжност</label>
+        {{ form.role }}
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section-label">Роли по подразбиране</div>
+  <div class="form-inner">
+    <label class="checkbox-row">
+      {{ form.is_default_supervisor }}
+      Подготвил — избира се автоматично при нов протокол
+    </label>
+    <span class="form-hint" style="margin-bottom:12px;display:block;">Само един работник може да е по подразбиране за „Подготвил"</span>
+    <label class="checkbox-row">
+      {{ form.is_default_executor }}
+      Изпълнил — избира се автоматично при нов протокол
+    </label>
+    <span class="form-hint" style="margin-bottom:4px;display:block;">Само един работник може да е по подразбиране за „Изпълнил"</span>
+  </div>
+
+  <div class="form-section-label">Статус</div>
+  <div class="form-inner">
+    <label class="checkbox-row">
+      {{ form.is_active }}
+      Активен работник (показва се в падащите менюта)
+    </label>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn-cancel" onclick="closeModal()">Отказ</button>
+    <button type="submit" class="btn-save">Запази</button>
+  </div>
+</form>
+
+<script>
+  document.addEventListener('htmx:afterRequest', function(e) {
+    if (e.detail.xhr.status === 204) {
+      document.body.dispatchEvent(new Event('workersChanged'));
+    }
+  });
+
+  document.querySelectorAll('#modal-content input:not([type=checkbox]), #modal-content select, #modal-content textarea')
+    .forEach(el => el.classList.add('form-input'));
+</script>
