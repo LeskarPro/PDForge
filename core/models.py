@@ -1,7 +1,14 @@
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from datetime import date as _date
 import uuid
+
+
+def _first_of_this_month():
+    """Default start date for Firm/Site — the 1st of the current month."""
+    return _date.today().replace(day=1)
+
 
 class TimeStampedModel(models.Model):
     """Abstract base: UUID primary key, timestamps, soft-delete."""
@@ -19,25 +26,62 @@ class TimeStampedModel(models.Model):
         return self.deleted_at is not None
 
 class Client(TimeStampedModel):
-    """A Client — the company / institution that hires us for DDD."""
+    """A Client — the company / institution that hires us for DDD.
 
-    firm = models.CharField("Фирма", max_length=255)
+    Stage 8a (reworked): a Firm is no longer attached to Client at all — it
+    attaches to Site (see Firm/SiteFirm below), because one client can have
+    several sites that each need their own firm identity. Client keeps only
+    its stable identity: name (which doubles as the pseudonym, per the 8c
+    decision) and notes.
+    """
+
     name = models.CharField("Име", max_length=255)
-    eik = models.CharField("ЕИК", max_length=9)
-    address = models.CharField("Адрес", max_length=500)
-    phone = models.CharField("Телефон", max_length=20, blank=True)
     notes = models.TextField("Бележки", blank=True)
 
     class Meta:
         verbose_name = "Клиент"
         verbose_name_plural = "Клиенти"
-        ordering = ["firm", "name"]
+        ordering = ["name"]
+
+    @property
+    def is_active(self) -> bool:
+        """Derived, not stored — a client with no active Site is inactive."""
+        return self.sites.filter(is_active=True, deleted_at__isnull=True).exists()
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Firm(TimeStampedModel):
+    """A reusable legal-entity record (name/EIK/address/phone only).
+
+    Not tied to a single Client or Site — it can be linked to several Sites
+    at once via SiteFirm (see below), and editing it here updates everywhere
+    it's linked. Date range / active-inactive state lives on the link
+    (SiteFirm), not here, since the same firm can be active for one site and
+    ended for another.
+    """
+
+    name = models.CharField("Фирма", max_length=255)
+    eik = models.CharField("ЕИК", max_length=9, blank=True)
+    address = models.CharField("Адрес", max_length=500)
+    phone = models.CharField("Телефон", max_length=20, blank=True)
+
+    class Meta:
+        verbose_name = "Фирма"
+        verbose_name_plural = "Фирми"
+        ordering = ["name"]
         constraints = [
-            models.UniqueConstraint(fields=["eik"], name="unique_client_eik"),
+            models.UniqueConstraint(
+                fields=["eik"],
+                condition=Q(eik__gt='') & Q(deleted_at__isnull=True),
+                name="unique_firm_eik_nonempty",
+            ),
         ]
 
     def __str__(self) -> str:
         return self.name
+
 
 class Company(TimeStampedModel):
     """An executor company (us) whose identity prints in the protocol header.
@@ -93,22 +137,103 @@ class Site(TimeStampedModel):
         "Tag", blank=True, related_name="sites", verbose_name="Етикети"
     )
 
+    # Stage 8b — active/inactive + date range (month+year granularity).
+    is_active = models.BooleanField("Активен", default=True)
+    start_date = models.DateField("Начална дата", default=_first_of_this_month)
+    end_date = models.DateField("Крайна дата", null=True, blank=True)
+
     class Meta:
         verbose_name = "Обект"
         verbose_name_plural = "Обекти"
         ordering = ["client__name", "name"]
 
+    def save(self, *args, **kwargs):
+        if self.is_active:
+            # An active record never carries a stale end date.
+            self.end_date = None
+        super().save(*args, **kwargs)
+
     def __str__(self) -> str:
         return f"{self.client.name} — {self.name}"
 
-class SiteContact(TimeStampedModel):
-    """Named contact person for a Site. UI-only — not printed on protocols."""
+    @property
+    def active_firm_link(self):
+        """This site's currently active SiteFirm link, or None."""
+        return (
+            self.firm_links
+            .filter(is_active=True, deleted_at__isnull=True)
+            .select_related('firm')
+            .order_by('-start_date')
+            .first()
+        )
+
+    @property
+    def active_firm(self):
+        """The Firm currently linked to this site, or None."""
+        link = self.active_firm_link
+        return link.firm if link else None
+
+
+class SiteFirm(TimeStampedModel):
+    """Link between a Site and a Firm, valid for a date range.
+
+    A Firm can be linked to many Sites at once (reusable); a Site can have
+    many SiteFirm rows over time (its own firm history), normally only one
+    active at once. Saving a new active link for a site auto-ends that
+    site's *previous* active link, but never touches the firm's links to
+    other sites. Site.is_active is independent of this — ending a firm link
+    does not deactivate the site, and vice versa.
+    """
 
     site = models.ForeignKey(
-        Site,
+        Site, on_delete=models.CASCADE,
+        related_name="firm_links", verbose_name="Обект",
+    )
+    firm = models.ForeignKey(
+        Firm, on_delete=models.CASCADE,
+        related_name="site_links", verbose_name="Фирма",
+    )
+    is_active = models.BooleanField("Активна", default=True)
+    start_date = models.DateField("Начална дата", default=_first_of_this_month)
+    end_date = models.DateField("Крайна дата", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Връзка обект-фирма"
+        verbose_name_plural = "Връзки обект-фирма"
+        ordering = ["-is_active", "-start_date"]
+
+    def __str__(self) -> str:
+        return f"{self.firm.name} — {self.site}"
+
+    def save(self, *args, **kwargs):
+        if self.is_active:
+            # An active record never carries a stale end date.
+            self.end_date = None
+        super().save(*args, **kwargs)
+        if self.is_active:
+            # Only one active firm-link per SITE — ending the previous one
+            # at the moment this one starts. Scoped to this site only, so
+            # the same firm's links to other sites are untouched.
+            SiteFirm.objects.exclude(pk=self.pk).filter(
+                site_id=self.site_id, is_active=True, deleted_at__isnull=True,
+            ).update(is_active=False, end_date=self.start_date)
+
+
+class Contact(TimeStampedModel):
+    """Contact person for a Client, optionally linked to one or more Sites.
+    UI-only — not printed on protocols."""
+
+    client = models.ForeignKey(
+        'Client',
         on_delete=models.CASCADE,
         related_name='contacts',
-        verbose_name='Обект',
+        verbose_name='Клиент',
+    )
+    sites = models.ManyToManyField(
+        'Site',
+        blank=True,
+        related_name='contacts',
+        verbose_name='Обекти',
     )
     name = models.CharField("Име", max_length=255)
     phone = models.CharField("Телефон", max_length=20, blank=True)
@@ -121,7 +246,7 @@ class SiteContact(TimeStampedModel):
         ordering = ['order', 'created_at']
 
     def __str__(self) -> str:
-        return f"{self.name} — {self.site}"
+        return f"{self.name} — {self.client}"
     
 class Product(TimeStampedModel):
     """A biocide / chemical product used in DDD treatments."""
@@ -334,6 +459,16 @@ class Protocol(TimeStampedModel):
     snapshot_company_address = models.CharField(max_length=500, blank=True)
     snapshot_company_phone = models.CharField(max_length=100, blank=True)
 
+    # Frozen copy of the site's active Firm link at save time (Stage 8a,
+    # reworked — Firm now attaches to Site, not Client) — the printed
+    # document must keep showing what was true when it was made, even if
+    # the site's firm later changes or ends. Same pattern as the company
+    # snapshot above.
+    snapshot_firm_name = models.CharField(max_length=255, blank=True)
+    snapshot_firm_eik = models.CharField(max_length=9, blank=True)
+    snapshot_firm_address = models.CharField(max_length=500, blank=True)
+    snapshot_firm_phone = models.CharField(max_length=20, blank=True)
+
     # When the work was done
     date = models.DateField("Дата на извършване (попълва се на място)", null=True, blank=True)
     # Date the protocol document itself was prepared (footer: "Подготвено от → Дата")
@@ -435,6 +570,15 @@ class Protocol(TimeStampedModel):
             self.snapshot_company_address = self.company.address
             self.snapshot_company_phone = self.company.phone
 
+    def refresh_firm_snapshot(self) -> None:
+        """Copy the site's currently active Firm's identity into the snapshot."""
+        firm = self.site.active_firm if self.site_id else None
+        if firm:
+            self.snapshot_firm_name = firm.name
+            self.snapshot_firm_eik = firm.eik
+            self.snapshot_firm_address = firm.address
+            self.snapshot_firm_phone = firm.phone
+
     def save(self, *args, **kwargs):
         is_new = self._state.adding
         if not self.company_id:
@@ -443,6 +587,8 @@ class Protocol(TimeStampedModel):
             ).first()
         if self.company_id and not self.snapshot_company_name:
             self.refresh_company_snapshot()
+        if self.site_id and not self.snapshot_firm_name:
+            self.refresh_firm_snapshot()
         super().save(*args, **kwargs)
         if is_new:
             for code, _ in Product.Category.choices:
@@ -583,7 +729,7 @@ class Protocol(TimeStampedModel):
             column_volume(c)
             for c in ("disinsection", "deratization", "disinfection")
         )
-        return busiest > 155  # threshold of char length to decide where row 10 will be displayed (front or back of the protocol)
+        return busiest > 355  # threshold of char length to decide where row 10 will be displayed (front or back of the protocol)
 
 class ProtocolColumn(TimeStampedModel):
     """One service column on a protocol (Disinsection / Deratization / Disinfection)."""
@@ -592,7 +738,7 @@ class ProtocolColumn(TimeStampedModel):
         MECHANICAL = "mechanical", "Механична"
         PHYSICAL = "physical", "Физична"
         BIOLOGICAL = "biological", "Биологична"
-        CHEMICAL_BIOCIDE = "chemical_biocide", "Химична с биоцидни препарати"
+        CHEMICAL_BIOCIDE = "chemical_biocide", "Химична с биоцидни sпрепарати"
 
     protocol = models.ForeignKey(
         Protocol, on_delete=models.CASCADE,
@@ -744,8 +890,6 @@ class OneTimeTreatment(TimeStampedModel):
         help_text="Кратко показно наименование (напр. 'Ап. Иванови').",
     )
     address = models.CharField("Адрес", max_length=500, blank=True)
-    contact_name = models.CharField("Контактно лице", max_length=255, blank=True)
-    phone = models.CharField("Телефон", max_length=20, blank=True)
 
     date = models.DateField("Дата", default=_date.today)
     time_from = models.TimeField("Час от", null=True, blank=True)
@@ -813,6 +957,27 @@ class OneTimeTreatmentProduct(models.Model):
 
     def __str__(self) -> str:
         return f"{self.product.name} ({self.treatment})"
+
+
+class OneTimeTreatmentContact(models.Model):
+    """Contact person for a single OneTimeTreatment job. UI-only — not printed."""
+
+    treatment = models.ForeignKey(
+        OneTimeTreatment, on_delete=models.CASCADE,
+        related_name="contacts", verbose_name="Обработка",
+    )
+    name = models.CharField("Име", max_length=255)
+    phone = models.CharField("Телефон", max_length=20, blank=True)
+    position = models.CharField("Длъжност", max_length=255, blank=True)
+    order = models.PositiveSmallIntegerField("Ред", default=0)
+
+    class Meta:
+        verbose_name = "Контактно лице (еднократна обработка)"
+        verbose_name_plural = "Контактни лица (еднократни обработки)"
+        ordering = ["order"]
+
+    def __str__(self) -> str:
+        return f"{self.name} — {self.treatment}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -22,15 +22,7 @@
 
 {% block title %}Печат — {{ protocol.display_name }}{% endblock %}
 
-{# ════════════════════════════════════════════════════════════════
-   PRINT-ONLY OVERRIDES — injected via the extra_head block so they
-   land in <head>.  Safari and other strict browsers IGNORE @page
-   rules placed inside body <style> tags; head is mandatory.
 
-   The PDF view at /protocols/<id>.pdf uses protocol/protocol.html
-   through WeasyPrint and is unaffected by these rules (WeasyPrint
-   reads the original @page rule in protocol/base.html's head style).
-   ════════════════════════════════════════════════════════════════ #}
 {% block extra_head %}
 <style>
   /* ── Minimal print-only overrides ──
@@ -95,11 +87,9 @@
 {% endblock %}
 
 {% block content %}
-{# --- Page 1: two FRONT copies --- #}
 <div class="a5-panel">{% include "protocol/_protocol_front.html" %}</div>
 <div class="a5-panel">{% include "protocol/_protocol_front.html" %}</div>
 
-{# --- Page 2: two BACK copies --- #}
 <div class="a5-panel page-break-before">{% include "protocol/_protocol_back.html" %}</div>
 <div class="a5-panel">{% include "protocol/_protocol_back.html" %}</div>
 

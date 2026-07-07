@@ -1,0 +1,151 @@
+{% load core_tags %}
+<div id="firm-links-section">
+  <div class="cp-section-title">
+    <span>Фирма за този обект</span>
+    <span class="cp-add" onclick="document.getElementById('firm-link-form').classList.toggle('sfp-open')">+ Свържи фирма</span>
+  </div>
+  <div class="cp-row-list">
+    {% for link in firm_links %}
+    <div class="sfp-row{% if not link.is_active %} sfp-inactive{% endif %}">
+      <div class="cp-strong">{{ link.firm.name|default:"—" }}</div>
+      <div class="cp-sub-cell">ЕИК {{ link.firm.eik|default:"—" }}</div>
+      <div class="cp-sub-cell">{{ link.firm.address|default:"—" }}</div>
+      <div class="sfp-toggle-cell">
+        <label class="sfp-switch">
+          <input type="checkbox" {% if link.is_active %}checked{% endif %}
+                 hx-post="{% url 'core:site_firm_link_toggle' link.pk %}"
+                 hx-target="#firm-links-section" hx-swap="outerHTML">
+          <span class="sfp-slider"></span>
+        </label>
+        <span class="sfp-date">{% if link.is_active %}от {{ link.start_date|date:"m.Y" }}{% elif link.end_date %}до {{ link.end_date|date:"m.Y" }}{% endif %}</span>
+      </div>
+      <div class="sfp-icons">
+        <button type="button" class="cp-icon-btn"
+                hx-delete="{% url 'core:site_firm_link_delete' link.pk %}"
+                hx-target="#firm-links-section" hx-swap="outerHTML"
+                hx-confirm="Премахни тази връзка с фирмата?">🗑</button>
+      </div>
+    </div>
+    {% empty %}
+    <div class="cp-empty">Няма свързана фирма за този обект.</div>
+    {% endfor %}
+  </div>
+
+  <div class="sfp-inline-form" id="firm-link-form">
+    <div class="sfp-form-title">Свържи фирма</div>
+    <form hx-post="{% url 'core:site_firm_link_create' site.pk %}"
+          hx-target="#firm-links-section" hx-swap="outerHTML">
+      {% csrf_token %}
+      <div class="sfp-tabs">
+        <div class="sfp-tab sfp-tab-active" data-tab="existing" onclick="sfpTab(this)">Свържи съществуваща</div>
+        <div class="sfp-tab" data-tab="new" onclick="sfpTab(this)">Нова фирма</div>
+      </div>
+
+      <div class="sfp-panel" data-panel="existing">
+        <input type="text" id="firm-search-input" class="sfp-input"
+               placeholder="Търси по фирма или ЕИК…" oninput="sfpSearchFirms(this.value)" autocomplete="off">
+        <div id="firm-search-results"></div>
+        <input type="hidden" name="firm_id" id="firm-id-input">
+      </div>
+
+      <div class="sfp-panel" data-panel="new" style="display:none">
+        <div class="sfp-grid">
+          <input type="text" name="name" class="sfp-input" placeholder="Фирма">
+          <input type="text" name="eik" class="sfp-input" placeholder="ЕИК" maxlength="9">
+        </div>
+        <input type="text" name="address" class="sfp-input" placeholder="Адрес" style="margin-top:6px">
+        <input type="text" name="phone" class="sfp-input" placeholder="Телефон" style="margin-top:6px">
+      </div>
+
+      <div style="margin-top:6px">
+        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">Начална дата</label>
+        {% month_year_select "start_date" %}
+      </div>
+
+      <div class="sfp-form-actions">
+        <button type="button" class="cp-btn-mini" onclick="document.getElementById('firm-link-form').classList.remove('sfp-open')">Откажи</button>
+        <button type="submit" class="cp-btn-mini cp-primary">Свържи</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  .sfp-row{display:grid;grid-template-columns:1.2fr .85fr 1.3fr .9fr auto;gap:12px;align-items:center;
+       padding:13px 14px;border-bottom:1px solid var(--border-subtle);font-size:13.5px}
+  .sfp-row:last-child{border-bottom:none}
+  .sfp-row:hover{background:var(--content-bg)}
+  .sfp-inactive{opacity:.7}
+  .cp-sub-cell{color:var(--text-muted);font-size:12.5px}
+  .sfp-toggle-cell{display:flex;align-items:center;gap:8px}
+  .sfp-switch{position:relative;display:inline-block;width:34px;height:19px;flex-shrink:0}
+  .sfp-switch input{opacity:0;width:0;height:0}
+  .sfp-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#d8cfca;
+       transition:background .18s;border-radius:18px}
+  .sfp-slider:before{position:absolute;content:"";height:15px;width:15px;left:2px;bottom:2px;
+       background:#fff;transition:transform .18s;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+  .sfp-switch input:checked + .sfp-slider{background:var(--c-coral)}
+  .sfp-switch input:checked + .sfp-slider:before{transform:translateX(15px)}
+  .sfp-date{font-size:11px;color:var(--text-muted);white-space:nowrap}
+  .sfp-icons{display:flex;justify-content:flex-end}
+  .cp-icon-btn{width:24px;height:24px;border-radius:6px;border:1px solid transparent;background:none;
+       display:flex;align-items:center;justify-content:center;color:var(--text-muted);cursor:pointer}
+  .cp-icon-btn:hover{background:#fff;border-color:var(--border-subtle);color:#c0503c}
+
+  .sfp-inline-form{display:none;margin-top:8px;border:1px dashed var(--c-mauve);border-radius:10px;
+       padding:12px;background:var(--content-bg)}
+  .sfp-inline-form.sfp-open{display:block}
+  .sfp-form-title{font-size:11px;font-weight:700;color:var(--c-plum);margin-bottom:8px;
+       text-transform:uppercase;letter-spacing:.06em}
+  .sfp-tabs{display:flex;gap:6px;margin-bottom:10px}
+  .sfp-tab{flex:1;text-align:center;padding:7px;font-size:12px;border-radius:6px;cursor:pointer;
+       border:1px solid var(--border-subtle);background:#fff;color:var(--text-muted)}
+  .sfp-tab-active{background:var(--c-coral);color:#fff;border-color:var(--c-coral);font-weight:600}
+  .sfp-input{width:100%;padding:8px 10px;border:1px solid var(--border-subtle);border-radius:6px;
+       font-size:12.5px;font-family:inherit;margin-bottom:6px}
+  .sfp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #firm-search-results{margin-bottom:6px}
+  .sfp-search-result{padding:8px 10px;border:1px solid var(--border-subtle);border-radius:6px;
+       font-size:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;background:#fff}
+  .sfp-pick-btn{font-size:11px;color:#fff;background:var(--c-mauve);border-radius:5px;padding:4px 10px;cursor:pointer}
+  .sfp-form-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:8px}
+</style>
+
+<script>
+  function sfpTab(el) {
+    document.querySelectorAll('.sfp-tab').forEach(t => t.classList.remove('sfp-tab-active'));
+    el.classList.add('sfp-tab-active');
+    const which = el.dataset.tab;
+    document.querySelector('[data-panel="existing"]').style.display = which === 'existing' ? '' : 'none';
+    document.querySelector('[data-panel="new"]').style.display = which === 'new' ? '' : 'none';
+  }
+  let sfpSearchTimer;
+  function sfpSearchFirms(q) {
+    clearTimeout(sfpSearchTimer);
+    sfpSearchTimer = setTimeout(async () => {
+      const box = document.getElementById('firm-search-results');
+      if (!q) { box.innerHTML = ''; return; }
+      try {
+        const r = await fetch('{% url "core:firm_search" site.pk %}?q=' + encodeURIComponent(q));
+        const data = await r.json();
+        box.innerHTML = '';
+        (data.results || []).forEach(f => {
+          const row = document.createElement('div');
+          row.className = 'sfp-search-result';
+          const label = document.createElement('span');
+          label.textContent = f.name + ' · ЕИК ' + (f.eik || '—');
+          const btn = document.createElement('span');
+          btn.className = 'sfp-pick-btn';
+          btn.textContent = 'Избери';
+          btn.onclick = () => {
+            document.getElementById('firm-id-input').value = f.id;
+            document.getElementById('firm-search-input').value = f.name;
+            box.innerHTML = '';
+          };
+          row.appendChild(label); row.appendChild(btn);
+          box.appendChild(row);
+        });
+      } catch (e) { /* non-fatal */ }
+    }, 250);
+  }
+</script>

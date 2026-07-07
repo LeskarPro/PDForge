@@ -1,13 +1,12 @@
-{# Back A5 panel: main table rows 11–14, footnote, footer table #}
 {% with cols=protocol.columns_by_service %}
 <table class="protocol-table">
   <colgroup>
-    <col style="width: 1%">
+    <col style="width: 2.43%">
     <col style="width: 36%">
-    <col style="width: 16px"><col style="width: 40px">
-    <col style="width: 16px"><col style="width: 40px">
-    <col style="width: 5px"><col style="width: 40px">
-    <col style="width: 16px"><col style="width: 40px">
+    <col style="width: 3.02%"><col style="width: 11.68%">
+    <col style="width: 3.02%"><col style="width: 9.6%">
+    <col style="width: 3.44%"><col style="width: 18.78%">
+    <col style="width: 2.04%"><col style="width: 9.99%">
   </colgroup>
   <thead>
     <tr>
@@ -19,7 +18,6 @@
     </tr>
   </thead>
   <tbody>
-    {# Row 11a — Общо количество #}
     {% if protocol.row11_show_total %}
     {% if protocol.row10_on_back %}
     <tr>
@@ -38,7 +36,6 @@
       <td colspan="2">{{ cols.disinfection.total_used }}</td>
     </tr>
     {% endif %}
-    {# Row 11b — Брой на поставените дератизационни кутии #}
     {% if protocol.row11_show_baits %}
     <tr>
       {% if not protocol.row11_show_total %}<td class="col-num">11</td>{% endif %}

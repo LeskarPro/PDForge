@@ -26,12 +26,12 @@
   </thead>
   <tbody>
     {% for site in sites %}
-    <tr>
-      <td><div class="site-name">{{ site.pseudonym }}</div></td>
+    <tr{% if not site.is_active %} style="opacity:.55"{% endif %}>
+      <td><div class="site-name">{{ site.pseudonym }}{% if not site.is_active %} <span style="font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);background:var(--content-bg);border:1px solid var(--border-subtle);border-radius:8px;padding:1px 7px;">Неактивен</span>{% endif %}</div></td>
       <td><div class="site-addr">{{ site.address|default:"—" }}</div></td>
       <td>
         {% if site.notes %}
-          <span class="site-notes-cell" title="{{ site.notes }}">{{ site.notes|truncatechars:60 }}</span>
+          <span class="site-notes-cell" title="{{ site.notes|plaintext_notes }}">{{ site.notes|richtruncate:60 }}</span>
         {% else %}
           <span class="site-contact-empty">—</span>
         {% endif %}

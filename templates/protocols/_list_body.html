@@ -16,7 +16,7 @@
 
     <div class="col-main">
       <div class="main-pseudo">{{ protocol.display_name }}</div>
-      <div class="main-firm">{{ protocol.client.firm }}</div>
+      <div class="main-firm">{{ protocol.snapshot_firm_name }}</div>
       {% if protocol.site %}
       <div class="main-site">
         <span class="main-site-name">{{ protocol.site.name }}</span>
@@ -51,7 +51,7 @@
       </div>
       <div>
         {% if protocol.price %}
-          <span class="price-val">{{ protocol.price }} лв</span>
+          <span class="price-val">{{ protocol.price }} €</span>
         {% else %}
           <span class="price-none">без цена</span>
         {% endif %}

@@ -21,9 +21,11 @@
       </div>
     </div>
     <div class="form-row cols1">
-      <div class="form-group">
-        <label class="form-label">Бележки</label>
-        {{ form.notes }}
+      <div class="form-group rn-field">
+        <label class="form-label">Бележки <span style="color:var(--text-muted);font-weight:400;">(⌘B / ⌘I / ⌘U)</span></label>
+        <div class="form-input rn-editable" contenteditable="true" data-placeholder="Бележки…"></div>
+        <textarea class="rn-source" name="notes">{{ form.notes.value|default:'' }}</textarea>
+        {% for e in form.notes.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
       </div>
     </div>
   </div>

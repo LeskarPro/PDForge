@@ -1,0 +1,117 @@
+{% load core_tags %}
+<div class="cp-veil" onclick="if(event.target===this) closePopup()">
+<div class="cp-card">
+  <div class="cp-header">
+    <button class="cp-back" onclick="closePopup()">← Назад</button>
+    <div class="cp-pseudonym">{{ site.pseudonym }}<small>{{ client.name }}</small></div>
+    <div class="cp-actions">
+      <button class="cp-btn cp-btn-edit"
+              hx-get="{% url 'core:site_edit' site.pk %}?ctx=clients"
+              hx-target="#modal-content" hx-swap="innerHTML"
+              hx-on::after-request="closePopup()">Редактирай</button>
+      <button class="cp-btn cp-btn-del"
+              hx-delete="{% url 'core:site_delete' site.pk %}"
+              hx-target="#popup-root" hx-swap="innerHTML"
+              hx-confirm="Изтрий обект „{{ site.pseudonym }}“?"
+              hx-on::after-request="closePopup()">Изтрий</button>
+    </div>
+  </div>
+
+  <div class="cp-body">
+
+    <!-- Site's own status — independent of any firm link -->
+    <div class="cp-section">
+      <div class="cp-section-title"><span>Статус на обекта</span></div>
+      <div class="sp-status">
+        {% if site.is_active %}
+          <span class="cp-status-active">Активен</span>
+          <span><span class="cp-lbl">От</span> {{ site.start_date|date:"m.Y" }}</span>
+        {% else %}
+          <span class="cp-status-ended">от {{ site.start_date|date:"m.Y" }}{% if site.end_date %} до {{ site.end_date|date:"m.Y" }}{% endif %}</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- All Site fields -->
+    <div class="cp-section">
+      <div class="cp-section-title"><span>Данни за обекта</span></div>
+      <div class="sp-fields">
+        <div class="sp-field"><span class="cp-lbl">Псевдоним</span><span>{{ site.pseudonym|default:"—" }}</span></div>
+        <div class="sp-field"><span class="cp-lbl">Име на обекта</span><span>{{ site.name|default:"—" }}</span></div>
+        <div class="sp-field"><span class="cp-lbl">Адрес</span><span>{{ site.address|default:"—" }}</span></div>
+        <div class="sp-field"><span class="cp-lbl">Обща площ</span><span>{{ site.area_m2|default:"—" }}{% if site.area_m2 %} m²{% endif %}</span></div>
+        <div class="sp-field sp-field-wide">
+          <span class="cp-lbl">Етикети</span>
+          <span>
+            {% for tag in site.tags.all %}<span class="tag" style="{{ tag.color|tag_style }}">{{ tag.name }}</span>{% empty %}—{% endfor %}
+          </span>
+        </div>
+        <div class="sp-field sp-field-wide">
+          <span class="cp-lbl">Бележки</span>
+          <span>{% if site.notes %}{{ site.notes|notes_safe }}{% else %}—{% endif %}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Firm-link archive scoped to this site (Stage 8a, reworked) -->
+    <div class="cp-section">
+      {% include "sites/_firm_links_section.html" %}
+    </div>
+
+  </div>
+</div>
+</div>
+
+<style>
+  /* ── Veil + card (shared look with clients/_popup.html) ── */
+  .cp-veil{position:fixed;inset:0;background:rgba(40,28,30,.55);
+       display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+  .cp-card{background:var(--card-bg,#fff);color:var(--text-primary);
+       border-radius:var(--radius-lg,14px);box-shadow:0 20px 60px rgba(40,28,30,.4);
+       width:100%;max-width:800px;max-height:calc(100vh - 40px);
+       display:flex;flex-direction:column;overflow:hidden}
+
+  .cp-header{flex:0 0 auto;display:flex;align-items:center;gap:10px;
+       padding:16px 24px;background:var(--content-bg,#fdf9f6);
+       border-bottom:1px solid var(--border-subtle)}
+  .cp-back{display:flex;align-items:center;gap:5px;background:#fff;
+       border:1px solid var(--border-subtle);color:var(--text-muted);border-radius:var(--radius-sm,6px);
+       padding:7px 14px;font-size:13px;cursor:pointer;font-family:inherit;transition:background .12s,color .12s}
+  .cp-back:hover{background:var(--content-bg);color:var(--text-primary)}
+  .cp-pseudonym{flex:1;font-size:18px;font-weight:700;color:var(--text-primary);
+       white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cp-pseudonym small{display:block;font-size:12px;font-weight:400;color:var(--text-muted);margin-top:1px}
+  .cp-actions{display:flex;gap:8px;flex-shrink:0}
+  .cp-btn{border-radius:var(--radius-sm,6px);padding:7px 16px;font-size:13px;font-weight:500;
+       cursor:pointer;border:1px solid var(--border-subtle);background:#fff;color:var(--text-muted);
+       font-family:inherit;transition:background .12s,color .12s,border-color .12s}
+  .cp-btn-edit:hover{color:#b05030;background:rgba(255,166,134,.12);border-color:rgba(255,166,134,.4)}
+  .cp-btn-del:hover{color:#b03030;background:rgba(200,80,80,.1);border-color:rgba(200,80,80,.3)}
+
+  .cp-body{flex:1 1 auto;overflow-y:auto;min-height:0;padding:22px 24px}
+  .cp-section{padding-top:20px}
+  .cp-section:first-child{padding-top:0}
+  .cp-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+       color:var(--text-muted);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+  .cp-add{font-size:12.5px;color:var(--c-mauve);cursor:pointer;font-weight:600}
+  .cp-row-list{border:1px solid var(--border-subtle);border-radius:var(--radius-md,10px);overflow:hidden}
+  .cp-empty{padding:16px 14px;font-size:13px;color:var(--text-muted);font-style:italic}
+  .cp-strong{font-weight:600;color:var(--text-primary)}
+  .cp-lbl{color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  .cp-status-active{display:inline-flex;align-items:center;background:rgba(255,166,134,.16);
+       color:#b05030;border:1px solid rgba(255,166,134,.4);border-radius:10px;
+       padding:3px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .cp-status-ended{color:var(--text-muted);font-size:13px}
+  .cp-btn-mini{padding:7px 16px;font-size:12.5px;border-radius:var(--radius-sm,6px);cursor:pointer;
+       border:1px solid var(--border-subtle);background:#fff}
+  .cp-primary{background:var(--c-coral);color:#fff;border-color:var(--c-coral)}
+
+  .sp-status{display:flex;align-items:center;gap:12px;padding:12px 14px;
+       border:1px solid var(--border-subtle);border-radius:var(--radius-md,10px);font-size:13.5px}
+  .sp-status-addr{margin-left:auto;color:var(--text-muted)}
+
+  .sp-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;
+       border:1px solid var(--border-subtle);border-radius:var(--radius-md,10px);padding:14px}
+  .sp-field{display:flex;flex-direction:column;gap:3px;font-size:13.5px;color:var(--text-primary)}
+  .sp-field-wide{grid-column:1/-1}
+</style>

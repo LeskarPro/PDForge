@@ -80,3 +80,23 @@ class CoreConfig(AppConfig):
         if should_start:
             from . import sync_service
             sync_service.start_periodic_sync()
+
+        # ── Auto-purge: hard-delete soft-deleted items older than 90 days ──
+        if should_start:
+            try:
+                from django.db import connection as _conn
+                _conn.ensure_connection()
+                from django.utils import timezone as _tz
+                from datetime import timedelta
+                from core.models import Protocol as _Protocol, TemplateFolder as _TF
+                cutoff = _tz.now() - timedelta(days=90)
+                # Safety: active folders whose parent is about to be hard-deleted
+                # get moved to root so they are not accidentally cascade-dropped.
+                _TF.objects.filter(
+                    deleted_at__isnull=True,
+                    parent__deleted_at__lt=cutoff,
+                ).update(parent=None)
+                _Protocol.objects.filter(is_preset=True, deleted_at__lt=cutoff).delete()
+                _TF.objects.filter(deleted_at__lt=cutoff).delete()
+            except Exception:
+                pass

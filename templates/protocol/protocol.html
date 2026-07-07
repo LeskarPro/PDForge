@@ -3,11 +3,9 @@
 {% block title %}Протокол{% endblock %}
 
 {% block content %}
-{# --- PAGE 1: two FRONT copies --- #}
 <div class="a5-panel">{% include "protocol/_protocol_front.html" %}</div>
 <div class="a5-panel">{% include "protocol/_protocol_front.html" %}</div>
 
-{# --- PAGE 2: two BACK copies --- #}
 <div class="a5-panel page-break-before">{% include "protocol/_protocol_back.html" %}</div>
 <div class="a5-panel" >{% include "protocol/_protocol_back.html" %}</div>
 {% endblock %}

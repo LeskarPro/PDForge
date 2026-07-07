@@ -18,6 +18,7 @@ urlpatterns = [
     path("protocols/<uuid:pk>/print-choose/", views.protocol_print_choose, name="protocol_print_choose"),
     path("protocols/<uuid:pk>/save-as-template/", views.protocol_save_as_template, name="protocol_save_as_template"),
     path("protocols/preview/", views.protocol_preview, name="protocol_preview"),
+    path("protocols/return-to-editor/", views.protocol_return_to_editor, name="protocol_return_to_editor"),
     path("protocols/save-action/", views.protocol_save_action, name="protocol_save_action"),
     path("protocols/<uuid:pk>/print/", views.protocol_print, name="protocol_print"),
     path("protocols/<uuid:pk>.pdf", views.protocol_pdf, name="protocol_pdf"),
@@ -30,12 +31,14 @@ urlpatterns = [
     path("folders/create/", views.folder_create, name="folder_create"),
     path("folders/<uuid:pk>/edit/", views.folder_edit, name="folder_edit"),
     path("folders/<uuid:pk>/delete/", views.folder_delete, name="folder_delete"),
+    path("folders/<uuid:pk>/restore/", views.folder_restore, name="folder_restore"),
 
     # Template actions
     path("templates/<uuid:pk>/use/", views.template_use, name="template_use"),
     path("templates/<uuid:pk>/move/", views.template_move, name="template_move"),
     path("templates/<uuid:pk>/edit/", views.template_edit_view, name="template_edit"),
     path("templates/<uuid:pk>/delete/", views.template_delete, name="template_delete"),
+    path("templates/<uuid:pk>/restore/", views.template_restore, name="template_restore"),
 
     # Clients
     path("clients/", views.client_list, name="client_list"),
@@ -53,16 +56,42 @@ urlpatterns = [
     path("sites/create/", views.site_create_full, name="site_create_full"),
     path("sites/<uuid:pk>/edit/", views.site_edit, name="site_edit"),
     path("sites/<uuid:pk>/delete/", views.site_delete, name="site_delete"),
+    path("sites/<uuid:pk>/popup/", views.site_popup, name="site_popup"),
 
-    # Site contacts
+    # Site <-> Firm links (Stage 8a, reworked) — managed from the site popup (9b)
+    path("sites/<uuid:site_pk>/firm-links/search/", views.firm_search, name="firm_search"),
+    # Same search, no site context — used by the site create/edit form's own
+    # embedded Firm section (2026-06-21), where no site exists yet at creation.
+    path("firms/search/", views.firm_search, name="firm_search_generic"),
+    # Stage immediately a brand-new Firm from that same form's "Нова фирма"
+    # tab, with no site context needed yet either.
+    path("firms/create-inline/", views.firm_create_inline, name="firm_create_inline"),
+    path("sites/<uuid:site_pk>/firm-links/create/", views.site_firm_link_create, name="site_firm_link_create"),
+    path("firm-links/<uuid:pk>/toggle/", views.site_firm_link_toggle, name="site_firm_link_toggle"),
+    path("firm-links/<uuid:pk>/delete/", views.site_firm_link_delete, name="site_firm_link_delete"),
+
+    # Фирми — top-level page (Stage 8a, reworked)
+    path("firmi/", views.firmi_list, name="firmi_list"),
+    path("firmi/list-body/", views.firmi_list_body, name="firmi_list_body"),
+    path("firmi/<uuid:pk>/edit/", views.firm_edit, name="firm_edit"),
+    path("firmi/<uuid:pk>/delete/", views.firm_delete, name="firm_delete"),
+
+    # Site contacts — M2M assignment (which client contacts link to this site)
     path("sites/<uuid:site_pk>/contacts/", views.site_contacts, name="site_contacts"),
-    path("sites/<uuid:site_pk>/contacts/create/", views.site_contact_create, name="site_contact_create"),
-    path("contacts/<uuid:pk>/delete/", views.site_contact_delete, name="site_contact_delete"),
-    path("contacts/<uuid:pk>/move/<str:direction>/", views.site_contact_move, name="site_contact_move"),
+
+    # Client contacts — CRUD
+    path("clients/<uuid:client_pk>/contacts/", views.client_contacts, name="client_contacts"),
+    path("clients/<uuid:client_pk>/contacts/create/", views.contact_create, name="contact_create"),
+    path("clients/<uuid:client_pk>/contacts/list/", views.client_contacts_list, name="client_contacts_list"),
+    path("clients/<uuid:client_pk>/contacts/json/", views.client_contacts_json, name="client_contacts_json"),
+    path("contacts/<uuid:pk>/delete/", views.contact_delete, name="contact_delete"),
+    path("contacts/<uuid:pk>/move/<str:direction>/", views.contact_move, name="contact_move"),
+    path("contacts/<uuid:pk>/edit/", views.contact_edit, name="contact_edit"),
 
     # Tags (Етикети)
     path("tags/", views.tag_list, name="tag_list"),
     path("tags/create/", views.tag_create, name="tag_create"),
+    path("tags/create-inline/", views.tag_create_inline, name="tag_create_inline"),
     path("tags/<uuid:pk>/edit/", views.tag_edit, name="tag_edit"),
     path("tags/<uuid:pk>/delete-confirm/", views.tag_delete_confirm, name="tag_delete_confirm"),
     path("tags/<uuid:pk>/delete/", views.tag_delete, name="tag_delete"),

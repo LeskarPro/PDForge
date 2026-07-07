@@ -196,7 +196,6 @@
 
 {% block content %}
 
-{# ── Toolbar + Filters (form so all inputs submit together) ── #}
 <form id="filter-form" method="get"
       x-data="{
         showFilters: false,
@@ -226,7 +225,6 @@
     <span class="records-count" id="protocol-count">{{ page_obj.paginator.count }} протокол{{ page_obj.paginator.count|pluralize:",а" }}</span>
   </div>
 
-  {# ── Active filter chips ── #}
   {% if active_q or active_pests or active_tags %}
   <div class="active-chips">
     {% if active_q %}
@@ -255,7 +253,6 @@
   </div>
   {% endif %}
 
-  {# ── Filter panel ── #}
   <div class="filter-panel" x-show="showFilters" x-cloak style="display:none">
     <div class="filter-panel-head">
       <span class="filter-panel-title">Филтри</span>
@@ -308,12 +305,10 @@
 
 </form>
 
-{# ── Protocol list (HTMX target) ── #}
 <div id="protocol-list-wrap">
   {% include "protocols/_list_body.html" %}
 </div>
 
-{# ── Protocol preview popup ── #}
 <div id="protocol-preview-modal" class="pp-modal-veil" onclick="if(event.target===this) closeProtocolPreview()">
   <div class="pp-modal-frame">
     <iframe id="protocol-preview-iframe" src="" title="Преглед на протокол"></iframe>

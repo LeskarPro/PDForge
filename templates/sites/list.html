@@ -70,6 +70,21 @@
 
   .no-sites-row td{text-align:center;padding:40px;color:var(--text-muted);font-style:italic}
 
+  .site-row--inactive{opacity:.55}
+  .site-row--inactive:hover td{opacity:1}
+  .site-inactive-badge{display:inline-block;margin-left:6px;font-size:9.5px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);
+    background:var(--content-bg);border:1px solid var(--border-subtle);
+    border-radius:8px;padding:1px 7px;vertical-align:middle}
+
+  .status-filter{display:flex;gap:4px}
+  .status-filter-btn{padding:6px 12px;font-size:12px;font-weight:500;
+    color:var(--text-muted);background:#fff;border:1px solid var(--border-subtle);
+    border-radius:var(--radius-sm);cursor:pointer;transition:all var(--t-fast)}
+  .status-filter-btn:hover{background:var(--content-bg)}
+  .status-filter-btn.active{background:rgba(255,166,134,.14);color:var(--c-coral);
+    border-color:rgba(255,166,134,.4)}
+
   /* Modal */
   .modal-overlay{position:fixed;inset:0;background:rgba(61,43,47,.38);
     display:flex;align-items:center;justify-content:center;z-index:200}
@@ -143,6 +158,10 @@
   </div>
 </div>
 
+<!-- Full-detail popup mount (Stage 9b) — self-contained veil+card, not
+     nested inside .modal-box. See sites/_popup.html. -->
+<div id="popup-root"></div>
+
 <!-- Toolbar -->
 <div class="toolbar">
   <div class="search-wrap">
@@ -154,6 +173,11 @@
     <input id="site-search" class="search-input"
            placeholder="Търси по обект, клиент, адрес…"
            oninput="filterSites(this.value)">
+  </div>
+  <div class="status-filter">
+    <button type="button" class="status-filter-btn{% if status == 'all' %} active{% endif %}" onclick="filterStatus('all', this)">Всички</button>
+    <button type="button" class="status-filter-btn{% if status == 'active' %} active{% endif %}" onclick="filterStatus('active', this)">Активни</button>
+    <button type="button" class="status-filter-btn{% if status == 'inactive' %} active{% endif %}" onclick="filterStatus('inactive', this)">Неактивни</button>
   </div>
   <span class="records-count" id="site-count">{{ sites|length }} обекта</span>
 </div>
@@ -207,6 +231,36 @@
   }
   document.body.addEventListener('closeModal', closeModal);
 
+  /* ── Full-detail popup (Stage 9b) — separate from the modal above.
+     Locks background scroll two ways: CSS overflow on every plausible
+     scroll container (belt), and a capturing wheel/touchmove blocker on
+     anything outside the popup card (suspenders) — the wheel blocker is
+     what actually matters since it doesn't depend on which element the
+     browser decided is "the" scroll container. ── */
+  function lockScroll() {
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    const pb = document.querySelector('.page-body');
+    if (pb) pb.style.overflow = 'hidden';
+    document.addEventListener('wheel', _blockBgScroll, { passive: false, capture: true });
+    document.addEventListener('touchmove', _blockBgScroll, { passive: false, capture: true });
+  }
+  function unlockScroll() {
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+    const pb = document.querySelector('.page-body');
+    if (pb) pb.style.overflow = '';
+    document.removeEventListener('wheel', _blockBgScroll, { capture: true });
+    document.removeEventListener('touchmove', _blockBgScroll, { capture: true });
+  }
+  function _blockBgScroll(e) {
+    if (!e.target.closest('.cp-card')) e.preventDefault();
+  }
+  function closePopup() {
+    document.getElementById('popup-root').innerHTML = '';
+    unlockScroll();
+  }
+
   /* ── Search ── */
   function filterSites(q) {
     q = q.toLowerCase();
@@ -218,6 +272,18 @@
     });
     const el = document.getElementById('site-count');
     if (el) el.textContent = visible + ' обекта';
+  }
+
+  /* ── Active/inactive filter (Stage 8b) — re-fetches from the server so
+     it composes correctly with sorting (inactive always last). ── */
+  function filterStatus(status, btn) {
+    const url = '{% url "core:site_list_body" %}?status=' + status;
+    htmx.ajax('GET', url, { target: '#site-list', swap: 'innerHTML' }).then(() => {
+      document.getElementById('site-search').value = '';
+      filterSites('');
+    });
+    document.querySelectorAll('.status-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
   }
 </script>
 {% endblock %}

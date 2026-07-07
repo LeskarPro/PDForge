@@ -1,25 +1,82 @@
 from django import forms
-from core.models import Client, Site, SiteContact, Tag, OneTimeTreatment, Product, Pest, NonChemicalMean, Worker, Company
+from core.models import (
+    Client, Site, Firm, SiteFirm, Contact, Tag, OneTimeTreatment, Product, Pest,
+    NonChemicalMean, Worker, Company, _first_of_this_month,
+)
+from core.notes_html import sanitize_notes_html
+
+
+class MonthField(forms.DateField):
+    """Date field whose UI only collects month+year (day is pinned to 1).
+
+    Used for Firm/Site start_date and end_date — Stage 8a/8b granularity.
+    """
+    widget = forms.DateInput(attrs={'type': 'month'}, format='%Y-%m')
+    input_formats = ['%Y-%m']
 
 
 class ClientForm(forms.ModelForm):
     class Meta:
         model = Client
-        fields = ['firm', 'name', 'eik', 'address', 'phone', 'notes']
+        fields = ['name', 'notes']
         widgets = {
-            'firm':    forms.TextInput(attrs={'placeholder': '„Виктория Нутс" ЕООД'}),
             'name':    forms.TextInput(attrs={'placeholder': 'Виктория Нутс'}),
-            'eik':     forms.TextInput(attrs={'placeholder': '123456789', 'maxlength': '9'}),
-            'address': forms.TextInput(attrs={'placeholder': 'гр. Sofia, бул. Дондуков 22'}),
-            'phone':   forms.TextInput(attrs={'placeholder': '02 123 4567'}),
             'notes':   forms.Textarea(attrs={'rows': 3, 'placeholder': 'Бележки…'}),
         }
 
+    def clean_notes(self):
+        # Stage 10e: notes arrive as minimal HTML from the .rn-editable
+        # widget — whitelist-sanitize before it ever touches the DB.
+        return sanitize_notes_html(self.cleaned_data.get('notes', ''))
+
+
+class FirmForm(forms.ModelForm):
+    """A reusable legal-entity record (Stage 8a, reworked 2026-06-19).
+
+    No dates/active state of its own — a Firm can be linked to several
+    Sites at once, and the date range / active flag for each link lives on
+    SiteFirm (below), since the same firm can be active for one site and
+    ended for another.
+    """
+
+    class Meta:
+        model = Firm
+        fields = ['name', 'eik', 'address', 'phone']
+        widgets = {
+            'name':    forms.TextInput(attrs={'placeholder': '„Виктория Нутс" ЕООД'}),
+            'eik':     forms.TextInput(attrs={'placeholder': '123456789', 'maxlength': '9'}),
+            'address': forms.TextInput(attrs={'placeholder': 'гр. Sofia, бул. Дондуков 22'}),
+            'phone':   forms.TextInput(attrs={'placeholder': '02 123 4567'}),
+        }
+
+
+class SiteFirmForm(forms.ModelForm):
+    """Links a Firm to a Site for a date range (Stage 8a, reworked).
+
+    `firm` and `site` are deliberately excluded here and set explicitly in
+    the view — this form only covers the link's own active/date fields,
+    used identically whether the view is creating a brand-new Firm or
+    reusing an existing one (see core/views.py site_firm_link_create).
+    """
+    start_date = MonthField(label="Начална дата", required=False)
+    end_date = MonthField(label="Крайна дата", required=False)
+
+    class Meta:
+        model = SiteFirm
+        fields = ['is_active', 'start_date', 'end_date']
+
+    def clean_start_date(self):
+        return self.cleaned_data.get('start_date') or _first_of_this_month()
+
 
 class SiteForm(forms.ModelForm):
+    start_date = MonthField(label="Начална дата", required=False)
+    end_date = MonthField(label="Крайна дата", required=False)
+
     class Meta:
         model = Site
-        fields = ['pseudonym', 'name', 'address', 'area_m2', 'notes', 'tags']
+        fields = ['pseudonym', 'name', 'address', 'area_m2', 'notes', 'tags',
+                  'is_active', 'start_date', 'end_date']
         widgets = {
             'pseudonym': forms.TextInput(attrs={'placeholder': 'напр. Магазин Център'}),
             'name':    forms.TextInput(attrs={'placeholder': 'Магазин №1'}),
@@ -29,10 +86,18 @@ class SiteForm(forms.ModelForm):
             'tags':    forms.CheckboxSelectMultiple(),
         }
 
+    def clean_start_date(self):
+        return self.cleaned_data.get('start_date') or _first_of_this_month()
 
-class SiteContactForm(forms.ModelForm):
+    def clean_notes(self):
+        # Stage 10e — see ClientForm.clean_notes(). SiteFormFull inherits
+        # this automatically (it only adds a `client` field on top).
+        return sanitize_notes_html(self.cleaned_data.get('notes', ''))
+
+
+class ContactForm(forms.ModelForm):
     class Meta:
-        model = SiteContact
+        model = Contact
         fields = ['name', 'phone', 'position']
         widgets = {
             'name':     forms.TextInput(attrs={'placeholder': 'Иван Петров'}),
@@ -43,7 +108,7 @@ class SiteContactForm(forms.ModelForm):
 class SiteFormFull(SiteForm):
     """SiteForm + client selector — used when creating a site from the Обекти page."""
     client = forms.ModelChoiceField(
-        queryset=Client.objects.filter(deleted_at__isnull=True).order_by('firm'),
+        queryset=Client.objects.filter(deleted_at__isnull=True).order_by('name'),
         label="Клиент",
         empty_label="— изберете клиент —",
     )
@@ -101,6 +166,10 @@ class NonChemicalMeanForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Бележки…'}),
         }
 
+    def clean_notes(self):
+        # Stage 10e-2 — see ClientForm.clean_notes().
+        return sanitize_notes_html(self.cleaned_data.get('notes', ''))
+
 
 class WorkerForm(forms.ModelForm):
     class Meta:
@@ -139,6 +208,10 @@ class ProductForm(forms.ModelForm):
             'notes':               forms.Textarea(attrs={'rows': 2, 'placeholder': 'Бележки…'}),
         }
 
+    def clean_notes(self):
+        # Stage 10e-2 — see ClientForm.clean_notes().
+        return sanitize_notes_html(self.cleaned_data.get('notes', ''))
+
 
 SERVICE_TYPE_CHOICES = [
     ('disinsection', 'Дезинсекция'),
@@ -153,11 +226,17 @@ class OneTimeTreatmentForm(forms.ModelForm):
         required=False,
         label="Услуги",
     )
+    date = forms.DateField(
+        label="Дата",
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        input_formats=['%Y-%m-%d', '%d.%m.%Y', '%d/%m/%Y'],
+        required=False,
+    )
 
     class Meta:
         model = OneTimeTreatment
         fields = [
-            'pseudonym', 'address', 'contact_name', 'phone',
+            'pseudonym', 'address',
             'date', 'time_from', 'time_to',
             'pests', 'executed_by', 'tags',
             'price', 'notes',
@@ -165,9 +244,6 @@ class OneTimeTreatmentForm(forms.ModelForm):
         widgets = {
             'pseudonym':     forms.TextInput(attrs={'placeholder': 'напр. бл.41, Ап. 43'}),
             'address':       forms.TextInput(attrs={'placeholder': 'ул. Витоша 15, ет. 3, ап. 8'}),
-            'contact_name':  forms.TextInput(attrs={'placeholder': 'Иван Иванов'}),
-            'phone':         forms.TextInput(attrs={'placeholder': '0888 123 456'}),
-            'date':          forms.DateInput(attrs={'type': 'date'}),
             'time_from':     forms.TimeInput(attrs={'type': 'time'}),
             'time_to':       forms.TimeInput(attrs={'type': 'time'}),
             'pests':         forms.CheckboxSelectMultiple(),
@@ -190,6 +266,23 @@ class OneTimeTreatmentForm(forms.ModelForm):
         )
         if self.instance.pk:
             self.fields['service_types'].initial = self.instance.service_types or []
+
+    def clean_price(self):
+        """Accept both dot and comma as decimal separator (Bulgarian locale renders
+        Decimal values with a comma, so the submitted value may be e.g. '38,50')."""
+        from decimal import Decimal, InvalidOperation
+        raw = self.data.get('price', '').strip()
+        if not raw:
+            return None
+        raw = raw.replace(',', '.')
+        try:
+            return Decimal(raw)
+        except InvalidOperation:
+            raise forms.ValidationError("Въведете валидна цена (напр. 85.00 или 85,00).")
+
+    def clean_notes(self):
+        # Stage 10e-3 — see ClientForm.clean_notes().
+        return sanitize_notes_html(self.cleaned_data.get('notes', ''))
 
     def save(self, commit=True):
         instance = super().save(commit=False)

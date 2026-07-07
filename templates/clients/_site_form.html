@@ -1,5 +1,6 @@
+{% load core_tags %}
 <div class="modal-title">
-  {% if mode == 'edit' %}Редактирай обект{% else %}Нов обект{% if not show_client %} — {{ client.firm }}{% endif %}{% endif %}
+  {% if mode == 'edit' %}Редактирай обект{% else %}Нов обект{% if not show_client %} — {{ client.name }}{% endif %}{% endif %}
 </div>
 
 <form hx-post="{% if mode == 'edit' %}{% url 'core:site_edit' site.pk %}{% elif show_client %}{% url 'core:site_create_full' %}{% else %}{% url 'core:site_create' client.pk %}{% endif %}"
@@ -11,12 +12,12 @@
   {% if show_client %}
   <div class="form-group">
     <label class="form-label">Клиент <span class="req">*</span></label>
-    <select class="form-input" name="client" required>
+    <select class="form-input" name="client" required onchange="siteOnClientChange(this)">
       <option value="">— изберете клиент —</option>
       {% for c in form.client.field.queryset %}
         <option value="{{ c.pk }}"
           {% if form.client.value|stringformat:"s" == c.pk|stringformat:"s" %}selected{% endif %}>
-          {{ c.firm }}
+          {{ c.name }}
         </option>
       {% endfor %}
     </select>
@@ -55,10 +56,33 @@
     <div></div>
   </div>
 
-  {% if form.tags.field.queryset.exists %}
+  
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Начална дата</label>
+      {% month_year_select "start_date" form.start_date.value %}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Крайна дата</label>
+      <div id="site-end-date-wrap" style="{% if form.is_active.value %}opacity:.5{% endif %}">
+        {% month_year_select "end_date" form.end_date.value default_today=False %}
+      </div>
+    </div>
+  </div>
+  <div class="form-group">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-primary);">
+      <input type="checkbox" name="is_active" id="site-is-active" value="true"
+             {% if form.is_active.value %}checked{% endif %}
+             style="width:16px;height:16px;accent-color:var(--c-accent);"
+             onchange="siteToggleEndDate(this.checked)">
+      Активен обект
+    </label>
+    {% for e in form.is_active.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+  </div>
+
   <div class="form-group">
     <label class="form-label">Етикети</label>
-    <div class="tag-checks">
+    <div class="tag-checks" id="site-tag-group">
       {% for choice in form.tags %}
       <label class="tag-check-label">
         <input type="checkbox" name="tags" value="{{ choice.data.value }}"
@@ -67,15 +91,126 @@
       </label>
       {% endfor %}
     </div>
+    <!-- Inline new tag -->
+    <div class="tag-inline-wrap" style="margin-top:6px;">
+      <button type="button" class="tag-add-open-btn" onclick="siteOpenTagForm(this)" style="padding:3px 10px;border:1px dashed var(--border-subtle);border-radius:12px;background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px;font-family:inherit;">+ Нов етикет</button>
+      <div class="tag-add-form" style="display:none;margin-top:6px;padding:10px;border:1px solid var(--border-subtle);border-radius:6px;background:var(--card-bg);">
+        <input type="text" class="tag-add-name form-input" placeholder="Наименование" style="margin-bottom:6px;"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();siteSubmitTag(this);}if(event.key==='Escape')siteCloseTagForm(this);">
+        <div class="tag-add-color-row" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <input type="color" class="tag-add-color" value="#6b7280" style="width:32px;height:28px;padding:1px 2px;border:1px solid var(--border-subtle);border-radius:4px;cursor:pointer;">
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#ffa686" onclick="siteTagPreset(this,'#ffa686')"></div>
+            <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#e74c3c" onclick="siteTagPreset(this,'#e74c3c')"></div>
+            <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#e67e22" onclick="siteTagPreset(this,'#e67e22')"></div>
+            <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#f1c40f" onclick="siteTagPreset(this,'#f1c40f')"></div>
+            <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#27ae60" onclick="siteTagPreset(this,'#27ae60')"></div>
+            <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#16a085" onclick="siteTagPreset(this,'#16a085')"></div>
+            <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#2980b9" onclick="siteTagPreset(this,'#2980b9')"></div>
+            <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#8e44ad" onclick="siteTagPreset(this,'#8e44ad')"></div>
+            <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#aa767c" onclick="siteTagPreset(this,'#aa767c')"></div>
+            <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#63474d" onclick="siteTagPreset(this,'#63474d')"></div>
+            <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#6b7280" onclick="siteTagPreset(this,'#6b7280')"></div>
+          </div>
+        </div>
+        <textarea class="tag-add-desc form-input" placeholder="Описание (по желание)" rows="2" style="margin-bottom:6px;"></textarea>
+        <div class="tag-add-error" style="color:var(--c-coral);font-size:11px;display:none;margin-bottom:6px;"></div>
+        <div style="display:flex;gap:6px;">
+          <button type="button" class="btn-cancel" onclick="siteCloseTagForm(this)">Отказ</button>
+          <button type="button" class="btn-save" onclick="siteSubmitTag(this)">Създай</button>
+        </div>
+      </div>
+    </div>
   </div>
-  {% endif %}
 
-  <div class="form-group">
-    <label class="form-label">Бележки</label>
-    <textarea class="form-input" name="notes"
-              placeholder="Бележки…">{{ form.notes.value|default:'' }}</textarea>
+  <div class="form-group rn-field">
+    <label class="form-label">Бележки <span style="color:var(--text-muted);font-weight:400;">(⌘B / ⌘I / ⌘U)</span></label>
+    <div class="form-input rn-editable" contenteditable="true" data-placeholder="Бележки…"></div>
+    <textarea class="rn-source" name="notes">{{ form.notes.value|default:'' }}</textarea>
     {% for e in form.notes.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
   </div>
+
+  <div class="form-group">
+    <label class="form-label">Фирма за обекта <span style="font-weight:400;color:var(--text-muted);">(по избор)</span></label>
+    {% if mode == 'edit' %}
+      {% if current_firm %}
+      <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:8px;">
+        Текуща: <strong>{{ current_firm.name|default:"—" }}</strong>{% if current_firm.eik %} · ЕИК {{ current_firm.eik }}{% endif %} —
+        оставете полетата по-долу празни, ако не искате да я променяте.
+      </div>
+      {% else %}
+      <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:8px;">Няма свързана фирма.</div>
+      {% endif %}
+    {% endif %}
+    <!-- Confirmation state — shown once a firm has been picked/created,
+         so it's visible that something was actually staged for this site. -->
+    <div id="sff-confirmed" style="display:none;align-items:center;gap:10px;
+         padding:10px 12px;border:1px solid rgba(45,122,74,.35);
+         background:rgba(45,122,74,.08);border-radius:6px;margin-bottom:8px;">
+      <span style="color:#2d7a4a;font-weight:700;font-size:13px;">✓ Избрана фирма:</span>
+      <span id="sff-confirmed-name" style="font-weight:600;font-size:13px;"></span>
+      <button type="button" class="btn-cancel" style="margin-left:auto;padding:4px 10px;font-size:11.5px;"
+              onclick="sffChangeFirm()">Промени</button>
+    </div>
+
+    <div id="sff-picker">
+      <div class="sff-tabs">
+        <div class="sff-tab sff-tab-active" data-tab="existing" onclick="sffTab(this)">Свържи съществуваща</div>
+        <div class="sff-tab" data-tab="new" onclick="sffTab(this)">Нова фирма</div>
+      </div>
+      <div class="sff-panel" data-panel="existing">
+        <input type="text" id="sff-search-input" class="form-input"
+               placeholder="Търси по фирма или ЕИК…" oninput="sffSearch(this.value)" autocomplete="off">
+        <div id="sff-search-results"></div>
+      </div>
+      <div class="sff-panel" data-panel="new" style="display:none">
+        <div class="form-row">
+          <div class="form-group"><input type="text" id="sff-new-name" class="form-input" placeholder="Фирма"></div>
+          <div class="form-group"><input type="text" id="sff-new-eik" class="form-input" placeholder="ЕИК" maxlength="9"></div>
+        </div>
+        <div class="form-group"><input type="text" id="sff-new-address" class="form-input" placeholder="Адрес"></div>
+        <div class="form-group"><input type="text" id="sff-new-phone" class="form-input" placeholder="Телефон"></div>
+        <div id="sff-new-error" class="form-error" style="display:none;margin-bottom:6px;"></div>
+        <div style="display:flex;justify-content:flex-end;">
+          <button type="button" class="btn-save" id="sff-new-save-btn" style="font-size:12px;padding:6px 14px;"
+                  onclick="sffCreateNew()">Запази фирмата</button>
+        </div>
+      </div>
+    </div>
+    <input type="hidden" name="firm_id" id="sff-firm-id-input">
+
+    <div class="form-group" style="margin-top:8px">
+      <label class="form-label">Начална дата (фирма)</label>
+      {% month_year_select "firm_start_date" %}
+    </div>
+  </div>
+
+  {% if mode != 'edit' %}
+  <div class="form-group">
+    <label class="form-label">Контактни лица <span style="font-weight:400;color:var(--text-muted);">(по избор)</span></label>
+    <div id="sc-contacts-list" style="display:flex;flex-direction:column;gap:8px;">
+      {% for c in client_contacts %}
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 10px;
+                      border:1px solid var(--border-subtle);border-radius:6px;background:var(--card-bg);">
+          <input type="checkbox" name="contacts" value="{{ c.pk }}"
+                 {% if c.pk|stringformat:"s" in selected_contact_ids %}checked{% endif %}
+                 style="width:16px;height:16px;accent-color:var(--c-accent);flex-shrink:0;">
+          <div>
+            <div style="font-weight:600;font-size:13.5px;">{{ c.name }}</div>
+            <div style="font-size:12px;color:var(--text-muted);">
+              {% if c.phone %}{{ c.phone }}{% endif %}
+              {% if c.phone and c.position %} · {% endif %}
+              {% if c.position %}{{ c.position }}{% endif %}
+            </div>
+          </div>
+        </label>
+      {% endfor %}
+    </div>
+    <div id="sc-contacts-empty" class="no-contacts" {% if client_contacts %}style="display:none"{% endif %}>
+      {% if show_client %}Изберете клиент за да видите контактите му.{% else %}Клиентът няма добавени контактни лица.{% endif %}
+    </div>
+  </div>
+  {% endif %}
 
   <div class="modal-footer">
     <button type="button" class="btn-cancel" onclick="closeModal()">Откажи</button>
@@ -84,3 +219,222 @@
     </button>
   </div>
 </form>
+
+<style>
+  .sff-tabs{display:flex;gap:6px;margin-bottom:8px}
+  .sff-tab{flex:1;text-align:center;padding:7px;font-size:12px;border-radius:6px;cursor:pointer;
+       border:1px solid var(--border-subtle);background:#fff;color:var(--text-muted)}
+  .sff-tab-active{background:var(--c-coral);color:#fff;border-color:var(--c-coral);font-weight:600}
+  #sff-search-results{margin:6px 0}
+  .sff-search-result{padding:8px 10px;border:1px solid var(--border-subtle);border-radius:6px;
+       font-size:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;background:var(--card-bg)}
+  .sff-pick-btn{font-size:11px;color:#fff;background:var(--c-mauve);border-radius:5px;padding:4px 10px;cursor:pointer}
+  .sff-picked{font-size:12px;color:#2d7a4a;margin:6px 0;display:none}
+</style>
+
+<script>
+// "Активен обект" checkbox — end date only makes sense once a site is
+// marked inactive (matches the same rule already used for Firm links).
+function siteToggleEndDate(isActive) {
+  const wrap = document.getElementById('site-end-date-wrap');
+  wrap.style.opacity = isActive ? '.5' : '';
+  wrap.querySelectorAll('select').forEach(sel => {
+    sel.disabled = isActive;
+    if (isActive) sel.value = '';
+  });
+}
+// Sync the initial disabled state on every render (create defaults to
+// active = end-date disabled; edit reflects whatever was actually saved).
+siteToggleEndDate(document.getElementById('site-is-active').checked);
+
+function sffTab(el) {
+  document.querySelectorAll('.sff-tab').forEach(t => t.classList.remove('sff-tab-active'));
+  el.classList.add('sff-tab-active');
+  const which = el.dataset.tab;
+  document.querySelector('.sff-panel[data-panel="existing"]').style.display = which === 'existing' ? '' : 'none';
+  document.querySelector('.sff-panel[data-panel="new"]').style.display = which === 'new' ? '' : 'none';
+}
+let sffSearchTimer;
+function sffSearch(q) {
+  clearTimeout(sffSearchTimer);
+  sffSearchTimer = setTimeout(async () => {
+    const box = document.getElementById('sff-search-results');
+    if (!q) { box.innerHTML = ''; return; }
+    try {
+      const r = await fetch('{% url "core:firm_search_generic" %}?q=' + encodeURIComponent(q));
+      const data = await r.json();
+      box.innerHTML = '';
+      (data.results || []).forEach(f => {
+        const row = document.createElement('div');
+        row.className = 'sff-search-result';
+        const label = document.createElement('span');
+        label.textContent = f.name + ' · ЕИК ' + (f.eik || '—');
+        const btn = document.createElement('span');
+        btn.className = 'sff-pick-btn';
+        btn.textContent = 'Избери';
+        btn.onclick = () => sffShowConfirmed(f.id, f.name);
+        row.appendChild(label); row.appendChild(btn);
+        box.appendChild(row);
+      });
+    } catch (e) { /* non-fatal */ }
+  }, 250);
+}
+
+// Shows the "✓ Избрана фирма: X" confirmation and hides the picker —
+// makes it visible that a firm has actually been staged for this site,
+// whether picked from the search results or just created below.
+function sffShowConfirmed(id, name) {
+  document.getElementById('sff-firm-id-input').value = id;
+  document.getElementById('sff-confirmed-name').textContent = name || '—';
+  document.getElementById('sff-confirmed').style.display = 'flex';
+  document.getElementById('sff-picker').style.display = 'none';
+}
+function sffChangeFirm() {
+  document.getElementById('sff-firm-id-input').value = '';
+  document.getElementById('sff-confirmed').style.display = 'none';
+  document.getElementById('sff-picker').style.display = '';
+  document.getElementById('sff-search-input').value = '';
+  document.getElementById('sff-search-results').innerHTML = '';
+}
+// "Запази фирмата" on the Нова фирма tab — creates the Firm right away
+// (it's standalone, doesn't need a site to exist yet) so it's confirmed
+// and selected before the rest of the site form is even submitted.
+async function sffCreateNew() {
+  const nameEl = document.getElementById('sff-new-name');
+  const name = nameEl.value.trim();
+  const errEl = document.getElementById('sff-new-error');
+  if (!name) {
+    errEl.textContent = 'Въведете име на фирмата';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  const btn = document.getElementById('sff-new-save-btn');
+  btn.disabled = true;
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('eik', document.getElementById('sff-new-eik').value);
+  fd.append('address', document.getElementById('sff-new-address').value);
+  fd.append('phone', document.getElementById('sff-new-phone').value);
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  try {
+    const r = await fetch('{% url "core:firm_create_inline" %}', {
+      method: 'POST', body: fd, headers: { 'X-CSRFToken': csrf },
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) {
+      errEl.textContent = Object.values(data.errors || {}).flat().join(', ') || 'Грешка при създаване';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      return;
+    }
+    sffShowConfirmed(data.id, data.name);
+    btn.disabled = false;
+  } catch (e) {
+    errEl.textContent = String(e);
+    errEl.style.display = 'block';
+    btn.disabled = false;
+  }
+}
+
+function siteOpenTagForm(btn) {
+  const wrap = btn.closest('.tag-inline-wrap');
+  btn.style.display = 'none';
+  wrap.querySelector('.tag-add-form').style.display = 'block';
+  wrap.querySelector('.tag-add-name').focus();
+}
+function siteCloseTagForm(el) {
+  const wrap = el.closest('.tag-inline-wrap');
+  wrap.querySelector('.tag-add-form').style.display = 'none';
+  wrap.querySelector('.tag-add-open-btn').style.display = '';
+  wrap.querySelector('.tag-add-name').value = '';
+  wrap.querySelector('.tag-add-desc').value = '';
+  wrap.querySelector('.tag-add-error').style.display = 'none';
+}
+function siteTagPreset(dot, hex) {
+  dot.closest('div').querySelectorAll('div').forEach(d => d.style.borderColor = 'transparent');
+  dot.style.borderColor = '#333';
+  dot.closest('.tag-add-color-row').querySelector('.tag-add-color').value = hex;
+}
+async function siteSubmitTag(el) {
+  const wrap = el.closest('.tag-inline-wrap');
+  const nameEl = wrap.querySelector('.tag-add-name');
+  const colorEl = wrap.querySelector('.tag-add-color');
+  const errEl = wrap.querySelector('.tag-add-error');
+  const name = nameEl.value.trim();
+  if (!name) { errEl.textContent = 'Въведете наименование'; errEl.style.display = 'block'; return; }
+  const btn = wrap.querySelector('.btn-save');
+  btn.disabled = true;
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('color', colorEl.value);
+  fd.append('description', wrap.querySelector('.tag-add-desc').value.trim());
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  try {
+    const r = await fetch('{% url "core:tag_create_inline" %}', {
+      method: 'POST', body: fd, headers: { 'X-CSRFToken': csrf }
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      errEl.textContent = Object.values(data.errors || {}).flat().join(', ') || 'Грешка';
+      errEl.style.display = 'block'; btn.disabled = false; return;
+    }
+    // Inject new checked checkbox label
+    const group = document.getElementById('site-tag-group');
+    const lbl = document.createElement('label');
+    lbl.className = 'tag-check-label';
+    lbl.innerHTML = `<input type="checkbox" name="tags" value="${data.id}" checked> ${data.name}`;
+    group.appendChild(lbl);
+    siteCloseTagForm(el);
+    btn.disabled = false;
+  } catch(e) {
+    errEl.textContent = String(e); errEl.style.display = 'block'; btn.disabled = false;
+  }
+}
+
+/* ── Contact checklist for the Обекти-page form (Stage 10c-2): the client
+   is chosen via the dropdown above, so the checklist must be (re)built with
+   a fetch each time the selection changes — there's no server-rendered list
+   to start from like in the accordion-context form. ── */
+async function siteOnClientChange(select) {
+  const listEl  = document.getElementById('sc-contacts-list');
+  const emptyEl = document.getElementById('sc-contacts-empty');
+  if (!listEl || !emptyEl) return;
+  listEl.innerHTML = '';
+  const clientId = select.value;
+  if (!clientId) {
+    emptyEl.textContent = 'Изберете клиент за да видите контактите му.';
+    emptyEl.style.display = '';
+    return;
+  }
+  try {
+    const r = await fetch(`/clients/${clientId}/contacts/json/`);
+    const data = await r.json();
+    const contacts = data.contacts || [];
+    if (!contacts.length) {
+      emptyEl.textContent = 'Клиентът няма добавени контактни лица.';
+      emptyEl.style.display = '';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    contacts.forEach(c => {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 10px;'
+        + 'border:1px solid var(--border-subtle);border-radius:6px;background:var(--card-bg);';
+      const detail = [c.phone, c.position].filter(Boolean).join(' · ');
+      label.innerHTML = `
+        <input type="checkbox" name="contacts" value="${c.id}" style="width:16px;height:16px;accent-color:var(--c-accent);flex-shrink:0;">
+        <div>
+          <div style="font-weight:600;font-size:13.5px;"></div>
+          <div style="font-size:12px;color:var(--text-muted);"></div>
+        </div>`;
+      label.querySelector('div > div').textContent = c.name;
+      label.querySelectorAll('div > div')[1].textContent = detail;
+      listEl.appendChild(label);
+    });
+  } catch (e) {
+    emptyEl.textContent = 'Грешка при зареждане на контактите.';
+    emptyEl.style.display = '';
+  }
+}
+</script>

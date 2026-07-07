@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<title>Фирми — V2 (client pseudonym column instead of phone)</title>
+<style>
+  :root{
+    --c-peach:#fec196; --c-coral:#ffa686; --c-clay:#d6a184; --c-mauve:#aa767c;
+    --c-plum:#63474d; --c-darkplum:#4a343a;
+    --text-primary:#3d2b2f; --text-muted:#8a7672; --border-subtle:rgba(99,71,77,.16);
+    --card-bg:#ffffff; --content-bg:#fdf9f6;
+    --radius-sm:6px; --radius-md:10px; --radius-lg:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI",sans-serif;background:#e9dfd9;padding:40px 16px}
+  .page-label{position:fixed;top:14px;left:18px;font-size:12px;color:#fff;background:var(--c-plum);
+       padding:4px 10px;border-radius:8px;font-weight:600;letter-spacing:.03em}
+  .wrap{max-width:860px;margin:0 auto;background:var(--card-bg);border-radius:var(--radius-md);
+       border:1px solid var(--border-subtle);overflow:hidden;box-shadow:0 10px 40px rgba(61,43,47,.15)}
+  .page-title{padding:16px 18px;font-size:16px;font-weight:700;color:var(--text-primary);
+       border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center}
+  .page-title .sub{font-size:11.5px;font-weight:400;color:var(--text-muted)}
+
+  table{width:100%;border-collapse:collapse}
+  th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);
+       padding:10px 14px;border-bottom:1px solid var(--border-subtle);text-align:left;background:var(--content-bg)}
+  td{padding:11px 14px;border-bottom:1px solid var(--border-subtle);font-size:12.5px;color:var(--text-primary);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--content-bg)}
+  .muted{color:var(--text-muted)}
+  .site-chip{display:inline-flex;align-items:center;gap:4px;background:rgba(255,166,134,.14);
+       color:#b05030;border-radius:9px;padding:2px 8px;font-size:11px;margin:2px 3px 2px 0}
+  .site-chip.inactive{background:rgba(138,118,114,.12);color:var(--text-muted)}
+</style>
+</head>
+<body>
+<div class="page-label">Фирми — V2: Клиент column added (between Фирма and ЕИК), phone removed</div>
+
+<div class="wrap">
+  <div class="page-title">Фирми <span class="sub">Само за преглед — без бутони/действия (за момента)</span></div>
+  <table>
+    <thead>
+      <tr><th>Фирма</th><th>Клиент</th><th>ЕИК</th><th>Адрес</th><th>Свързани обекти</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>„Виктория Нутс“ ЕООД</strong></td>
+        <td>Виктория Нутс</td>
+        <td>111111111</td>
+        <td>гр. София, бул. Дондуков 22</td>
+        <td>
+          <span class="site-chip">Магазин №1</span>
+          <span class="site-chip">Склад Люлин</span>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>„Виктория Нутс“ ЕООД (стар)</strong></td>
+        <td>Виктория Нутс</td>
+        <td>999999999</td>
+        <td>гр. София, ул. Стара 5</td>
+        <td><span class="site-chip inactive">Магазин №3 (до 02.2024)</span></td>
+      </tr>
+      <tr>
+        <td><strong>„Транс Ком“ ООД</strong></td>
+        <td>Транс Ком</td>
+        <td>333333333</td>
+        <td>гр. Пловдив, ул. Индустриална 7</td>
+        <td><span class="site-chip">Склад Банишора</span></td>
+      </tr>
+      <tr>
+        <td><strong>„Бета Сервиз“ ЕООД</strong></td>
+        <td>Виктория Нутс</td>
+        <td>555555555</td>
+        <td>гр. София, ул. Бета 9</td>
+        <td><span class="site-chip inactive">Магазин №1 (до 02.2024)</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</body>
+</html>

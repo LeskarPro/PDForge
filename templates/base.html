@@ -340,6 +340,12 @@
       overflow-y: auto;
       padding: 28px;
     }
+    /* Embedded pages (iframe popups, e.g. the protocol/template preview)
+       have no sidebar/topbar — a sticky in-page header needs to sit flush
+       at the true top, not 28px below it. */
+    .page-body--embed {
+      padding: 0;
+    }
 
     /* ═══════════════════════════════════════════════════
        SHARED PAGE COMPONENTS (used across all stages)
@@ -388,6 +394,19 @@
       background: var(--card-bg);
       color: var(--text-primary);
     }
+
+    .rn-editable {
+      min-height: 64px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      outline: none;
+      cursor: text;
+    }
+    .rn-editable:empty:before {
+      content: attr(data-placeholder);
+      color: var(--text-muted);
+    }
+    .rn-source { display: none; }
   </style>
 
   {% block extra_head %}{% endblock %}
@@ -451,6 +470,11 @@
         <span class="nav-text">Обекти</span>
       </a>
 
+      <a href="{% url 'core:firmi_list' %}"
+         class="nav-item {% if active_nav == 'firmi' %}active{% endif %}">
+        <span class="nav-text">Фирми</span>
+      </a>
+
       <a href="{% url 'core:tag_list' %}"
          class="nav-item {% if active_nav == 'etiketi' %}active{% endif %}">
         <span class="nav-text">Етикети</span>
@@ -480,8 +504,8 @@
           <a href="{% url 'core:worker_list' %}" class="nav-subitem {% if active_nav == 'rabotnici' %}active{% endif %}">
             Работници
           </a>
-          <a href="{% url 'core:company_list' %}" class="nav-subitem {% if active_nav == 'firmi' %}active{% endif %}">
-            Фирми
+          <a href="{% url 'core:company_list' %}" class="nav-subitem {% if active_nav == 'lichni_danni' %}active{% endif %}">
+            Лични данни
           </a>
           <a href="{% url 'core:pest_list' %}" class="nav-subitem {% if active_nav == 'vrediteli' %}active{% endif %}">
             Вредители
@@ -527,13 +551,91 @@
     </div>
     {% endif %}
 
-    <div class="page-body">
+    <div class="page-body{% if embed %} page-body--embed{% endif %}">
       {% block content %}{% endblock %}
     </div>
 
   </main>
 
 </div>
+
+<script>
+(function () {
+  function rnPair(editable) {
+    var wrap = editable.closest('.rn-field');
+    return wrap ? wrap.querySelector('.rn-source') : null;
+  }
+  function rnSync(editable) {
+    var src = rnPair(editable);
+    if (!src) return;
+    src.value = editable.innerHTML;
+    src.dispatchEvent(new Event('input', { bubbles: true }));
+    src.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function rnInit(editable) {
+    if (editable.dataset.rnInit) return;
+    editable.dataset.rnInit = '1';
+    var src = rnPair(editable);
+    if (src) editable.innerHTML = src.value || '';
+  }
+  function rnInitAll(root) {
+    (root || document).querySelectorAll('.rn-editable').forEach(rnInit);
+  }
+  // Programmatic reset/set — e.g. after an Alpine form successfully saves
+  // and clears its own state, the contenteditable div won't follow along
+  // on its own (no native x-model support), so call this explicitly.
+  // Accepts either the .rn-field wrapper or the .rn-editable itself.
+  window.rnSetValue = function (fieldOrEditable, value) {
+    if (!fieldOrEditable) return;
+    var editable = fieldOrEditable.classList && fieldOrEditable.classList.contains('rn-editable')
+      ? fieldOrEditable
+      : fieldOrEditable.querySelector('.rn-editable');
+    if (!editable) return;
+    editable.innerHTML = value || '';
+    var src = rnPair(editable);
+    if (src) src.value = value || '';
+  };
+  document.addEventListener('DOMContentLoaded', function () { rnInitAll(document); });
+  document.body.addEventListener('htmx:afterSwap', function (e) { rnInitAll(e.target); });
+
+  document.addEventListener('keydown', function (e) {
+    var el = e.target;
+    if (!el.classList || !el.classList.contains('rn-editable')) return;
+    var k = e.key.toLowerCase();
+    if ((e.metaKey || e.ctrlKey) && (k === 'b' || k === 'i' || k === 'u')) {
+      e.preventDefault();
+      document.execCommand(k === 'b' ? 'bold' : k === 'i' ? 'italic' : 'underline');
+      rnSync(el);
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.execCommand('insertLineBreak');
+      rnSync(el);
+    }
+  });
+  // Force plain-text paste — no external formatting ever enters the field.
+  // Bold/italic/underline only ever come from the shortcuts above.
+  document.addEventListener('paste', function (e) {
+    var el = e.target;
+    if (!el.classList || !el.classList.contains('rn-editable')) return;
+    e.preventDefault();
+    var text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, text);
+    rnSync(el);
+  });
+  document.addEventListener('input', function (e) {
+    var el = e.target;
+    if (!el.classList || !el.classList.contains('rn-editable')) return;
+    rnSync(el);
+  });
+  document.addEventListener('blur', function (e) {
+    var el = e.target;
+    if (!el.classList || !el.classList.contains('rn-editable')) return;
+    rnSync(el);
+  }, true);
+})();
+</script>
 
 {% block extra_scripts %}{% endblock %}
 </body>

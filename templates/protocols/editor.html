@@ -5,7 +5,7 @@
 {% block topbar_title %}Нов протокол{% endblock %}
 
 {% block topbar_actions %}
-  <a href="{% url 'core:protocol_list' %}" class="btn-outline" style="text-decoration:none;">
+  <a href="{% if back_url %}{{ back_url }}{% else %}{% url 'core:protocol_list' %}{% endif %}" class="btn-outline" style="text-decoration:none;">
     ← Откажи
   </a>
 {% endblock %}
@@ -46,14 +46,16 @@
   /* ── Inputs ── */
   .pe-root input[type=text], .pe-root input[type=date],
   .pe-root input[type=time], .pe-root input[type=number],
-  .pe-root select, .pe-root textarea {
+  .pe-root input[type=month],
+  .pe-root select, .pe-root textarea, .pe-root .rn-editable {
     background: var(--p-bg); border: 1px solid var(--p-border);
     border-radius: 4px; color: var(--p-text);
     padding: 5px 8px; font-size: 12.5px; width: 100%;
     outline: none; font-family: inherit;
     transition: border-color .15s, box-shadow .15s;
   }
-  .pe-root input:focus, .pe-root select:focus, .pe-root textarea:focus {
+  .pe-root input:focus, .pe-root select:focus, .pe-root textarea:focus,
+  .pe-root .rn-editable:focus {
     border-color: var(--c-coral);
     box-shadow: 0 0 0 3px rgba(255,166,134,.22);
   }
@@ -117,6 +119,16 @@
   .pe-c-opt.active { background: var(--p-surface); }
   .pe-c-firm  { font-weight: 600; font-size: 12px; color: var(--p-text); }
   .pe-c-meta  { font-size: 10.5px; color: var(--p-textM); margin-top: 1px; }
+  .pe-site-trigger {
+    display: flex; align-items: center; flex: 1;
+    padding: 0 10px; height: 34px;
+    border: 1px solid var(--p-border); border-radius: 4px;
+    background: var(--p-inputBg, #fff); color: var(--p-text);
+    cursor: pointer; font-size: 13px; user-select: none;
+    transition: border-color .15s;
+  }
+  .pe-site-trigger:not(.disabled):hover { border-color: var(--c-clay); }
+  .pe-site-trigger.disabled { opacity: .5; cursor: not-allowed; pointer-events: none; }
 
   /* Contract checkboxes */
   .pe-contract-opts { display: flex; gap: 14px; margin-top: 6px; }
@@ -341,7 +353,34 @@
   .pe-meta-empty { font-size: 11px; color: var(--p-textM); font-style: italic; }
 
   /* Tag chips */
-  .pe-tag-chips { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
+  .pe-tag-chips { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; align-items: center; }
+  .pe-tag-new-btn {
+    padding: 3px 10px; border-radius: 12px;
+    border: 1px dashed var(--p-border);
+    background: transparent; color: var(--p-textM);
+    cursor: pointer; font-size: 12px; font-family: inherit;
+    transition: all .15s;
+  }
+  .pe-tag-new-btn:hover { border-color: var(--c-clay); color: var(--p-text); }
+  .pe-tag-new-form {
+    margin-top: 8px; padding: 10px 12px; border-radius: 6px;
+    border: 1px solid var(--p-border); background: var(--p-surface);
+    width: 100%;
+  }
+  .pe-tag-new-input {
+    width: 100%; padding: 5px 8px; font-size: 13px; font-family: inherit;
+    border: 1px solid var(--p-border); border-radius: 4px;
+    background: var(--p-inputBg, #fff); color: var(--p-text);
+    margin-bottom: 8px; box-sizing: border-box;
+  }
+  .pe-tag-new-input:focus { outline: none; border-color: var(--c-coral); }
+  .pe-tag-color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .pe-tag-presets { display: flex; gap: 4px; flex-wrap: wrap; }
+  .pe-tag-preset {
+    width: 17px; height: 17px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; transition: border-color .1s; flex-shrink: 0;
+  }
+  .pe-tag-preset:hover, .pe-tag-preset.selected { border-color: #333; }
   .pe-tag-chip {
     padding: 4px 10px; border-radius: 12px;
     border: 1px solid var(--p-border);
@@ -370,6 +409,23 @@
     margin-top: 20px; padding-top: 16px;
     border-top: 1px solid var(--border-subtle);
   }
+  /* View mode: hide editable pseudonym bar and bottom action bar */
+  .pe-root.pe-view-mode .pe-pseudonym-bar { display: none !important; }
+  .pe-root.pe-view-mode .pe-action-bar    { display: none !important; }
+
+  /* Sticky header shown at the top of pe-root in view mode */
+  .pe-view-header {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: var(--card-bg);
+    padding: 10px 16px; margin-bottom: 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    box-shadow: 0 2px 8px rgba(99,71,77,.08);
+  }
+  .pe-view-pseudonym {
+    font-size: 15px; font-weight: 700; color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px;
+  }
   .pe-btn {
     padding: 9px 22px; border-radius: var(--radius-sm); border: none;
     cursor: pointer; font-size: 13.5px; font-weight: 600; font-family: inherit;
@@ -397,12 +453,14 @@
   .pe-root.pe-view-mode input,
   .pe-root.pe-view-mode select,
   .pe-root.pe-view-mode textarea,
+  .pe-root.pe-view-mode .rn-editable,
   .pe-root.pe-view-mode button {
     pointer-events: none !important;
   }
   .pe-root.pe-view-mode input,
   .pe-root.pe-view-mode select,
-  .pe-root.pe-view-mode textarea {
+  .pe-root.pe-view-mode textarea,
+  .pe-root.pe-view-mode .rn-editable {
     background: var(--p-surface) !important;
     cursor: default;
   }
@@ -434,9 +492,17 @@
   .pe-root.pe-view-mode .pe-panel .pe-pick-row {
     display: none !important;
   }
-  /* Action bar + "Save as template" modal stay fully interactive. */
+  /* Action bar + view header + "Save as template" modal stay fully
+     interactive — the blanket `button { pointer-events: none }` above is
+     meant to lock the FORM itself read-only, not these action buttons.
+     (2026-06-21: .pe-view-header was missing here, which silently broke
+     its "Изтрий" and "Запази като шаблон" buttons — Назад/Редактирай/
+     Преглед are <a> tags so they weren't affected by this rule at all,
+     which is why only those two looked "broken".) */
   .pe-root.pe-view-mode .pe-action-bar button,
   .pe-root.pe-view-mode .pe-action-bar a,
+  .pe-root.pe-view-mode .pe-view-header button,
+  .pe-root.pe-view-mode .pe-view-header a,
   .pe-root.pe-view-mode .pe-modal-veil button,
   .pe-root.pe-view-mode .pe-modal-veil input,
   .pe-root.pe-view-mode .pe-modal-veil select,
@@ -459,12 +525,16 @@
   .pe-modal-card {
     background: #fff; color: var(--p-text);
     border-radius: 10px; box-shadow: 0 20px 60px rgba(40,28,30,.4);
-    width: 100%; max-width: 480px; overflow: hidden;
+    width: 100%; max-width: 480px;
+    max-height: calc(100vh - 40px);
+    display: flex; flex-direction: column;
+    overflow: hidden;
   }
   .pe-modal-head {
     padding: 14px 18px; border-bottom: 1px solid var(--p-borderL);
     display: flex; align-items: center; justify-content: space-between;
     background: var(--p-surface);
+    flex: 0 0 auto;
   }
   .pe-modal-title { font-size: 14.5px; font-weight: 700; color: var(--p-text); }
   .pe-modal-x {
@@ -473,7 +543,10 @@
     transition: color .12s;
   }
   .pe-modal-x:hover { color: #b30000; }
-  .pe-modal-body { padding: 16px 18px; display: grid; gap: 10px; }
+  .pe-modal-body {
+    padding: 16px 18px; display: grid; gap: 10px;
+    overflow-y: auto; flex: 1 1 auto; min-height: 0;
+  }
   .pe-modal-body label {
     font-size: 11px; font-weight: 600; color: var(--p-textM);
     text-transform: uppercase; letter-spacing: .05em;
@@ -482,6 +555,7 @@
   .pe-modal-foot {
     padding: 12px 18px; border-top: 1px solid var(--p-borderL);
     display: flex; justify-content: flex-end; gap: 8px; background: var(--p-surface);
+    flex: 0 0 auto;
   }
   .pe-modal-btn {
     padding: 8px 18px; border-radius: 5px; font-size: 12.5px; font-weight: 600;
@@ -491,6 +565,46 @@
   .pe-modal-btn.save   { background: var(--c-coral); color: #fff; border: none; }
   .pe-modal-btn.save:disabled { opacity: .35; cursor: not-allowed; }
   .pe-modal-err { color: #b30000; font-size: 11px; }
+
+  /* Staged contacts — "+ Нов клиент" modal */
+  .pe-contacts-list { display: grid; gap: 6px; margin-bottom: 6px; }
+  .pe-contact-row {
+    border: 1px solid var(--p-borderL); border-radius: 6px;
+    background: var(--p-surface); padding: 6px 8px;
+  }
+  .pe-contact-row-inner { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .pe-contact-row-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .pe-contact-row-name { font-size: 12.5px; font-weight: 600; color: var(--p-text); }
+  .pe-contact-row-detail { font-size: 11px; color: var(--p-textM); }
+  .pe-contact-row-actions { display: flex; gap: 2px; flex-shrink: 0; }
+  .pe-contact-icon-btn {
+    background: none; border: none; cursor: pointer; padding: 4px;
+    color: var(--p-textM); display: flex; align-items: center; border-radius: 4px;
+    transition: color .12s, background .12s;
+  }
+  .pe-contact-icon-btn svg { width: 15px; height: 15px; }
+  .pe-contact-icon-btn:hover { color: var(--p-text); background: var(--p-borderL); }
+  .pe-contact-edit-row { display: grid; gap: 6px; }
+  .pe-contact-add {
+    display: grid; gap: 6px; padding-top: 8px;
+    border-top: 1px dashed var(--p-borderL); margin-top: 2px;
+  }
+  .pe-contact-add-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .pe-contact-add-btn {
+    justify-self: start; background: var(--c-coral); color: #fff; border: none;
+    border-radius: 5px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .pe-contact-add-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  /* Contact checkbox selection — "+ Нов обект" modal */
+  .pe-contact-check-list { display: grid; gap: 6px; max-height: 160px; overflow-y: auto; }
+  .pe-contact-check-row {
+    display: flex; align-items: flex-start; gap: 8px; padding: 6px 8px;
+    border: 1px solid var(--p-borderL); border-radius: 6px; cursor: pointer; font-size: 12.5px;
+  }
+  .pe-contact-check-row input[type=checkbox] {
+    width: 15px; height: 15px; accent-color: var(--c-coral); flex-shrink: 0; margin-top: 1px;
+  }
 
   /* Folder picker (Save as template) */
   .pe-bc { font-size: 11.5px; color: var(--p-textM); margin-bottom: 10px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
@@ -530,13 +644,58 @@
 
 {% block content %}
 
-{# Bootstrap blob: catalogs + defaults, parsed by Alpine on init. #}
 <script id="editor-bootstrap" type="application/json">{{ bootstrap_json|safe }}</script>
 
 <div x-data="protocolEditor({% if editor_mode == 'view' %}true{% else %}false{% endif %})" x-cloak
      class="pe-root" :class="{'pe-view-mode': viewMode}">
 
   {% csrf_token %}
+
+  {% if editor_mode == 'view' %}
+  <!-- ═══ View-mode sticky header — pseudonym + action buttons. Shown both
+       standalone (direct page visit) and embedded (the protocols list's
+       iframe popup) — there's no separate parent-modal chrome providing
+       this, so it must show in both cases. ═══ -->
+  <div class="pe-view-header">
+    <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+      <a href="{% url 'core:protocol_list' %}" target="_top"
+         class="pe-btn pe-btn-secondary" style="text-decoration:none;display:inline-flex;align-items:center;"
+         onclick="if(window.parent && window.parent.closeProtocolPreview){event.preventDefault(); window.parent.closeProtocolPreview();}">
+        ← Назад
+      </a>
+      <span class="pe-view-pseudonym">{{ protocol.display_name }}</span>
+    </div>
+    <div style="display:flex;gap:10px;flex-shrink:0;">
+      {% if protocol.is_preset %}
+        <a href="{% url 'core:template_edit' protocol.pk %}" target="_top"
+           class="pe-btn pe-btn-secondary" style="text-decoration:none;display:inline-flex;align-items:center;">
+          ✏ Редактирай
+        </a>
+        <a href="{% url 'core:template_use' protocol.pk %}" target="_top"
+           class="pe-btn pe-btn-primary" style="text-decoration:none;display:inline-flex;align-items:center;">
+          Използвай
+        </a>
+      {% else %}
+        <a href="{% url 'core:protocol_edit' protocol.pk %}" target="_top"
+           class="pe-btn pe-btn-secondary" style="text-decoration:none;display:inline-flex;align-items:center;">
+          ✏ Редактирай
+        </a>
+        <button type="button" class="pe-btn pe-btn-secondary"
+                style="color:#b03030;border-color:rgba(200,80,80,.35);"
+                @click="deleteProtocol()">
+          Изтрий
+        </button>
+        <button type="button" class="pe-btn pe-btn-template" @click="openTemplatePicker()">
+          Запази като шаблон
+        </button>
+        <a href="{% url 'core:protocol_print_choose' protocol.pk %}" target="_top"
+           class="pe-btn pe-btn-primary" style="text-decoration:none;display:inline-flex;align-items:center;">
+          Преглед
+        </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 
   <!-- ═══ Pseudonym (display name) — sits above the 3-col header ═══ -->
   <div class="pe-pseudonym-bar">
@@ -567,43 +726,15 @@
         <div class="pe-field-row"><span class="pe-field-lbl">Тел:</span><span class="pe-field-val" x-text="companyPhone||'—'"></span></div>
       </div>
 
-      <!-- PANEL 2 — Client (search) -->
+      <!-- PANEL 2 — Заявител (Stage 8a, reworked: firm now lives on Site,
+           so this panel is read-only, auto-filled by the Site picked in
+           Panel 3 — no search box of its own anymore). -->
       <div class="pe-panel">
         <div class="pe-panel-title">Данни за заявителя на извършената ДДД обработка</div>
-        <template x-if="!clientId">
-          <div class="pe-pick-row">
-            <div class="pe-search-wrap" style="margin:0;" @click.outside="showClientDD=false">
-              <input type="text" placeholder="Търси по фирма, псевдоним или ЕИК…"
-                x-model="clientQ"
-                @focus="showClientDD=true; highlightedIndex=-1"
-                @input="showClientDD=true; highlightedIndex=-1"
-                @keydown.escape="showClientDD=false"
-                @keydown.down.prevent="highlightedIndex = Math.min(highlightedIndex+1, filteredClients.length-1); scrollClientOptIntoView($el)"
-                @keydown.up.prevent="highlightedIndex = Math.max(highlightedIndex-1, 0); scrollClientOptIntoView($el)"
-                @keydown.enter.prevent="if (showClientDD && filteredClients[highlightedIndex]) pickClient(filteredClients[highlightedIndex])">
-              <div class="pe-client-dd" x-show="showClientDD && filteredClients.length > 0">
-                <template x-for="(c, i) in filteredClients" :key="c.id">
-                  <div class="pe-c-opt" :class="{active: i === highlightedIndex}"
-                       @click="pickClient(c)" @mouseenter="highlightedIndex = i">
-                    <div class="pe-c-firm" x-text="c.firm"></div>
-                    <div class="pe-c-meta" x-text="'ЕИК: '+c.eik+' · '+c.address + (c.name ? ' · '+c.name : '')"></div>
-                  </div>
-                </template>
-              </div>
-            </div>
-            <button type="button" class="pe-btn-new" @click="openNewClient()">+ Нов</button>
-          </div>
-        </template>
-        <template x-if="clientId">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-            <span style="font-size:13px;font-weight:700;color:var(--p-text);flex:1" x-text="clientFirm"></span>
-            <button type="button" class="pe-btn-clear" @click="clearClient()" title="Изчисти заявителя">×</button>
-          </div>
-        </template>
+        <div class="pe-field-row"><span class="pe-field-lbl">Клиент:</span><span class="pe-field-val" x-text="clientName||'—'"></span></div>
         <div class="pe-field-row"><span class="pe-field-lbl">Фирма:</span><span class="pe-field-val" x-text="clientFirm||'—'"></span></div>
         <div class="pe-field-row"><span class="pe-field-lbl">ЕИК:</span><span class="pe-field-val" x-text="clientEik||'—'"></span></div>
         <div class="pe-field-row"><span class="pe-field-lbl">Адрес:</span><span class="pe-field-val" x-text="clientAddress||'—'"></span></div>
-        <div class="pe-field-row"><span class="pe-field-lbl">Тел:</span><span class="pe-field-val" x-text="clientPhone||'—'"></span></div>
         <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--p-borderL);">
           <span style="font-size:11px;color:var(--p-textM);">Обработката е по:</span>
           <div class="pe-contract-opts">
@@ -619,20 +750,42 @@
         </div>
       </div>
 
-      <!-- PANEL 3 — Site -->
+      <!-- PANEL 3 — Обект (Stage 8a, reworked: site is now the PRIMARY
+           search — picking a site auto-fills Panel 2's firm data from that
+           site's active firm link, and the client from the site's client.) -->
       <div class="pe-panel">
         <div class="pe-panel-title">Данни за обекта, в който е извършена ДДД обработката</div>
-        <div class="pe-pick-row">
-          <select x-model="siteId" @change="pickSite()" :disabled="!clientId">
-            <option value="">— изберете обект —</option>
-            <template x-for="s in filteredSites" :key="s.id">
-              <option :value="s.id" x-text="s.pseudonym"></option>
-            </template>
-          </select>
-          <button type="button" class="pe-btn-new" @click="openNewSite()" :disabled="!clientId" title="Нов обект за избрания клиент">+ Нов</button>
-          <button type="button" class="pe-btn-clear" x-show="siteId" @click="clearSite()" title="Изчисти обекта">×</button>
-        </div>
-        <div x-show="!clientId" style="font-size:10.5px;color:var(--p-textM);margin-top:3px;">Първо изберете заявител</div>
+        <template x-if="!siteId">
+          <div class="pe-pick-row">
+            <div class="pe-search-wrap" style="margin:0;" @click.outside="showSiteDD=false">
+              <input type="text" placeholder="Търси по обект, клиент или адрес…"
+                x-model="siteQ"
+                @focus="showSiteDD=true; highlightedSiteIndex=-1"
+                @input="showSiteDD=true; highlightedSiteIndex=-1"
+                @keydown.escape="showSiteDD=false"
+                @keydown.down.prevent="highlightedSiteIndex = Math.min(highlightedSiteIndex+1, filteredSites.length-1); scrollClientOptIntoView($el)"
+                @keydown.up.prevent="highlightedSiteIndex = Math.max(highlightedSiteIndex-1, 0); scrollClientOptIntoView($el)"
+                @keydown.enter.prevent="if (showSiteDD && filteredSites[highlightedSiteIndex]) pickSiteObj(filteredSites[highlightedSiteIndex])">
+              <div class="pe-client-dd" x-show="showSiteDD && filteredSites.length > 0">
+                <template x-for="(s, i) in filteredSites" :key="s.id">
+                  <div class="pe-c-opt" :class="{active: i === highlightedSiteIndex}"
+                       @click="pickSiteObj(s)" @mouseenter="highlightedSiteIndex = i">
+                    <div class="pe-c-firm" x-text="s.pseudonym"></div>
+                    <div class="pe-c-meta" x-text="s.client_name + (s.address ? ' · '+s.address : '')"></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+            <button type="button" class="pe-btn-new" @click="openNewClient()" title="Нов клиент">+ Клиент</button>
+            <button type="button" class="pe-btn-new" @click="openNewSite()" title="Нов обект">+ Обект</button>
+          </div>
+        </template>
+        <template x-if="siteId">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+            <span style="font-size:13px;font-weight:700;color:var(--p-text);flex:1" x-text="sitePseudonym"></span>
+            <button type="button" class="pe-btn-clear" @click="clearSite()" title="Изчисти обекта">×</button>
+          </div>
+        </template>
         <div class="pe-field-row"><span class="pe-field-lbl">Обект:</span><span class="pe-field-val" x-text="siteName||'—'"></span></div>
         <div class="pe-field-row"><span class="pe-field-lbl">Адрес:</span><span class="pe-field-val" x-text="siteAddress||'—'"></span></div>
         <div class="pe-field-row"><span class="pe-field-lbl">Площ:</span><span class="pe-field-val" x-text="siteArea ? siteArea+' m²' : '—'"></span></div>
@@ -970,16 +1123,16 @@
     </div>
 
     <div class="pe-meta-grid">
-      <!-- Notes (textarea, takes full width on the top row) -->
-      <div class="pe-meta-row pe-meta-row-wide">
-        <label>Бележки</label>
-        <textarea rows="3" x-model="notes"
-                  placeholder="Вътрешни бележки за този протокол…"></textarea>
+      <!-- Notes (rich-text, takes full width on the top row) -->
+      <div class="pe-meta-row pe-meta-row-wide rn-field" x-ref="protocolNotesField">
+        <label>Бележки <span style="color:var(--p-textM);font-weight:400;">(⌘B / ⌘I / ⌘U)</span></label>
+        <div class="rn-editable" contenteditable="true" data-placeholder="Вътрешни бележки за този протокол…"></div>
+        <textarea x-model="notes" class="rn-source"></textarea>
       </div>
 
       <!-- Price -->
       <div class="pe-meta-row">
-        <label>Цена (лв)</label>
+        <label>Цена (€)</label>
         <input type="number" min="0" step="0.01" x-model="price"
                placeholder="напр. 150.00">
       </div>
@@ -998,42 +1151,57 @@
               <span x-text="t.name"></span>
             </button>
           </template>
-          <span x-show="allTags.length === 0" class="pe-meta-empty">
-            Няма налични етикети. Добавяте ги от страница „Етикети".
+          <span x-show="allTags.length === 0 && !newTag.open" class="pe-meta-empty">
+            Няма налични етикети.
           </span>
+          <!-- + Нов етикет button -->
+          <button type="button" class="pe-tag-new-btn"
+                  x-show="!newTag.open" @click="openNewTag()">+ Нов</button>
+        </div>
+        <!-- Inline new-tag form -->
+        <div class="pe-tag-new-form" x-show="newTag.open">
+          <input type="text" class="pe-tag-new-input" x-model="newTag.name"
+                 placeholder="Наименование на етикета"
+                 @keydown.enter.prevent="saveNewTag()"
+                 @keydown.escape="newTag.open=false">
+          <div class="pe-tag-color-row">
+            <input type="color" x-model="newTag.color" style="width:32px;height:28px;padding:1px 2px;border:1px solid var(--p-border);border-radius:4px;cursor:pointer;">
+            <div class="pe-tag-presets">
+              <div class="pe-tag-preset" style="background:#ffa686" :class="{selected:newTag.color==='#ffa686'}" @click="newTag.color='#ffa686'"></div>
+              <div class="pe-tag-preset" style="background:#e74c3c" :class="{selected:newTag.color==='#e74c3c'}" @click="newTag.color='#e74c3c'"></div>
+              <div class="pe-tag-preset" style="background:#e67e22" :class="{selected:newTag.color==='#e67e22'}" @click="newTag.color='#e67e22'"></div>
+              <div class="pe-tag-preset" style="background:#f1c40f" :class="{selected:newTag.color==='#f1c40f'}" @click="newTag.color='#f1c40f'"></div>
+              <div class="pe-tag-preset" style="background:#27ae60" :class="{selected:newTag.color==='#27ae60'}" @click="newTag.color='#27ae60'"></div>
+              <div class="pe-tag-preset" style="background:#16a085" :class="{selected:newTag.color==='#16a085'}" @click="newTag.color='#16a085'"></div>
+              <div class="pe-tag-preset" style="background:#2980b9" :class="{selected:newTag.color==='#2980b9'}" @click="newTag.color='#2980b9'"></div>
+              <div class="pe-tag-preset" style="background:#8e44ad" :class="{selected:newTag.color==='#8e44ad'}" @click="newTag.color='#8e44ad'"></div>
+              <div class="pe-tag-preset" style="background:#aa767c" :class="{selected:newTag.color==='#aa767c'}" @click="newTag.color='#aa767c'"></div>
+              <div class="pe-tag-preset" style="background:#63474d" :class="{selected:newTag.color==='#63474d'}" @click="newTag.color='#63474d'"></div>
+              <div class="pe-tag-preset" style="background:#6b7280" :class="{selected:newTag.color==='#6b7280'}" @click="newTag.color='#6b7280'"></div>
+            </div>
+          </div>
+          <textarea x-model="newTag.description" class="pe-tag-new-input" placeholder="Описание (по желание)" rows="2" style="margin-top:4px;"></textarea>
+          <div x-show="newTag.error" x-text="newTag.error" class="pe-modal-err" style="margin-bottom:6px;"></div>
+          <div style="display:flex;gap:6px;">
+            <button type="button" class="pe-btn pe-btn-secondary" style="font-size:12px;padding:5px 10px;"
+                    @click="newTag.open=false; newTag.name=''; newTag.description=''; newTag.error='';">Отказ</button>
+            <button type="button" class="pe-btn pe-btn-primary" style="font-size:12px;padding:5px 10px;"
+                    @click="saveNewTag()" :disabled="newTag.saving">
+              <span x-show="!newTag.saving">Създай</span>
+              <span x-show="newTag.saving">…</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ═══ Action bar ═══ -->
-  <div class="pe-action-bar" {% if editor_mode == 'view' %}style="justify-content:space-between;align-items:center;"{% endif %}>
-    {% if editor_mode == 'view' %}
-      {# View mode: read-only protocol preview popup #}
-      <div class="pe-source-tpl">
-        {% if protocol.source_template_id %}
-          Създаден от шаблон: <strong>{{ protocol.source_template.preset_name|default:protocol.source_template.pseudonym|default:"—" }}</strong>
-        {% else %}
-          Не е създаден от шаблон
-        {% endif %}
-      </div>
-      <div style="display:flex;gap:10px;">
-        <a href="{% url 'core:protocol_print_choose' protocol.pk %}" target="_top" class="pe-btn pe-btn-secondary" style="text-decoration:none;display:inline-flex;align-items:center;">
-          🖨 Печат
-        </a>
-        <a href="{% url 'core:protocol_pdf' protocol.pk %}" target="_top" class="pe-btn pe-btn-secondary" style="text-decoration:none;display:inline-flex;align-items:center;"
-           onclick="if (window.parent && window.parent.downloadProtocolPdf) { window.parent.downloadProtocolPdf(event, '{% url "core:protocol_pdf" protocol.pk %}', 'protocol-{{ protocol.pk }}.pdf'); }">
-          ⤓ Изтегли PDF
-        </a>
-        <button type="button" class="pe-btn pe-btn-template" @click="openTemplatePicker()">
-          Запази като шаблон
-        </button>
-      </div>
-    {% else %}
-      <a href="{% url 'core:protocol_list' %}" class="pe-btn pe-btn-secondary" style="text-decoration:none;display:inline-flex;align-items:center;">Отказ</a>
+  <!-- ═══ Action bar (edit / create modes only — hidden in view mode via CSS) ═══ -->
+  <div class="pe-action-bar">
+    {% if editor_mode != 'view' %}
+      <a href="{% if back_url %}{{ back_url }}{% else %}{% url 'core:protocol_list' %}{% endif %}" class="pe-btn pe-btn-secondary" style="text-decoration:none;display:inline-flex;align-items:center;">Отказ</a>
 
       {% if editor_mode == 'edit' %}
-        {# Edit mode: save directly (no preview) + delete #}
         <button type="button" class="pe-btn pe-btn-secondary"
                 style="color:#b03030;border-color:rgba(200,80,80,.35);"
                 @click="deleteProtocol()"
@@ -1046,7 +1214,6 @@
           <span x-show="saving">Запазване…</span>
         </button>
       {% else %}
-        {# Normal and create-from: go to preview page #}
         <button type="button" class="pe-btn pe-btn-primary" @click="goPreview()" :disabled="!canPreview">
           Преглед →
         </button>
@@ -1073,24 +1240,71 @@
         <button class="pe-modal-x" @click="modal.newClient.open=false">×</button>
       </div>
       <div class="pe-modal-body">
-        <div class="pe-ml-row"><label>Фирма *</label>
-          <input type="text" x-model="modal.newClient.firm" placeholder="„Виктория Нутс" ЕООД">
-          <div class="pe-modal-err" x-show="modal.newClient.errors.firm" x-text="(modal.newClient.errors.firm||[''])[0]"></div>
-        </div>
+        <div class="pe-modal-err" x-show="modal.newClient.errors.__all__" x-text="(modal.newClient.errors.__all__||[''])[0]"></div>
         <div class="pe-ml-row"><label>Име *</label>
           <input type="text" x-model="modal.newClient.name" placeholder="Виктория Нутс">
           <div class="pe-modal-err" x-show="modal.newClient.errors.name" x-text="(modal.newClient.errors.name||[''])[0]"></div>
         </div>
-        <div class="pe-ml-row"><label>ЕИК *</label>
-          <input type="text" x-model="modal.newClient.eik" placeholder="9 цифри" maxlength="9">
-          <div class="pe-modal-err" x-show="modal.newClient.errors.eik" x-text="(modal.newClient.errors.eik||[''])[0]"></div>
+        <div class="pe-ml-row" style="font-size:11px;color:var(--p-textM);">
+          Фирмата за обекта се добавя след това, от попъпа на самия обект (Стр. 9б).
         </div>
-        <div class="pe-ml-row"><label>Адрес *</label>
-          <input type="text" x-model="modal.newClient.address" placeholder="гр., ул., №…">
-          <div class="pe-modal-err" x-show="modal.newClient.errors.address" x-text="(modal.newClient.errors.address||[''])[0]"></div>
-        </div>
-        <div class="pe-ml-row"><label>Телефон</label>
-          <input type="text" x-model="modal.newClient.phone" placeholder="0888 …">
+        <div class="pe-ml-row">
+          <label>Контактни лица</label>
+          <div class="pe-contacts-list" x-show="modal.newClient.contacts.length">
+            <template x-for="(c, idx) in modal.newClient.contacts" :key="idx">
+              <div class="pe-contact-row">
+                <template x-if="modal.newClient.editingIdx !== idx">
+                  <div class="pe-contact-row-inner">
+                    <div class="pe-contact-row-main">
+                      <span class="pe-contact-row-name" x-text="c.name"></span>
+                      <span class="pe-contact-row-detail" x-text="[c.phone, c.position].filter(Boolean).join(' · ') || '—'"></span>
+                    </div>
+                    <div class="pe-contact-row-actions">
+                      <button type="button" class="pe-contact-icon-btn" title="Редактирай" @click="editClientContactRow(idx)">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/>
+                        </svg>
+                      </button>
+                      <button type="button" class="pe-contact-icon-btn" title="Изтрий" @click="removeClientContactRow(idx)">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </template>
+                <template x-if="modal.newClient.editingIdx === idx">
+                  <div class="pe-contact-edit-row">
+                    <div class="pe-contact-add-grid">
+                      <input type="text" x-model="modal.newClient.editDraft.name" placeholder="Име">
+                      <input type="text" x-model="modal.newClient.editDraft.phone" placeholder="Телефон">
+                    </div>
+                    <input type="text" x-model="modal.newClient.editDraft.position" placeholder="Длъжност">
+                    <div class="pe-contact-row-actions">
+                      <button type="button" class="pe-contact-icon-btn" title="Запази" @click="saveClientContactRowEdit(idx)">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+                        </svg>
+                      </button>
+                      <button type="button" class="pe-contact-icon-btn" title="Откажи" @click="cancelClientContactRowEdit()">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+          <div class="pe-contact-add">
+            <div class="pe-contact-add-grid">
+              <input type="text" x-model="modal.newClient.draft.name" placeholder="Име">
+              <input type="text" x-model="modal.newClient.draft.phone" placeholder="Телефон">
+            </div>
+            <input type="text" x-model="modal.newClient.draft.position" placeholder="Длъжност" @keydown.enter.prevent="addClientContactRow()">
+            <button type="button" class="pe-contact-add-btn" :disabled="!modal.newClient.draft.name.trim()" @click="addClientContactRow()">+ Добави контакт</button>
+          </div>
         </div>
         <div style="font-size:10.5px;color:var(--p-textM);margin-top:2px;">
           След запис клиентът ще бъде автоматично избран в текущия протокол.
@@ -1118,6 +1332,16 @@
         <button class="pe-modal-x" @click="modal.newSite.open=false">×</button>
       </div>
       <div class="pe-modal-body">
+        <div class="pe-modal-err" x-show="modal.newSite.errors.__all__" x-text="(modal.newSite.errors.__all__||[''])[0]"></div>
+        <div class="pe-ml-row"><label>Клиент *</label>
+          <select x-model="modal.newSite.clientId" @change="onNewSiteClientChange()">
+            <option value="">— изберете клиент —</option>
+            <template x-for="c in allClients" :key="c.id">
+              <option :value="String(c.id)" x-text="c.name"></option>
+            </template>
+          </select>
+          <div class="pe-modal-err" x-show="modal.newSite.errors.client" x-text="(modal.newSite.errors.client||[''])[0]"></div>
+        </div>
         <div class="pe-ml-row"><label>Псевдоним *</label>
           <input type="text" x-model="modal.newSite.pseudonym" placeholder="напр. Магазин Център">
           <div class="pe-modal-err" x-show="modal.newSite.errors.pseudonym" x-text="(modal.newSite.errors.pseudonym||[''])[0]"></div>
@@ -1131,6 +1355,100 @@
         </div>
         <div class="pe-ml-row"><label>Обща площ (m²)</label>
           <input type="number" x-model="modal.newSite.area_m2" placeholder="напр. 120" min="0">
+        </div>
+        <div class="pe-ml-row">
+          <label>Етикети</label>
+          <div class="pe-tag-chips">
+            <template x-for="t in allTags" :key="t.id">
+              <button type="button" class="pe-tag-chip"
+                      :class="{on: modal.newSite.tagIds.includes(t.id)}"
+                      :style="modal.newSite.tagIds.includes(t.id)
+                              ? ('background:' + t.color + '20;border-color:' + t.color + ';color:' + t.color + ';')
+                              : ''"
+                      @click="toggleNewSiteTag(t.id)">
+                <span x-text="t.name"></span>
+              </button>
+            </template>
+            <span x-show="allTags.length === 0 && !modal.newSite.newTag.open" class="pe-meta-empty">
+              Няма налични етикети.
+            </span>
+            <button type="button" class="pe-tag-new-btn"
+                    x-show="!modal.newSite.newTag.open" @click="openNewSiteTag()">+ Нов</button>
+          </div>
+          <div class="pe-tag-new-form" x-show="modal.newSite.newTag.open">
+            <input type="text" class="pe-tag-new-input" x-model="modal.newSite.newTag.name"
+                   placeholder="Наименование на етикета"
+                   @keydown.enter.prevent="saveNewSiteTag()"
+                   @keydown.escape="modal.newSite.newTag.open=false">
+            <div class="pe-tag-color-row">
+              <input type="color" x-model="modal.newSite.newTag.color" style="width:32px;height:28px;padding:1px 2px;border:1px solid var(--p-border);border-radius:4px;cursor:pointer;">
+              <div class="pe-tag-presets">
+                <div class="pe-tag-preset" style="background:#ffa686" :class="{selected:modal.newSite.newTag.color==='#ffa686'}" @click="modal.newSite.newTag.color='#ffa686'"></div>
+                <div class="pe-tag-preset" style="background:#e74c3c" :class="{selected:modal.newSite.newTag.color==='#e74c3c'}" @click="modal.newSite.newTag.color='#e74c3c'"></div>
+                <div class="pe-tag-preset" style="background:#e67e22" :class="{selected:modal.newSite.newTag.color==='#e67e22'}" @click="modal.newSite.newTag.color='#e67e22'"></div>
+                <div class="pe-tag-preset" style="background:#f1c40f" :class="{selected:modal.newSite.newTag.color==='#f1c40f'}" @click="modal.newSite.newTag.color='#f1c40f'"></div>
+                <div class="pe-tag-preset" style="background:#27ae60" :class="{selected:modal.newSite.newTag.color==='#27ae60'}" @click="modal.newSite.newTag.color='#27ae60'"></div>
+                <div class="pe-tag-preset" style="background:#16a085" :class="{selected:modal.newSite.newTag.color==='#16a085'}" @click="modal.newSite.newTag.color='#16a085'"></div>
+                <div class="pe-tag-preset" style="background:#2980b9" :class="{selected:modal.newSite.newTag.color==='#2980b9'}" @click="modal.newSite.newTag.color='#2980b9'"></div>
+                <div class="pe-tag-preset" style="background:#8e44ad" :class="{selected:modal.newSite.newTag.color==='#8e44ad'}" @click="modal.newSite.newTag.color='#8e44ad'"></div>
+                <div class="pe-tag-preset" style="background:#aa767c" :class="{selected:modal.newSite.newTag.color==='#aa767c'}" @click="modal.newSite.newTag.color='#aa767c'"></div>
+                <div class="pe-tag-preset" style="background:#63474d" :class="{selected:modal.newSite.newTag.color==='#63474d'}" @click="modal.newSite.newTag.color='#63474d'"></div>
+                <div class="pe-tag-preset" style="background:#6b7280" :class="{selected:modal.newSite.newTag.color==='#6b7280'}" @click="modal.newSite.newTag.color='#6b7280'"></div>
+              </div>
+            </div>
+            <textarea x-model="modal.newSite.newTag.description" class="pe-tag-new-input" placeholder="Описание (по желание)" rows="2" style="margin-top:4px;"></textarea>
+            <div x-show="modal.newSite.newTag.error" x-text="modal.newSite.newTag.error" class="pe-modal-err" style="margin-bottom:6px;"></div>
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="pe-btn pe-btn-secondary" style="font-size:12px;padding:5px 10px;"
+                      @click="modal.newSite.newTag.open=false; modal.newSite.newTag.name=''; modal.newSite.newTag.description=''; modal.newSite.newTag.error='';">Отказ</button>
+              <button type="button" class="pe-btn pe-btn-primary" style="font-size:12px;padding:5px 10px;"
+                      @click="saveNewSiteTag()" :disabled="modal.newSite.newTag.saving">
+                <span x-show="!modal.newSite.newTag.saving">Създай</span>
+                <span x-show="modal.newSite.newTag.saving">…</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="pe-ml-row rn-field" x-ref="newSiteNotesField"><label>Бележки</label>
+          <div class="rn-editable" contenteditable="true" data-placeholder="Бележки…"></div>
+          <textarea x-model="modal.newSite.notes" class="rn-source"></textarea>
+        </div>
+        <div class="pe-ml-row"><label>Начална дата</label>
+          <div style="display:flex;gap:6px;">
+            <select x-model="modal.newSite.startMonth" style="flex:1.3">
+              <option value="">Месец</option>
+              <option value="01">Януари</option><option value="02">Февруари</option>
+              <option value="03">Март</option><option value="04">Април</option>
+              <option value="05">Май</option><option value="06">Юни</option>
+              <option value="07">Юли</option><option value="08">Август</option>
+              <option value="09">Септември</option><option value="10">Октомври</option>
+              <option value="11">Ноември</option><option value="12">Декември</option>
+            </select>
+            <select x-model="modal.newSite.startYear" style="flex:1">
+              <option value="">Година</option>
+              <template x-for="y in yearOptions()" :key="y"><option :value="String(y)" x-text="y"></option></template>
+            </select>
+          </div>
+        </div>
+        <div class="pe-ml-row">
+          <label>Контактни лица <span style="font-weight:400;text-transform:none;letter-spacing:0;">(по избор)</span></label>
+          <div class="pe-contact-check-list" x-show="modal.newSite.contacts.length">
+            <template x-for="c in modal.newSite.contacts" :key="c.id">
+              <label class="pe-contact-check-row">
+                <input type="checkbox" :value="c.id"
+                       :checked="modal.newSite.selectedContactIds.includes(c.id)"
+                       @change="toggleNewSiteContact(c.id, $event.target.checked)">
+                <span>
+                  <span style="font-weight:600;" x-text="c.name"></span>
+                  <span style="display:block;color:var(--p-textM);font-size:11px;"
+                        x-text="[c.phone, c.position].filter(Boolean).join(' · ')"></span>
+                </span>
+              </label>
+            </template>
+          </div>
+          <div x-show="!modal.newSite.contacts.length" style="font-size:11px;color:var(--p-textM);font-style:italic;">
+            Клиентът няма добавени контактни лица.
+          </div>
         </div>
         <div style="font-size:10.5px;color:var(--p-textM);margin-top:2px;">
           След запис обектът ще бъде автоматично избран в текущия протокол.
@@ -1199,7 +1517,7 @@
   </div>
   {% endif %}
 
-</div>{# /pe-root #}
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -1229,9 +1547,9 @@ document.addEventListener('alpine:init', () => {
     // ── form state ──
     clientUuid: null,           // stable PK for idempotent save
     companyId: '', companyName: '', companyEik: '', companyAddress: '', companyPhone: '',
-    clientId: '', clientFirm: '', clientEik: '', clientAddress: '', clientPhone: '',
-    clientQ: '', showClientDD: false, highlightedIndex: -1,
-    siteId: '', siteName: '', siteAddress: '', siteArea: '',
+    clientId: '', clientName: '', clientFirm: '', clientEik: '', clientAddress: '', clientPhone: '',
+    siteId: '', sitePseudonym: '', siteName: '', siteAddress: '', siteArea: '',
+    siteQ: '', showSiteDD: false, highlightedSiteIndex: -1,
     isLongTerm: false,
     preparedById: '', executedById: '',
     date1: '', date2: '',
@@ -1244,6 +1562,7 @@ document.addEventListener('alpine:init', () => {
     notes:     '',
     price:     '',
     tagIds:    [],
+    newTag: { open: false, name: '', color: '#6b7280', description: '', saving: false, error: '' },
 
     // Per-service column state.  Keys "dis", "der", "dinf" map to model
     // services "disinsection", "deratization", "disinfection".
@@ -1265,9 +1584,14 @@ document.addEventListener('alpine:init', () => {
     // ── modal state ──
     modal: {
       newClient: { open: false, saving: false, errors: {},
-                   firm: '', name: '', eik: '', address: '', phone: '' },
-      newSite:   { open: false, saving: false, errors: {},
-                   pseudonym: '', name: '', address: '', area_m2: '' },
+                   name: '',
+                   contacts: [], draft: { name: '', phone: '', position: '' },
+                   editingIdx: null, editDraft: { name: '', phone: '', position: '' } },
+      newSite:   { open: false, saving: false, errors: {}, clientId: '',
+                   pseudonym: '', name: '', address: '', area_m2: '', notes: '',
+                   startMonth: '', startYear: '',
+                   tagIds: [], newTag: { open: false, name: '', color: '#6b7280', description: '', saving: false, error: '' },
+                   contacts: [], selectedContactIds: [] },
       saveTemplate: { open: false, saving: false, error: '',
                       currentId: null, breadcrumb: [], presetName: '' },
     },
@@ -1330,32 +1654,30 @@ document.addEventListener('alpine:init', () => {
         if (d.executed_by_id) { this.executedById = String(d.executed_by_id); }
       });
 
-      // If prefill data was supplied (edit / create-from flow), apply it
-      // and skip the session-draft restore so it doesn't overwrite the prefill.
+      // If prefill data was supplied (edit / create-from flow), apply it.
+      // Stage: per Kiril (2026-06-21), a fresh "new protocol" never
+      // restores anything left over from an abandoned previous attempt —
+      // no session-draft mechanism anymore.
       if (data.prefill) {
         this.$nextTick(() => this._applyDraft(data.prefill));
-        return;
       }
-
-      // If the user came back from the preview page, restore the form they
-      // had filled in (rather than wiping it clean).
-      this._restoreDraftIfAny();
     },
 
     // ─────────────────────────────────────────────────────────────────
     // COMPUTED
     // ─────────────────────────────────────────────────────────────────
-    get filteredClients() {
-      if (!this.clientQ) return this.allClients;
-      const q = this.clientQ.toLowerCase();
-      return this.allClients.filter(c =>
-        (c.firm||'').toLowerCase().includes(q) ||
-        (c.name||'').toLowerCase().includes(q) ||
-        (c.eik||'').includes(q));
-    },
+    // Stage 8a (reworked) — site is now the primary search; only active
+    // sites are offered (inactive ones stay reachable for restoring an
+    // already-saved protocol via allSites.find(), just not for new picks).
     get filteredSites() {
-      if (!this.clientId) return [];
-      return this.allSites.filter(s => String(s.client_id) === String(this.clientId));
+      const pool = this.allSites.filter(s => s.is_active);
+      if (!this.siteQ) return pool;
+      const q = this.siteQ.toLowerCase();
+      return pool.filter(s =>
+        (s.pseudonym||'').toLowerCase().includes(q) ||
+        (s.name||'').toLowerCase().includes(q) ||
+        (s.client_name||'').toLowerCase().includes(q) ||
+        (s.address||'').toLowerCase().includes(q));
     },
     get disActive()  { return this.cols.dis .pest_ids.length > 0; },
     get derActive()  { return this.cols.der .pest_ids.length > 0; },
@@ -1396,24 +1718,34 @@ document.addEventListener('alpine:init', () => {
         if (active) active.scrollIntoView({ block: 'nearest' });
       });
     },
-    pickClient(c) {
-      this.clientId=String(c.id); this.clientFirm=c.firm; this.clientEik=c.eik;
-      this.clientAddress=c.address; this.clientPhone=c.phone;
-      this.clientQ=c.firm; this.showClientDD=false;
-      this.clearSite();
-    },
-    clearClient() {
-      this.clientId=''; this.clientFirm=''; this.clientEik='';
-      this.clientAddress=''; this.clientPhone=''; this.clientQ='';
-      this.clearSite();
-    },
     pickSite() {
+      // Called from init when restoring a saved siteId — populates site
+      // fields AND the client/firm fields derived from it (Stage 8a
+      // reworked: firm lives on Site now, not Client).
       const s = this.allSites.find(x => String(x.id) === String(this.siteId));
-      if (s) { this.siteName=s.pseudonym; this.siteAddress=s.address; this.siteArea=s.area_m2; }
-      else   { this.siteName=''; this.siteAddress=''; this.siteArea=''; }
+      if (s) {
+        this.sitePseudonym=s.pseudonym; this.siteName=s.name; this.siteAddress=s.address; this.siteArea=s.area_m2;
+        this.clientId=String(s.client_id); this.clientName=s.client_name;
+        this.clientFirm=s.firm; this.clientEik=s.eik; this.clientAddress=s.firm_address; this.clientPhone=s.phone;
+      } else {
+        this.sitePseudonym=''; this.siteName=''; this.siteAddress=''; this.siteArea='';
+      }
+    },
+    pickSiteObj(s) {
+      // Called from the custom dropdown — takes a site object directly.
+      this.siteId=String(s.id); this.sitePseudonym=s.pseudonym;
+      this.siteName=s.name; this.siteAddress=s.address; this.siteArea=s.area_m2;
+      this.clientId=String(s.client_id); this.clientName=s.client_name;
+      this.clientFirm=s.firm; this.clientEik=s.eik; this.clientAddress=s.firm_address; this.clientPhone=s.phone;
+      this.siteQ=s.pseudonym; this.showSiteDD=false; this.highlightedSiteIndex=-1;
     },
     clearSite() {
-      this.siteId=''; this.siteName=''; this.siteAddress=''; this.siteArea='';
+      // Site is primary now — clearing it also clears the client/firm
+      // fields that were derived from it.
+      this.siteId=''; this.sitePseudonym=''; this.siteName=''; this.siteAddress=''; this.siteArea=''; this.siteQ='';
+      this.clientId=''; this.clientName=''; this.clientFirm=''; this.clientEik='';
+      this.clientAddress=''; this.clientPhone='';
+      this.showSiteDD=false;
     },
 
     // ─────────────────────────────────────────────────────────────────
@@ -1611,6 +1943,32 @@ document.addEventListener('alpine:init', () => {
       if (idx >= 0) this.tagIds.splice(idx, 1);
       else          this.tagIds.push(id);
     },
+    openNewTag() {
+      this.newTag = { open: true, name: '', color: '#6b7280', description: '', saving: false, error: '' };
+    },
+    async saveNewTag() {
+      const t = this.newTag;
+      if (!t.name.trim()) { t.error = 'Въведете наименование'; return; }
+      t.saving = true; t.error = '';
+      const fd = new FormData();
+      fd.append('name', t.name.trim());
+      fd.append('color', t.color);
+      fd.append('description', t.description.trim());
+      try {
+        const r = await fetch('{% url "core:tag_create_inline" %}', {
+          method: 'POST', body: fd,
+          headers: { 'X-CSRFToken': this._csrf() },
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          t.error = Object.values(data.errors || {}).flat().join(', ') || 'Грешка при създаване';
+          t.saving = false; return;
+        }
+        this.allTags.push(data);
+        this.tagIds.push(data.id);
+        this.newTag = { open: false, name: '', color: '#6b7280', description: '', saving: false, error: '' };
+      } catch(e) { t.error = String(e); t.saving = false; }
+    },
 
     // ─────────────────────────────────────────────────────────────────
     // MODALS — inline create via ?as=json
@@ -1628,49 +1986,188 @@ document.addEventListener('alpine:init', () => {
       this.modal.newClient.saving = false;
       this.modal.newClient.errors = {};
     },
+
+    // ── staged contact rows inside the "+ Нов клиент" modal ──
+    addClientContactRow() {
+      const m = this.modal.newClient;
+      const name = (m.draft.name || '').trim();
+      if (!name) return;
+      m.contacts.push({
+        name,
+        phone: (m.draft.phone || '').trim(),
+        position: (m.draft.position || '').trim(),
+      });
+      m.draft = { name: '', phone: '', position: '' };
+    },
+    editClientContactRow(idx) {
+      const m = this.modal.newClient;
+      m.editingIdx = idx;
+      m.editDraft = { ...m.contacts[idx] };
+    },
+    saveClientContactRowEdit(idx) {
+      const m = this.modal.newClient;
+      const name = (m.editDraft.name || '').trim();
+      if (!name) return;
+      m.contacts[idx] = {
+        name,
+        phone: (m.editDraft.phone || '').trim(),
+        position: (m.editDraft.position || '').trim(),
+      };
+      m.editingIdx = null;
+    },
+    cancelClientContactRowEdit() {
+      this.modal.newClient.editingIdx = null;
+    },
+    removeClientContactRow(idx) {
+      const m = this.modal.newClient;
+      m.contacts.splice(idx, 1);
+      if (m.editingIdx === idx) m.editingIdx = null;
+    },
+
     async saveNewClient() {
       const m = this.modal.newClient;
       m.saving = true; m.errors = {};
       const fd = new FormData();
-      fd.append('firm', m.firm); fd.append('name', m.name);
-      fd.append('eik', m.eik);   fd.append('address', m.address);
-      fd.append('phone', m.phone);
+      fd.append('name', m.name);
       fd.append('as', 'json');
+      let clientData;
       try {
         const r = await fetch('{% url "core:client_create" %}', {
           method: 'POST', body: fd,
           headers: { 'X-CSRFToken': this._csrf() },
         });
-        const data = await r.json();
-        if (!r.ok || !data.ok) { m.errors = data.errors || {}; m.saving = false; return; }
-        // Push new client into the in-memory list, auto-select it.
-        this.allClients.push(data.client);
-        this.pickClient(data.client);
-        // Success — clear the draft and close.
-        this.modal.newClient = { open: false, saving: false, errors: {},
-          firm: '', name: '', eik: '', address: '', phone: '' };
+        clientData = await r.json();
+        if (!r.ok || !clientData.ok) { m.errors = clientData.errors || {}; m.saving = false; return; }
       } catch (e) {
-        m.errors = { __all__: [String(e)] }; m.saving = false;
+        m.errors = { __all__: [String(e)] }; m.saving = false; return;
       }
+      // Client is saved — push into the in-memory list. Stage 8a (reworked):
+      // a client has no firm of its own anymore, so there's nothing to
+      // "pick" yet — just stage it as the pending client for the "+ Обект"
+      // modal (which now needs its own client selector since site is
+      // primary). From here on the client itself is not rolled back even
+      // if some staged contacts below fail to save (they stay staged for
+      // retry).
+      this.allClients.push(clientData.client);
+      this.clientId = String(clientData.client.id);
+      this.clientName = clientData.client.name;
+
+      const failed = [];
+      for (const c of m.contacts) {
+        try {
+          const cfd = new FormData();
+          cfd.append('name', c.name);
+          cfd.append('phone', c.phone);
+          cfd.append('position', c.position);
+          const cr = await fetch(`/clients/${clientData.client.id}/contacts/create/`, {
+            method: 'POST', body: cfd,
+            headers: { 'X-CSRFToken': this._csrf() },
+          });
+          if (!cr.ok) failed.push(c);
+        } catch (e) { failed.push(c); }
+      }
+
+      if (failed.length) {
+        m.contacts = failed;
+        m.editingIdx = null;
+        m.errors = { __all__: [`Клиентът е запазен, но ${failed.length} контакт(и) не бяха запазени — опитайте отново.`] };
+        m.saving = false;
+        return;
+      }
+
+      // Full success — clear the draft and close.
+      this.modal.newClient = { open: false, saving: false, errors: {},
+        name: '',
+        contacts: [], draft: { name: '', phone: '', position: '' },
+        editingIdx: null, editDraft: { name: '', phone: '', position: '' } };
     },
 
-    openNewSite() {
-      if (!this.clientId) return;
-      // Re-open without wiping any draft the user already typed — only
-      // reset transient saving/error state.  Fields are cleared only after
-      // a successful save (see saveNewSite).
+    yearOptions() {
+      const y = new Date().getFullYear();
+      const out = [];
+      for (let i = y + 2; i >= y - 5; i--) out.push(i);
+      return out;
+    },
+    async openNewSite() {
+      // Stage 8a (reworked) — site is primary now, so this modal no longer
+      // requires a site to already be picked; it needs its OWN client
+      // selector instead (defaults to the pending clientId, e.g. right
+      // after using "+ Клиент", if there is one).
       this.modal.newSite.open = true;
       this.modal.newSite.saving = false;
       this.modal.newSite.errors = {};
+      this.modal.newSite.clientId = this.clientId || '';
+      this.modal.newSite.contacts = [];
+      this.modal.newSite.selectedContactIds = [];
+      this.modal.newSite.newTag = { open: false, name: '', color: '#6b7280', description: '', saving: false, error: '' };
+      if (!this.modal.newSite.startMonth || !this.modal.newSite.startYear) {
+        const d = new Date();
+        this.modal.newSite.startMonth = String(d.getMonth() + 1).padStart(2, '0');
+        this.modal.newSite.startYear = String(d.getFullYear());
+      }
+      await this.onNewSiteClientChange();
+    },
+    async onNewSiteClientChange() {
+      const cid = this.modal.newSite.clientId;
+      this.modal.newSite.contacts = [];
+      this.modal.newSite.selectedContactIds = [];
+      if (!cid) return;
+      try {
+        const r = await fetch(`/clients/${cid}/contacts/json/`);
+        const data = await r.json();
+        this.modal.newSite.contacts = data.contacts || [];
+      } catch (e) { /* non-fatal — selection list just stays empty */ }
+    },
+    toggleNewSiteContact(id, checked) {
+      const ids = this.modal.newSite.selectedContactIds;
+      const i = ids.indexOf(id);
+      if (checked && i === -1) ids.push(id);
+      else if (!checked && i !== -1) ids.splice(i, 1);
+    },
+    toggleNewSiteTag(id) {
+      const ids = this.modal.newSite.tagIds;
+      const idx = ids.findIndex(x => String(x) === String(id));
+      if (idx >= 0) ids.splice(idx, 1);
+      else          ids.push(id);
+    },
+    openNewSiteTag() {
+      this.modal.newSite.newTag = { open: true, name: '', color: '#6b7280', description: '', saving: false, error: '' };
+    },
+    async saveNewSiteTag() {
+      const t = this.modal.newSite.newTag;
+      if (!t.name.trim()) { t.error = 'Въведете наименование'; return; }
+      t.saving = true; t.error = '';
+      const fd = new FormData();
+      fd.append('name', t.name.trim());
+      fd.append('color', t.color);
+      fd.append('description', t.description.trim());
+      try {
+        const r = await fetch('{% url "core:tag_create_inline" %}', {
+          method: 'POST', body: fd,
+          headers: { 'X-CSRFToken': this._csrf() },
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          t.error = Object.values(data.errors || {}).flat().join(', ') || 'Грешка при създаване';
+          t.saving = false; return;
+        }
+        this.allTags.push(data);
+        this.modal.newSite.tagIds.push(data.id);
+        this.modal.newSite.newTag = { open: false, name: '', color: '#6b7280', description: '', saving: false, error: '' };
+      } catch(e) { t.error = String(e); t.saving = false; }
     },
     async saveNewSite() {
       const m = this.modal.newSite;
       m.saving = true; m.errors = {};
       const fd = new FormData();
-      fd.append('client', this.clientId);
+      fd.append('client', m.clientId);
       fd.append('pseudonym', m.pseudonym);
       fd.append('name', m.name); fd.append('address', m.address);
       if (m.area_m2) fd.append('area_m2', m.area_m2);
+      fd.append('notes', m.notes);
+      fd.append('start_date', (m.startMonth && m.startYear) ? `${m.startYear}-${m.startMonth}` : '');
+      m.tagIds.forEach(id => fd.append('tags', id));
+      m.selectedContactIds.forEach(id => fd.append('contacts', id));
       fd.append('as', 'json');
       try {
         const r = await fetch('{% url "core:site_create_full" %}', {
@@ -1683,8 +2180,14 @@ document.addEventListener('alpine:init', () => {
         this.siteId = String(data.site.id);
         this.pickSite();
         // Success — clear the draft and close.
-        this.modal.newSite = { open: false, saving: false, errors: {},
-          pseudonym: '', name: '', address: '', area_m2: '' };
+        this.modal.newSite = { open: false, saving: false, errors: {}, clientId: '',
+          pseudonym: '', name: '', address: '', area_m2: '', notes: '',
+          startMonth: '', startYear: '',
+          tagIds: [], newTag: { open: false, name: '', color: '#6b7280', description: '', saving: false, error: '' },
+          contacts: [], selectedContactIds: [] };
+        // The notes contenteditable has no native x-model support — clear
+        // it explicitly so it doesn't show stale text on the next open.
+        window.rnSetValue && window.rnSetValue(this.$refs.newSiteNotesField, '');
       } catch (e) {
         m.errors = { __all__: [String(e)] }; m.saving = false;
       }
@@ -1748,12 +2251,6 @@ document.addEventListener('alpine:init', () => {
       if (!this.canPreview) return;
       const payload = this.buildPayload();
 
-      // Remember the editor state so "← Към редактиране" on the preview
-      // can restore it instead of dropping the user into an empty form.
-      try {
-        sessionStorage.setItem('pdforge.editorDraft', JSON.stringify(payload));
-      } catch (e) { /* sessionStorage may be unavailable; non-critical */ }
-
       // Build a hidden form and submit it — triggers a real navigation.
       const f = document.createElement('form');
       f.method = 'POST';
@@ -1771,6 +2268,12 @@ document.addEventListener('alpine:init', () => {
       data.name  = 'payload';
       data.value = JSON.stringify(payload);
       f.appendChild(data);
+
+      const backInput = document.createElement('input');
+      backInput.type  = 'hidden';
+      backInput.name  = 'back_url';
+      backInput.value = '{{ back_url|default:"" }}';
+      f.appendChild(backInput);
 
       document.body.appendChild(f);
       f.submit();
@@ -1791,7 +2294,8 @@ document.addEventListener('alpine:init', () => {
         });
         const data = await r.json();
         if (r.ok && data.ok) {
-          window.location.href = data.redirect_url;
+          const backUrl = '{{ back_url|default:"" }}';
+          window.location.href = backUrl || data.redirect_url;
         } else {
           alert('Грешка при запазване: ' + (data.error || r.status));
         }
@@ -1811,39 +2315,31 @@ document.addEventListener('alpine:init', () => {
           method: 'DELETE',
           headers: { 'X-CSRFToken': this._csrf() },
         });
-        if (r.ok) window.location.href = '{% url "core:protocol_list" %}';
-        else alert('Грешка при изтриване.');
+        if (r.ok) {
+          // Navigate the TOP-level window, not the iframe itself — this
+          // view can be embedded (the protocols list's preview popup).
+          (window.top || window).location.href = '{% url "core:protocol_list" %}';
+        } else {
+          alert('Грешка при изтриване.');
+        }
       } catch (e) {
         alert('Грешка при изтриване: ' + e);
       }
-    },
-
-    // Restore the editor state from sessionStorage if the user is coming
-    // back from the preview page via "← Към редактиране".
-    _restoreDraftIfAny() {
-      let saved;
-      try {
-        const raw = sessionStorage.getItem('pdforge.editorDraft');
-        if (!raw) return;
-        saved = JSON.parse(raw);
-      } catch (e) { return; }
-      if (!saved || typeof saved !== 'object') return;
-
-      // Defer until after the catalogs have loaded so .find() lookups work.
-      this.$nextTick(() => this._applyDraft(saved));
     },
 
     _applyDraft(d) {
       // Top-level state
       if (d.client_uuid)    this.clientUuid    = String(d.client_uuid);
       if (d.company_id)     { this.companyId    = String(d.company_id);     this.pickCompany(); }
-      if (d.client_id) {
-        const c = this.allClients.find(x => String(x.id) === String(d.client_id));
-        if (c) this.pickClient(c);
-      }
       if (d.site_id) {
+        // Site is primary (Stage 8a, reworked) — pickSite() also derives
+        // the client + firm fields from it.
         this.siteId = String(d.site_id);
         this.pickSite();
+      } else if (d.client_id) {
+        // Fallback for an old draft with only a client_id and no site yet.
+        const c = this.allClients.find(x => String(x.id) === String(d.client_id));
+        if (c) { this.clientId = String(c.id); this.clientName = c.name; }
       }
       this.isLongTerm    = !!d.is_long_term_contract;
       if (d.prepared_by_id) this.preparedById  = String(d.prepared_by_id);
@@ -1858,7 +2354,14 @@ document.addEventListener('alpine:init', () => {
 
       // Metadata strip
       if (d.pseudonym)        this.pseudonym   = d.pseudonym;
-      if (d.notes)            this.notes       = d.notes;
+      if (d.notes) {
+        this.notes = d.notes;
+        // The notes contenteditable is loaded asynchronously from prefill
+        // JSON (unlike form-rendered fields), so the rn-field JS init on
+        // DOMContentLoaded can race ahead of this assignment — set it
+        // explicitly here so edit/view modes always show the saved notes.
+        window.rnSetValue && window.rnSetValue(this.$refs.protocolNotesField, d.notes);
+      }
       if (d.price != null)    this.price       = d.price;
       if (Array.isArray(d.tag_ids)) this.tagIds = [...d.tag_ids];
 

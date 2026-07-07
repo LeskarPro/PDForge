@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<title>9a — Client popup — V4 (site rows expand inline, dropdown stays IN this popup)</title>
+<style>
+  :root{
+    --c-peach:#fec196; --c-coral:#ffa686; --c-clay:#d6a184; --c-mauve:#aa767c;
+    --c-plum:#63474d; --c-darkplum:#4a343a;
+    --text-primary:#3d2b2f; --text-muted:#8a7672; --border-subtle:rgba(99,71,77,.16);
+    --card-bg:#ffffff; --content-bg:#fdf9f6;
+    --radius-sm:6px; --radius-md:10px; --radius-lg:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI",sans-serif;background:#e9dfd9;
+       display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;min-height:100vh}
+  .page-label{position:fixed;top:14px;left:18px;font-size:12px;color:#fff;background:var(--c-plum);
+       padding:4px 10px;border-radius:8px;font-weight:600;letter-spacing:.03em}
+
+  .popup{width:580px;max-height:88vh;background:var(--card-bg);border-radius:var(--radius-lg);
+         box-shadow:0 16px 60px rgba(61,43,47,.28);overflow:hidden;display:flex;flex-direction:column}
+
+  .popup-header{flex:0 0 auto;display:flex;align-items:center;gap:10px;
+       padding:14px 18px;background:var(--c-darkplum);color:#fff}
+  .hdr-back{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.1);
+       border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:var(--radius-sm);
+       padding:6px 10px;font-size:12.5px;cursor:pointer}
+  .popup-pseudonym{flex:1;font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hdr-actions{display:flex;gap:6px;flex-shrink:0}
+  .hdr-btn{border-radius:var(--radius-sm);padding:6px 12px;font-size:12.5px;font-weight:500;
+       cursor:pointer;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff}
+  .hdr-btn.edit:hover{background:var(--c-coral);border-color:var(--c-coral)}
+  .hdr-btn.del:hover{background:#c0503c;border-color:#c0503c}
+
+  .popup-body{flex:1 1 auto;overflow-y:auto;padding:0 18px 18px}
+  .section{padding-top:18px}
+  .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+       color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+  .section-add{font-size:11.5px;color:var(--c-mauve);cursor:pointer;font-weight:600}
+
+  .row-list{border:1px solid var(--border-subtle);border-radius:var(--radius-md);overflow:hidden}
+  .row{padding:10px 12px;border-bottom:1px solid var(--border-subtle);font-size:12.5px;cursor:default}
+  .row:last-child{border-bottom:none}
+  .row-top{display:flex;align-items:center;gap:8px}
+  .cell-strong{font-weight:600;color:var(--text-primary);flex:1}
+  .row-icons{display:flex;gap:3px}
+  .icon-btn{width:24px;height:24px;border-radius:6px;border:1px solid transparent;
+       display:flex;align-items:center;justify-content:center;color:var(--text-muted);cursor:pointer}
+  .icon-btn:hover{background:var(--content-bg);border-color:var(--border-subtle)}
+  .row-sub{font-size:11.5px;color:var(--text-muted);margin-top:4px}
+  .status-active{display:inline-flex;align-items:center;background:rgba(255,166,134,.16);
+       color:#b05030;border:1px solid rgba(255,166,134,.4);border-radius:10px;
+       padding:1px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .status-ended{color:var(--text-muted);font-size:11px}
+
+  /* ── Site rows: clickable, expand inline (dropdown) within THIS popup ── */
+  .site-row{border-bottom:1px solid var(--border-subtle);cursor:pointer}
+  .site-row:last-child{border-bottom:none}
+  .site-row-main{display:flex;align-items:center;gap:8px;padding:10px 12px}
+  .site-row-main:hover{background:var(--content-bg)}
+  .chevron{color:var(--c-mauve);font-size:13px;transition:transform .15s;flex-shrink:0}
+  .chevron.open{transform:rotate(90deg)}
+
+  .site-row-detail{display:none;padding:0 12px 14px;background:var(--content-bg)}
+  .site-row.open .site-row-detail{display:block}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+  .detail-block{background:#fff;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:9px 11px}
+  .detail-block h4{margin:0 0 6px;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)}
+  .detail-row{display:flex;justify-content:space-between;font-size:11.5px;padding:2px 0;color:var(--text-primary)}
+  .detail-row .lbl{color:var(--text-muted)}
+  .detail-actions{margin-top:8px;display:flex;gap:6px}
+  .btn-mini{padding:6px 12px;font-size:11.5px;border-radius:6px;cursor:pointer;border:1px solid var(--border-subtle);background:#fff}
+  .btn-mini.primary{background:var(--c-coral);color:#fff;border-color:var(--c-coral)}
+
+  .caption{font-size:11px;color:var(--text-muted);font-style:italic;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="page-label">9a — V4: site rows expand IN the client popup (dropdown), not on the Обекти page</div>
+
+<div class="popup">
+
+  <div class="popup-header">
+    <button class="hdr-back">← Назад</button>
+    <div class="popup-pseudonym">Виктория Нутс</div>
+    <div class="hdr-actions">
+      <button class="hdr-btn edit">Редактирай</button>
+      <button class="hdr-btn del">Изтрий</button>
+    </div>
+  </div>
+
+  <div class="popup-body">
+
+    <!-- ── Contacts (unchanged) ── -->
+    <div class="section">
+      <div class="section-title">
+        <span>Контактни лица</span>
+        <span class="section-add">+ Ново контактно лице</span>
+      </div>
+      <div class="row-list">
+        <div class="row">
+          <div class="row-top"><div class="cell-strong">Иван Петров</div>
+            <div class="row-icons"><div class="icon-btn">✎</div><div class="icon-btn">🗑</div></div></div>
+          <div class="row-sub">0888 123 456 · Управител</div>
+        </div>
+        <div class="row">
+          <div class="row-top"><div class="cell-strong">Мария Георгиева</div>
+            <div class="row-icons"><div class="icon-btn">✎</div><div class="icon-btn">🗑</div></div></div>
+          <div class="row-sub">0899 456 789 · Счетоводител</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Sites — click a row to drop down full site + firm info, right here ── -->
+    <div class="section">
+      <div class="section-title">
+        <span>Обекти</span>
+        <span class="section-add">+ Нов обект</span>
+      </div>
+      <div class="row-list">
+
+        <!-- Row 1 — shown expanded by default to demonstrate -->
+        <div class="site-row open" onclick="this.classList.toggle('open'); this.querySelector('.chevron').classList.toggle('open')">
+          <div class="site-row-main">
+            <span class="chevron open">›</span>
+            <div class="cell-strong">Магазин №1</div>
+            <span class="status-active">Активен</span>
+          </div>
+          <div class="site-row-detail" onclick="event.stopPropagation()">
+            <div class="detail-grid">
+              <div class="detail-block">
+                <h4>Обект</h4>
+                <div class="detail-row"><span class="lbl">Адрес</span><span>ул. Витоша 15, гр. София</span></div>
+                <div class="detail-row"><span class="lbl">Площ</span><span>120 m²</span></div>
+                <div class="detail-row"><span class="lbl">От</span><span>03.2024</span></div>
+              </div>
+              <div class="detail-block">
+                <h4>Текуща фирма</h4>
+                <div class="detail-row"><span class="lbl">Фирма</span><span>„Виктория Нутс“ ЕООД</span></div>
+                <div class="detail-row"><span class="lbl">ЕИК</span><span>111111111</span></div>
+                <div class="detail-row"><span class="lbl">Свързана от</span><span>03.2024</span></div>
+              </div>
+            </div>
+            <div class="detail-actions">
+              <div class="btn-mini primary">Отвори пълния попъп на обекта</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2 — collapsed -->
+        <div class="site-row" onclick="this.classList.toggle('open'); this.querySelector('.chevron').classList.toggle('open')">
+          <div class="site-row-main">
+            <span class="chevron">›</span>
+            <div class="cell-strong">Склад Люлин</div>
+            <span class="status-active">Активен</span>
+          </div>
+          <div class="site-row-detail" onclick="event.stopPropagation()">
+            <div class="detail-grid">
+              <div class="detail-block">
+                <h4>Обект</h4>
+                <div class="detail-row"><span class="lbl">Адрес</span><span>ул. Народни Будители 8</span></div>
+                <div class="detail-row"><span class="lbl">Площ</span><span>340 m²</span></div>
+              </div>
+              <div class="detail-block">
+                <h4>Текуща фирма</h4>
+                <div class="detail-row"><span class="lbl">Фирма</span><span>„Виктория Нутс“ ЕООД</span></div>
+                <div class="detail-row"><span class="lbl">ЕИК</span><span>111111111</span></div>
+              </div>
+            </div>
+            <div class="detail-actions">
+              <div class="btn-mini primary">Отвори пълния попъп на обекта</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 3 — collapsed, inactive site -->
+        <div class="site-row" onclick="this.classList.toggle('open'); this.querySelector('.chevron').classList.toggle('open')">
+          <div class="site-row-main">
+            <span class="chevron">›</span>
+            <div class="cell-strong" style="opacity:.65">Магазин №3 (затворен)</div>
+            <span class="status-ended">от 11.2025</span>
+          </div>
+          <div class="site-row-detail" onclick="event.stopPropagation()">
+            <div class="detail-grid">
+              <div class="detail-block">
+                <h4>Обект</h4>
+                <div class="detail-row"><span class="lbl">Адрес</span><span>бул. Дондуков 22</span></div>
+              </div>
+              <div class="detail-block">
+                <h4>Последна фирма</h4>
+                <div class="detail-row"><span class="lbl">Фирма</span><span>„Виктория Нутс Стар“ ЕООД</span></div>
+              </div>
+            </div>
+            <div class="detail-actions">
+              <div class="btn-mini primary">Отвори пълния попъп на обекта</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="caption">Клик на ред разгъва обекта и фирмата му тук, в попъпа на клиента. "Отвори пълния попъп" води до 9b (там е управлението на фирмата за обекта).</div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

@@ -10,7 +10,7 @@ from decimal import Decimal
 import datetime
 
 from core.models import (
-    Client, Company, Site, Worker, Pest, Tag,
+    Client, Firm, Company, Site, Worker, Pest, Tag,
     Protocol, ProtocolColumn, TemplateFolder, Product,
 )
 
@@ -131,9 +131,10 @@ class Command(BaseCommand):
         client_objs = {}
         site_objs = {}
         for cd in clients_data:
-            client, _ = Client.objects.get_or_create(
-                eik=cd["eik"],
-                defaults=dict(firm=cd["firm"], name=cd["name"], address=cd["address"])
+            client, _ = Client.objects.get_or_create(name=cd["name"])
+            Firm.objects.get_or_create(
+                client=client, eik=cd["eik"],
+                defaults=dict(name=cd["firm"], address=cd["address"], is_active=True),
             )
             client_objs[cd["name"]] = client
             for site_name, site_addr in cd["sites"]:

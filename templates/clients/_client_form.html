@@ -2,58 +2,220 @@
   {% if mode == 'edit' %}Редактирай клиент{% else %}Нов клиент{% endif %}
 </div>
 
-<form hx-post="{% if mode == 'edit' %}{% url 'core:client_edit' client.pk %}{% else %}{% url 'core:client_create' %}{% endif %}"
+<form id="client-edit-form"
+      hx-post="{% if mode == 'edit' %}{% url 'core:client_edit' client.pk %}{% else %}{% url 'core:client_create' %}{% endif %}"
       hx-target="#modal-content"
       hx-swap="innerHTML">
   {% csrf_token %}
 
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label">Фирма <span class="req">*</span></label>
-      <input class="form-input" name="firm" value="{{ form.firm.value|default:'' }}"
-             placeholder="„Виктория Нутс" ЕООД" required>
-      {% for e in form.firm.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
-    </div>
-    <div class="form-group">
-      <label class="form-label">Кратко наименование <span class="req">*</span></label>
-      <input class="form-input" name="name" value="{{ form.name.value|default:'' }}"
-             placeholder="Виктория Нутс" required>
-      {% for e in form.name.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
-    </div>
-  </div>
-
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label">ЕИК <span class="req">*</span></label>
-      <input class="form-input" name="eik" value="{{ form.eik.value|default:'' }}"
-             placeholder="123456789" maxlength="9" required>
-      {% for e in form.eik.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
-    </div>
-    <div class="form-group">
-      <label class="form-label">Телефон</label>
-      <input class="form-input" name="phone" value="{{ form.phone.value|default:'' }}"
-             placeholder="02 123 4567">
-      {% for e in form.phone.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
-    </div>
-  </div>
-
   <div class="form-group">
-    <label class="form-label">Адрес</label>
-    <input class="form-input" name="address" value="{{ form.address.value|default:'' }}"
-           placeholder="гр. Sofia, бул. Дондуков 22">
-    {% for e in form.address.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+    <label class="form-label">Кратко наименование <span class="req">*</span></label>
+    <input class="form-input" name="name" value="{{ form.name.value|default:'' }}"
+           placeholder="Виктория Нутс" required>
+    {% for e in form.name.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
   </div>
 
-  <div class="form-group">
-    <label class="form-label">Бележки</label>
-    <textarea class="form-input" name="notes" placeholder="Бележки…">{{ form.notes.value|default:'' }}</textarea>
+  <div class="form-group rn-field">
+    <label class="form-label">Бележки <span style="color:var(--text-muted);font-weight:400;">(⌘B / ⌘I / ⌘U)</span></label>
+    <div class="form-input rn-editable" contenteditable="true" data-placeholder="Бележки…"></div>
+    <textarea class="rn-source" name="notes">{{ form.notes.value|default:'' }}</textarea>
     {% for e in form.notes.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
   </div>
 
-  <div class="modal-footer">
-    <button type="button" class="btn-cancel" onclick="closeModal()">Откажи</button>
-    <button type="submit" class="btn-save">
-      {% if mode == 'edit' %}Запази{% else %}Създай клиент{% endif %}
-    </button>
+  {% if mode != 'edit' %}
+  <div class="form-group">
+    <label class="form-label">Контактни лица</label>
+    <div id="cc-contacts-list"></div>
+    <div id="cc-contacts-empty" class="no-contacts">Няма добавени контактни лица.</div>
+
+    <div class="tag-inline-wrap" style="margin-top:6px;">
+      <button type="button" class="tag-add-open-btn" onclick="ccOpenContactForm(this)"
+              style="padding:3px 10px;border:1px dashed var(--border-subtle);border-radius:12px;background:transparent;color:var(--text-muted);cursor:pointer;font-size:12px;font-family:inherit;">+ Ново контактно лице</button>
+      <div class="contact-add-form" style="display:none;margin-top:6px;padding:10px;border:1px solid var(--border-subtle);border-radius:6px;background:var(--card-bg);">
+        <div class="form-row" style="margin-bottom:6px;">
+          <div class="form-group"><input type="text" class="form-input contact-add-name" placeholder="Име"></div>
+          <div class="form-group"><input type="text" class="form-input contact-add-phone" placeholder="Телефон"></div>
+          <div class="form-group"><input type="text" class="form-input contact-add-position" placeholder="Длъжност"></div>
+        </div>
+        <div class="contact-add-error" style="color:var(--c-coral);font-size:11px;display:none;margin-bottom:6px;"></div>
+        <div style="display:flex;gap:6px;">
+          <button type="button" class="btn-cancel" onclick="ccCloseContactForm(this)">Отказ</button>
+          <button type="button" class="btn-save" onclick="ccAddContactRow(this)">Добави</button>
+        </div>
+      </div>
+    </div>
   </div>
+  {% endif %}
+
 </form>
+
+{% if mode == 'edit' %}
+<div class="form-group" style="padding:0 0 4px;">
+  <label class="form-label">Контактни лица</label>
+  <div id="client-contacts-{{ client.pk }}">
+    {% include "clients/_client_contacts_list.html" %}
+  </div>
+  <form hx-post="{% url 'core:contact_create' client.pk %}"
+        hx-target="#client-contacts-{{ client.pk }}" hx-swap="innerHTML"
+        style="display:flex;gap:8px;margin-top:8px;align-items:flex-start;">
+    {% csrf_token %}
+    <div class="form-group" style="flex:1;margin-bottom:0;"><input class="form-input" name="name" placeholder="Име" required></div>
+    <div class="form-group" style="flex:1;margin-bottom:0;"><input class="form-input" name="phone" placeholder="Телефон"></div>
+    <div class="form-group" style="flex:1;margin-bottom:0;"><input class="form-input" name="position" placeholder="Длъжност"></div>
+    <button type="submit" class="btn-save" style="white-space:nowrap;flex-shrink:0;">+ Добави</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="modal-footer">
+  <button type="button" class="btn-cancel" onclick="closeModal()">Откажи</button>
+  <button type="submit" form="client-edit-form" class="btn-save">
+    {% if mode == 'edit' %}Запази{% else %}Създай клиент{% endif %}
+  </button>
+</div>
+
+{% if mode != 'edit' %}
+<script>
+/* ── Staged client contacts (Stage 10c-2) — client doesn't exist yet, so
+   rows are kept purely client-side as hidden inputs and created server-side
+   in one shot by client_create / _save_new_client_contacts. Mirrors the
+   Еднократни обработки (8g) contact-row pattern. ── */
+const CC_PENCIL_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round"
+        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652
+           L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685
+           a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/>
+</svg>`;
+const CC_TRASH_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round"
+        d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21
+           c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673
+           a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1
+           -2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0
+           -3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0
+           a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916
+           c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0
+           -3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916
+           m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+</svg>`;
+const CC_CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+</svg>`;
+const CC_X_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+</svg>`;
+
+function ccOpenContactForm(btn) {
+  const wrap = btn.closest('.tag-inline-wrap');
+  btn.style.display = 'none';
+  wrap.querySelector('.contact-add-form').style.display = 'block';
+  wrap.querySelector('.contact-add-name').focus();
+}
+function ccCloseContactForm(el) {
+  const wrap = el.closest('.tag-inline-wrap');
+  wrap.querySelector('.contact-add-form').style.display = 'none';
+  wrap.querySelector('.tag-add-open-btn').style.display = '';
+  wrap.querySelector('.contact-add-name').value = '';
+  wrap.querySelector('.contact-add-phone').value = '';
+  wrap.querySelector('.contact-add-position').value = '';
+  wrap.querySelector('.contact-add-error').style.display = 'none';
+}
+function ccAddContactRow(btn) {
+  const wrap = btn.closest('.tag-inline-wrap');
+  const nameEl = wrap.querySelector('.contact-add-name');
+  const phoneEl = wrap.querySelector('.contact-add-phone');
+  const posEl = wrap.querySelector('.contact-add-position');
+  const errEl = wrap.querySelector('.contact-add-error');
+  const name = nameEl.value.trim();
+  if (!name) { errEl.textContent = 'Въведете име'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  ccAppendContactRow(name, phoneEl.value.trim(), posEl.value.trim());
+  ccCloseContactForm(btn);
+}
+function ccRenderDisplayRow(row, name, phone, position) {
+  row.classList.remove('contact-row--editing');
+  row.removeAttribute('style');
+  row.innerHTML = `
+    <input type="hidden" name="contact_name">
+    <input type="hidden" name="contact_phone">
+    <input type="hidden" name="contact_position">
+    <div class="contact-info">
+      <div class="contact-name"></div>
+      <div class="contact-detail"></div>
+    </div>
+    <div class="contact-actions">
+      <button type="button" class="contact-btn" title="Редактирай" onclick="ccEditContactRow(this)">${CC_PENCIL_SVG}</button>
+      <button type="button" class="contact-btn del" title="Изтрий" onclick="ccRemoveContactRow(this)">${CC_TRASH_SVG}</button>
+    </div>`;
+  row.querySelector('input[name=contact_name]').value = name;
+  row.querySelector('input[name=contact_phone]').value = phone;
+  row.querySelector('input[name=contact_position]').value = position;
+  row.querySelector('.contact-name').textContent = name;
+  const detailEl = row.querySelector('.contact-detail');
+  const parts = [phone, position].filter(Boolean);
+  if (parts.length) {
+    detailEl.textContent = parts.join(' · ');
+  } else {
+    detailEl.innerHTML = '';
+    const span = document.createElement('span');
+    span.style.color = 'var(--text-muted)';
+    span.style.fontStyle = 'italic';
+    span.textContent = '—';
+    detailEl.appendChild(span);
+  }
+}
+function ccAppendContactRow(name, phone, position) {
+  document.getElementById('cc-contacts-empty').style.display = 'none';
+  const row = document.createElement('div');
+  row.className = 'contact-row';
+  ccRenderDisplayRow(row, name, phone, position);
+  document.getElementById('cc-contacts-list').appendChild(row);
+}
+function ccRemoveContactRow(btn) {
+  const row = btn.closest('.contact-row');
+  row.remove();
+  if (!document.querySelector('#cc-contacts-list .contact-row')) {
+    document.getElementById('cc-contacts-empty').style.display = '';
+  }
+}
+function ccEditContactRow(btn) {
+  const row = btn.closest('.contact-row');
+  const name = row.querySelector('input[name=contact_name]').value;
+  const phone = row.querySelector('input[name=contact_phone]').value;
+  const position = row.querySelector('input[name=contact_position]').value;
+  row.dataset.ccName = name;
+  row.dataset.ccPhone = phone;
+  row.dataset.ccPosition = position;
+  row.classList.add('contact-row--editing');
+  row.style.display = 'flex';
+  row.style.gap = '8px';
+  row.style.alignItems = 'flex-start';
+  row.innerHTML = `
+    <div style="display:flex;gap:8px;flex:1;flex-wrap:wrap;">
+      <div class="form-group" style="flex:1;min-width:110px;"><input class="form-input cc-edit-name" placeholder="Име"></div>
+      <div class="form-group" style="flex:1;min-width:110px;"><input class="form-input cc-edit-phone" placeholder="Телефон"></div>
+      <div class="form-group" style="flex:1;min-width:110px;"><input class="form-input cc-edit-position" placeholder="Длъжност"></div>
+    </div>
+    <div class="contact-actions">
+      <button type="button" class="contact-btn" title="Запази" onclick="ccSaveContactRow(this)">${CC_CHECK_SVG}</button>
+      <button type="button" class="contact-btn" title="Откажи" onclick="ccCancelEditContactRow(this)">${CC_X_SVG}</button>
+    </div>`;
+  row.querySelector('.cc-edit-name').value = name;
+  row.querySelector('.cc-edit-phone').value = phone;
+  row.querySelector('.cc-edit-position').value = position;
+}
+function ccSaveContactRow(btn) {
+  const row = btn.closest('.contact-row');
+  const nameEl = row.querySelector('.cc-edit-name');
+  const name = nameEl.value.trim();
+  if (!name) { nameEl.focus(); return; }
+  const phone = row.querySelector('.cc-edit-phone').value.trim();
+  const position = row.querySelector('.cc-edit-position').value.trim();
+  ccRenderDisplayRow(row, name, phone, position);
+}
+function ccCancelEditContactRow(btn) {
+  const row = btn.closest('.contact-row');
+  ccRenderDisplayRow(row, row.dataset.ccName || '', row.dataset.ccPhone || '', row.dataset.ccPosition || '');
+}
+</script>
+{% endif %}

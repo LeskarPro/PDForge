@@ -58,7 +58,7 @@
         {% endfor %}
       </div>
       {% if treatment.price %}
-        <span class="price-val">{{ treatment.price }} лв.</span>
+        <span class="price-val">{{ treatment.price }} €</span>
       {% else %}
         <span class="price-none">без цена</span>
       {% endif %}
@@ -156,7 +156,7 @@
     {% if treatment.notes %}
     <div class="detail-section">
       <div class="detail-section-title">Бележка</div>
-      <div class="note-box">{{ treatment.notes }}</div>
+      <div class="note-box">{{ treatment.notes|notes_safe }}</div>
     </div>
     {% endif %}
 

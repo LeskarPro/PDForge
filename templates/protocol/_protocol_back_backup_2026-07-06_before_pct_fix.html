@@ -1,0 +1,152 @@
+{% with cols=protocol.columns_by_service %}
+<table class="protocol-table">
+  <colgroup>
+    <col style="width: 1%">
+    <col style="width: 36%">
+    <col style="width: 16px"><col style="width: 40px">
+    <col style="width: 16px"><col style="width: 40px">
+    <col style="width: 5px"><col style="width: 40px">
+    <col style="width: 16px"><col style="width: 40px">
+  </colgroup>
+  <thead>
+    <tr>
+      <th class="col-num">№</th>
+      <th>Данни за извършените в обекта ДДД обработки</th>
+      <th colspan="4">Дезинсекция и дезакаризация</th>
+      <th colspan="2">Дератизация</th>
+      <th colspan="2">Дезинфекция</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if protocol.row11_show_total %}
+    {% if protocol.row10_on_back %}
+    <tr>
+      <td class="col-num">10</td>
+      <td>Работен разтвор — концентрация и норма</td>
+      <td colspan="4">{% for pp in cols.disinsection.protocol_products.all %}{{ forloop.counter }}. {{ pp.snapshot_working_solution }}<br>{% endfor %}</td>
+      <td colspan="2">{% for pp in cols.deratization.protocol_products.all %}{{ forloop.counter }}. {{ pp.snapshot_working_solution }}<br>{% endfor %}</td>
+      <td colspan="2">{% for pp in cols.disinfection.protocol_products.all %}{{ forloop.counter }}. {{ pp.snapshot_working_solution }}<br>{% endfor %}</td>
+    </tr>
+    {% endif %}
+    <tr>
+      <td class="col-num"{% if protocol.row11_show_baits %} rowspan="2"{% endif %}>11</td>
+      <td>Общо количество изразходван препарат / работен разтвор.</td>
+      <td colspan="4">{{ cols.disinsection.total_used }}</td>
+      <td colspan="2">--</td>
+      <td colspan="2">{{ cols.disinfection.total_used }}</td>
+    </tr>
+    {% endif %}
+    {% if protocol.row11_show_baits %}
+    <tr>
+      {% if not protocol.row11_show_total %}<td class="col-num">11</td>{% endif %}
+      <td>Брой на поставените/заредени дератизациони кутии* и количеството родентицид, заложено в една дератизационна кутия (g).</td>
+      <td colspan="4">--</td>
+      <td colspan="2">{{ protocol.deratization_bait_text }}</td>
+      <td colspan="2">--</td>
+    </tr>
+    {% endif %}
+    {% load protocol_tags %}
+    <tr>
+      <td class="col-num">12</td>
+      <td>Указания за мерки за безопасност в обекта</td>
+      <td colspan="4">{% dedup_snapshots cols.disinsection "snapshot_safety_instructions" %}</td>
+      <td colspan="2">{% dedup_snapshots cols.deratization "snapshot_safety_instructions" %}</td>
+      <td colspan="2">{% dedup_snapshots cols.disinfection "snapshot_safety_instructions" %}</td>
+    </tr>
+<!--    <tr>-->
+<!--      <td class="col-num">12</td>-->
+<!--      <td>Указания за мерки за безопасност в обекта</td>-->
+<!--      <td colspan="4">{% for pp in cols.disinsection.protocol_products.all %}{{ forloop.counter }}. {{ pp.snapshot_safety_instructions }}<br>{% endfor %}</td>-->
+<!--      <td colspan="2">{% for pp in cols.deratization.protocol_products.all %}{{ forloop.counter }}. {{ pp.snapshot_safety_instructions }}<br>{% endfor %}</td>-->
+<!--      <td colspan="2">{% for pp in cols.disinfection.protocol_products.all %}{{ forloop.counter }}. {{ pp.snapshot_safety_instructions }}<br>{% endfor %}</td>-->
+<!--    </tr>-->
+    <tr>
+      <td class="col-num">12.1</td>
+      <td>Време на въздействие на биоцида</td>
+      <td colspan="4">{% dedup_snapshots cols.disinsection "snapshot_action_time" %}</td>
+      <td colspan="2">{% dedup_snapshots cols.deratization "snapshot_action_time" %}</td>
+      <td colspan="2">{% dedup_snapshots cols.disinfection "snapshot_action_time" %}</td>
+    </tr>
+    <tr>
+      <td class="col-num">12.2</td>
+      <td>Достъп на хора и животни до обработените площи. Време за проветряване.</td>
+      <td colspan="4">{% dedup_snapshots cols.disinsection "snapshot_access_info" %}</td>
+      <td colspan="2">{% dedup_snapshots cols.deratization "snapshot_access_info" %}</td>
+      <td colspan="2">{% dedup_snapshots cols.disinfection "snapshot_access_info" %}</td>
+    </tr>
+    <tr>
+      <td class="col-num">12.3</td>
+      <td>Повърхности, подлежащи на забърсване / изплакване след времето на въздействие</td>
+      <td colspan="4">{% dedup_snapshots cols.disinsection "snapshot_surfaces_to_wipe" %}</td>
+      <td colspan="2">{% dedup_snapshots cols.deratization "snapshot_surfaces_to_wipe" %}</td>
+      <td colspan="2">{% dedup_snapshots cols.disinfection "snapshot_surfaces_to_wipe" %}</td>
+    </tr>
+    <tr>
+      <td class="col-num">12.4</td>
+      <td>Антидот</td>
+      <td colspan="4">{% dedup_snapshots cols.disinsection "snapshot_antidote" %}</td>
+      <td colspan="2">{% dedup_snapshots cols.deratization "snapshot_antidote" %}</td>
+      <td colspan="2">{% dedup_snapshots cols.disinfection "snapshot_antidote" %}</td>
+    </tr>
+    <tr>
+      <td class="col-num">12.5</td>
+      <td>Други</td>
+      <td colspan="4">{{ cols.disinsection.safety_other|default:"--" }}</td>
+      <td colspan="2">{{ cols.deratization.safety_other|default:"--" }}</td>
+      <td colspan="2">{{ cols.disinfection.safety_other|default:"--" }}</td>
+    </tr>
+    <tr>
+      <td class="col-num">13</td>
+      <td>Препоръки към заявителя за подобряване на санитарно-хигиенните и технически условия в обекта</td>
+      <td colspan="4">{{ cols.disinsection.recommendations }}</td>
+      <td colspan="2">{{ cols.deratization.recommendations }}</td>
+      <td colspan="2">{{ cols.disinfection.recommendations }}</td>
+    </tr>
+    <tr>
+      <td class="col-num">14</td>
+      <td>Наложили се промени и корекции на данните в протокола</td>
+      <td colspan="4">{{ cols.disinsection.corrections }}</td>
+      <td colspan="2">{{ cols.deratization.corrections }}</td>
+      <td colspan="2">{{ cols.disinfection.corrections }}</td>
+    </tr>
+  </tbody>
+</table>
+<div class="footnote">* Прилага се картосхема на местоположението им в обекта.</div>
+
+<table class="footer-table">
+  <colgroup>
+    <col style="width: 46%">
+    <col style="width: 16%">
+    <col style="width: 38%">
+  </colgroup>
+  <tr>
+    <td>
+      Протоколът е подготвен от: {{ protocol.prepared_by.name|default:"" }}<br>
+      <span class="footer-hint">(име и фамилия на ръководителя на ДДД)</span>
+    </td>
+    <td>Подпис:</td>
+    <td>Дата: {{ protocol.prepared_date|date:"d.m.Y"|default:"" }}</td>
+  </tr>
+  <tr>
+    <td>
+      Обработката е извършена от: {{ protocol.executed_by.name|default:"" }}<br>
+      <span class="footer-hint">(име и фамилия на изпълнителя на ДДД)</span>
+    </td>
+    <td>Подпис:</td>
+    <td>
+      <div class="fd-row">
+        <span>Дата: {{ protocol.date|date:"d.m.Y"|default:"" }}</span>
+        <span class="fd-right">
+          Време на извършване на обработката:<br>
+          (час от………....до …………......)
+        </span>
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td class="footer-signatory" colspan="3">
+      Подпис на заявителя на обработката или на упълномощено от него лице (име и фамилия):
+    </td>
+  </tr>
+</table>
+{% endwith %}

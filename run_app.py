@@ -47,7 +47,7 @@ def ensure_data_dir():
     """First run: copy the seed db into Application Support if missing.
 
     MUST run before django.setup(). CoreConfig.ready() starts a background
-    sync thread that queries the DB immediately when FROZEN. If db.sqlite3
+    sync thread that queries the DB immediately when FROZEN. If db_old.sqlite3
     doesn't exist yet, sqlite3 silently creates an empty file on that
     thread's first connection — which then makes this check think data
     already exists and skip the seed copy, leaving a blank db that
@@ -55,12 +55,12 @@ def ensure_data_dir():
     NonChemicalMeans) instead of the shipping-clean seed.
     """
     data_dir = Path(settings.APP_DATA_DIR)
-    db_path = data_dir / "db.sqlite3"
+    db_path = data_dir / "db_old.sqlite3"
     if db_path.exists():
         return
 
     resource_dir = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
-    seed_db = resource_dir / "seed" / "db.sqlite3"
+    seed_db = resource_dir / "seed" / "db_old.sqlite3"
     if seed_db.exists():
         shutil.copy2(seed_db, db_path)
 
@@ -170,6 +170,7 @@ def main():
         "PDForge", f"http://127.0.0.1:{port}/",
         js_api=api,
         width=1280, height=860, min_size=(900, 600),
+        text_select=True,
     )
 
     def on_closing():

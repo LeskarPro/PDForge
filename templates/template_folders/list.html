@@ -5,17 +5,45 @@
 {% block topbar_title %}Шаблони{% endblock %}
 
 {% block topbar_actions %}
-  <button class="btn-outline" style="font-size:13px;"
-          hx-get="{% url 'core:folder_create' %}"
-          hx-target="#modal-content"
-          hx-swap="innerHTML">
-    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5v6m3-3H9m4.06-7.19-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"/></svg>
-    Нова папка
-  </button>
+  {% if show_deleted %}
+    <a href="{% url 'core:template_list' %}" class="btn-tpl-outline" style="text-decoration:none;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+      Към текущи
+    </a>
+  {% else %}
+    <button class="btn-primary" style="font-size:13px;"
+            hx-get="{% url 'core:folder_create' %}"
+            hx-target="#modal-content"
+            hx-swap="innerHTML">
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5v6m3-3H9m4.06-7.19-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"/></svg>
+      Нова папка
+    </button>
+    <a href="{% url 'core:template_list' %}?mode=deleted" class="btn-tpl-outline" style="text-decoration:none;">
+      Архив
+    </a>
+  {% endif %}
 {% endblock %}
 
 {% block extra_head %}
 <style>
+  /* ── Topbar outline button (Архив / Към текущи) ── */
+  .btn-tpl-outline {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:8px 16px;
+    background:transparent;
+    color:#7a5040;
+    font-size:13px; font-weight:500;
+    border:1px solid #c4956a;
+    border-radius:var(--radius-sm);
+    transition:background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+    cursor:pointer;
+  }
+  .btn-tpl-outline:hover {
+    background:rgba(196,149,106,.12);
+    color:#5a3520;
+    border-color:#a07050;
+  }
+
   /* ── Toolbar ── */
   .toolbar { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
   .search-wrap { position:relative; flex:1; max-width:320px; }
@@ -141,6 +169,63 @@
   /* ── Spacing between sections ── */
   .section-gap { margin-top:14px; }
 
+  /* ── Restore button (deleted mode) ── */
+  .btn-restore {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:6px 14px; background:#2d7a4a; color:#fff;
+    font-size:12.5px; font-weight:500; border-radius:var(--radius-sm);
+    transition:background var(--t-fast); cursor:pointer; white-space:nowrap;
+  }
+  .btn-restore:hover { background:#256640; }
+  .btn-restore-sm {
+    padding:4px 10px; font-size:12px;
+  }
+
+  /* ── Deleted mode banner ── */
+  .deleted-banner {
+    display:flex; align-items:center; gap:8px;
+    padding:8px 14px; margin-bottom:14px;
+    background:rgba(217,83,79,.07); border:1px solid rgba(217,83,79,.2);
+    border-radius:var(--radius-sm); font-size:12.5px; color:#a03030;
+  }
+
+  /* ── Template preview popup ── */
+  .tp-modal-veil {
+    display: none; position: fixed; inset: 0;
+    background: rgba(40,28,30,.55);
+    align-items: center; justify-content: center;
+    z-index: 300; padding: 20px;
+  }
+  .tp-modal-veil.open { display: flex; }
+  .tp-modal-frame {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 60px rgba(40,28,30,.4);
+    width: 100%; max-width: 1200px; height: 90vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .tp-modal-header {
+    display: flex; align-items: center;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--card-bg);
+    flex-shrink: 0;
+  }
+  .tp-modal-close {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    background: transparent; color: #7a5040;
+    font-size: 13px; font-weight: 500;
+    border: 1px solid #c4956a; border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background var(--t-fast), color var(--t-fast);
+  }
+  .tp-modal-close:hover { background: rgba(196,149,106,.12); color: #5a3520; }
+  .tp-modal-frame iframe { width: 100%; border: none; display: block; flex: 1; min-height: 0; }
+
+  /* Make template card body clickable */
+  .template-card { cursor: pointer; }
+
   /* ── Folder/template action icon buttons ── */
   .row-icon-btn {
     display:flex; align-items:center; justify-content:center;
@@ -188,13 +273,19 @@
   </div>
 </div>
 
-{# ── Toolbar ── #}
+{% if show_deleted %}
+<div class="deleted-banner">
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></svg>
+  Съхраняват се папки и шаблони изтрити през последните 90 дни.
+</div>
+{% endif %}
+
 <div class="toolbar">
   <div class="search-wrap">
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0Z"/></svg>
     <input class="search-input" type="text" name="q" placeholder="Търси шаблон…" id="tpl-search"
            value="{{ search_query }}"
-           hx-get="{{ request.path }}"
+           hx-get="{{ request.path }}{% if show_deleted %}?mode=deleted{% endif %}"
            hx-trigger="input changed delay:300ms, search"
            hx-target="#tpl-content"
            hx-swap="innerHTML"
@@ -216,12 +307,63 @@
   {% include "template_folders/_tpl_content.html" %}
 </div>
 
+<div id="template-preview-modal" class="tp-modal-veil" tabindex="-1" onclick="if(event.target===this) closeTemplatePreview()">
+  <div class="tp-modal-frame">
+    <div class="tp-modal-header">
+      <button class="tp-modal-close" onclick="closeTemplatePreview()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+        Назад
+      </button>
+      <span id="tp-modal-name" style="font-size:14px;font-weight:700;color:var(--text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 12px;"></span>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <a id="tp-btn-edit" href="#" class="btn-tpl-outline" style="font-size:13px;text-decoration:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+          Редактирай
+        </a>
+        <a id="tp-btn-use" href="#" class="btn-primary" style="font-size:13px;text-decoration:none;">
+          Използвай
+        </a>
+      </div>
+    </div>
+    <iframe id="template-preview-iframe" src="" title="Преглед на шаблон"></iframe>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
   document.addEventListener('htmx:configRequest', e => {
     e.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+  });
+
+  function openTemplatePreview(pk, name) {
+    const modal  = document.getElementById('template-preview-modal');
+    const iframe = document.getElementById('template-preview-iframe');
+    document.getElementById('tp-modal-name').textContent = name || '';
+    document.getElementById('tp-btn-edit').href = `/templates/${pk}/edit/`;
+    document.getElementById('tp-btn-use').href  = `/templates/${pk}/use/`;
+    iframe.src = `/protocols/${pk}/view/?embed=1`;
+    modal.classList.add('open');
+    // Keep focus on the parent page so Escape key is captured here, not in the iframe.
+    modal.focus();
+  }
+  function closeTemplatePreview() {
+    const modal  = document.getElementById('template-preview-modal');
+    const iframe = document.getElementById('template-preview-iframe');
+    modal.classList.remove('open');
+    iframe.src = 'about:blank';
+  }
+  // Close via postMessage from the iframe back button (belt-and-suspenders).
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'closePreviewModal') closeTemplatePreview();
+  });
+  // Escape key — works when parent page has focus.
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('template-preview-modal');
+      if (modal.classList.contains('open')) closeTemplatePreview();
+    }
   });
   function closeModal() {
     document.getElementById('modal').classList.add('hidden');

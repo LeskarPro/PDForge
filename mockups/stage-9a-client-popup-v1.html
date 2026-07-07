@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<title>9a — Client popup — V1 (flat lists)</title>
+<style>
+  :root{
+    --c-peach:#fec196; --c-coral:#ffa686; --c-clay:#d6a184; --c-mauve:#aa767c;
+    --c-plum:#63474d; --c-darkplum:#4a343a;
+    --text-primary:#3d2b2f; --text-muted:#8a7672; --border-subtle:rgba(99,71,77,.16);
+    --card-bg:#ffffff; --content-bg:#fdf9f6;
+    --radius-sm:6px; --radius-md:10px; --radius-lg:16px;
+    --t-fast:150ms ease;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI",sans-serif;background:#e9dfd9;
+       display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;min-height:100vh}
+  .page-label{position:fixed;top:14px;left:18px;font-size:12px;color:#fff;background:var(--c-plum);
+       padding:4px 10px;border-radius:8px;font-weight:600;letter-spacing:.03em}
+
+  .popup{width:560px;max-height:86vh;background:var(--card-bg);border-radius:var(--radius-lg);
+         box-shadow:0 16px 60px rgba(61,43,47,.28);overflow:hidden;display:flex;flex-direction:column}
+
+  /* ── Frozen header ── */
+  .popup-header{flex:0 0 auto;display:flex;align-items:center;gap:10px;
+       padding:14px 18px;background:var(--c-darkplum);color:#fff}
+  .hdr-back{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.1);
+       border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:var(--radius-sm);
+       padding:6px 10px;font-size:12.5px;cursor:pointer}
+  .popup-pseudonym{flex:1;font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hdr-actions{display:flex;gap:6px;flex-shrink:0}
+  .hdr-btn{border-radius:var(--radius-sm);padding:6px 12px;font-size:12.5px;font-weight:500;
+       cursor:pointer;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff}
+  .hdr-btn.edit:hover{background:var(--c-coral);border-color:var(--c-coral)}
+  .hdr-btn.del:hover{background:#c0503c;border-color:#c0503c}
+
+  /* ── Scrollable body ── */
+  .popup-body{flex:1 1 auto;overflow-y:auto;padding:0 18px 18px}
+
+  .section{padding-top:18px}
+  .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+       color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+  .section-add{font-size:11.5px;color:var(--c-mauve);cursor:pointer;font-weight:600}
+
+  .row-list{border:1px solid var(--border-subtle);border-radius:var(--radius-md);overflow:hidden}
+  .row{display:grid;grid-template-columns:1.3fr 1fr 1.4fr .9fr auto;gap:10px;align-items:center;
+       padding:10px 12px;border-bottom:1px solid var(--border-subtle);font-size:12.5px}
+  .row:last-child{border-bottom:none}
+  .row:hover{background:var(--content-bg)}
+  .row.clickable{cursor:pointer}
+  .row.inactive{opacity:.6}
+  .cell-strong{font-weight:600;color:var(--text-primary)}
+  .cell-muted{color:var(--text-muted)}
+  .status-active{display:inline-flex;align-items:center;gap:4px;background:rgba(255,166,134,.16);
+       color:#b05030;border:1px solid rgba(255,166,134,.4);border-radius:10px;
+       padding:2px 9px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+       cursor:pointer;white-space:nowrap}
+  .status-ended{color:var(--text-muted);font-size:11.5px;white-space:nowrap}
+  .row-icons{display:flex;gap:3px;justify-content:flex-end}
+  .icon-btn{width:24px;height:24px;border-radius:6px;border:1px solid transparent;
+       display:flex;align-items:center;justify-content:center;color:var(--text-muted);cursor:pointer}
+  .icon-btn:hover{background:var(--content-bg);border-color:var(--border-subtle)}
+  .chevron-hint{color:var(--c-mauve);font-size:13px}
+
+  /* Inline "add new" demo row — illustrates the agreed inline-form pattern */
+  .inline-form{margin-top:8px;border:1px dashed var(--c-mauve);border-radius:var(--radius-md);
+       padding:12px;background:var(--content-bg)}
+  .inline-form-title{font-size:11px;font-weight:700;color:var(--c-plum);margin-bottom:8px;
+       text-transform:uppercase;letter-spacing:.06em}
+  .inline-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+  .inline-form-grid input{padding:7px 9px;border:1px solid var(--border-subtle);border-radius:6px;
+       font-size:12.5px;font-family:inherit}
+  .inline-form-actions{display:flex;justify-content:flex-end;gap:6px}
+  .btn-mini{padding:6px 14px;font-size:12px;border-radius:6px;cursor:pointer;border:1px solid var(--border-subtle)}
+  .btn-mini.save{background:var(--c-coral);color:#fff;border-color:var(--c-coral)}
+
+  .add-bar{margin-top:8px;display:flex}
+  .add-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;font-size:12px;
+       color:var(--c-mauve);border:1px dashed var(--border-subtle);border-radius:14px;cursor:pointer;background:transparent}
+
+  .caption{font-size:11px;color:var(--text-muted);font-style:italic;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="page-label">9a — V1: flat lists (Firms → Contacts → Sites)</div>
+
+<div class="popup">
+
+  <!-- Frozen header -->
+  <div class="popup-header">
+    <button class="hdr-back">← Назад</button>
+    <div class="popup-pseudonym">Виктория Нутс</div>
+    <div class="hdr-actions">
+      <button class="hdr-btn edit">Редактирай</button>
+      <button class="hdr-btn del">Изтрий</button>
+    </div>
+  </div>
+
+  <div class="popup-body">
+
+    <!-- ── Firms (full archive, active/last-active on top) ── -->
+    <div class="section">
+      <div class="section-title">
+        <span>Фирми</span>
+        <span class="section-add">+ Нова фирма</span>
+      </div>
+      <div class="row-list">
+        <div class="row">
+          <div class="cell-strong">„Виктория Нутс“ ЕООД</div>
+          <div class="cell-muted">ЕИК 111111111</div>
+          <div class="cell-muted">гр. София, бул. Дондуков 22</div>
+          <div><span class="status-active">Активна</span></div>
+          <div class="row-icons">
+            <div class="icon-btn">✎</div>
+            <div class="icon-btn">🗑</div>
+          </div>
+        </div>
+        <div class="row inactive">
+          <div class="cell-strong">„Виктория Нутс“ ЕООД (стар)</div>
+          <div class="cell-muted">ЕИК 999999999</div>
+          <div class="cell-muted">гр. София, ул. Стара 5</div>
+          <div class="status-ended">до 03.2024</div>
+          <div class="row-icons">
+            <div class="icon-btn">✎</div>
+            <div class="icon-btn">🗑</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Illustrative example of the agreed "inline form" pattern when adding/editing -->
+      <div class="inline-form">
+        <div class="inline-form-title">Пример: инлайн форма при "+ Нова фирма" / редакция</div>
+        <div class="inline-form-grid">
+          <input placeholder="Фирма">
+          <input placeholder="ЕИК">
+          <input placeholder="Адрес" style="grid-column:1/-1">
+          <input placeholder="Телефон">
+          <input type="month" placeholder="Начална дата">
+        </div>
+        <div class="inline-form-actions">
+          <div class="btn-mini">Откажи</div>
+          <div class="btn-mini save">Запази</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Contacts ── -->
+    <div class="section">
+      <div class="section-title">
+        <span>Контактни лица</span>
+        <span class="section-add">+ Ново контактно лице</span>
+      </div>
+      <div class="row-list">
+        <div class="row" style="grid-template-columns:1.2fr 1fr 1fr auto">
+          <div class="cell-strong">Иван Петров</div>
+          <div class="cell-muted">0888 123 456</div>
+          <div class="cell-muted">Управител</div>
+          <div class="row-icons"><div class="icon-btn">✎</div><div class="icon-btn">🗑</div></div>
+        </div>
+        <div class="row" style="grid-template-columns:1.2fr 1fr 1fr auto">
+          <div class="cell-strong">Мария Георгиева</div>
+          <div class="cell-muted">0899 456 789</div>
+          <div class="cell-muted">Счетоводител</div>
+          <div class="row-icons"><div class="icon-btn">✎</div><div class="icon-btn">🗑</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Sites — same list structure as Firms ── -->
+    <div class="section">
+      <div class="section-title">
+        <span>Обекти</span>
+        <span class="section-add">+ Нов обект</span>
+      </div>
+      <div class="row-list">
+        <div class="row clickable">
+          <div class="cell-strong">Магазин №1</div>
+          <div class="cell-muted">120 m²</div>
+          <div class="cell-muted">ул. Витоша 15, гр. София</div>
+          <div><span class="status-active">Активен</span></div>
+          <div class="row-icons"><span class="chevron-hint">›</span></div>
+        </div>
+        <div class="row clickable">
+          <div class="cell-strong">Склад Люлин</div>
+          <div class="cell-muted">340 m²</div>
+          <div class="cell-muted">ул. Народни Будители 8</div>
+          <div><span class="status-active">Активен</span></div>
+          <div class="row-icons"><span class="chevron-hint">›</span></div>
+        </div>
+        <div class="row clickable inactive">
+          <div class="cell-strong">Магазин №3 (затворен)</div>
+          <div class="cell-muted">—</div>
+          <div class="cell-muted">бул. Дондуков 22</div>
+          <div class="status-ended">до 11.2025</div>
+          <div class="row-icons"><span class="chevron-hint">›</span></div>
+        </div>
+      </div>
+      <div class="caption">Клик върху обект отваря неговия попъп (9b) над този.</div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

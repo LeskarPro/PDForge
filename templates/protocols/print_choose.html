@@ -2,12 +2,17 @@
 {% load static %}
 
 {% block title %}Печат на протокол — PDForge{% endblock %}
-{% block topbar_title %}Печат на протокол{% endblock %}
+{% block topbar_title %}{% endblock %}
 
 {% block topbar_actions %}
-  <a href="{% url 'core:protocol_view' protocol.pk %}" class="btn-outline" style="text-decoration:none;">
-    ← Назад
-  </a>
+  <a class="pv-topbar-btn pv-topbar-btn-secondary" href="{% url 'core:protocol_view' protocol.pk %}" style="text-decoration:none;flex-shrink:0;">← Назад</a>
+  <div class="pv-fmt-tabs">
+    <button id="pc-tab-a5"      class="pv-fmt active" onclick="pcFmt('a5')">A5 (2 стр.)</button>
+    <button id="pc-tab-a5-land" class="pv-fmt"        onclick="pcFmt('a5-land')">A5 → A4 пейзаж</button>
+    <button id="pc-tab-a4-p"    class="pv-fmt"        onclick="pcFmt('a4-p')">A4 портрет</button>
+  </div>
+  <a class="pv-topbar-btn pv-topbar-btn-secondary" href="{% url 'core:protocol_pdf' protocol.pk %}" style="text-decoration:none;flex-shrink:0;">⤓ Изтегли</a>
+  <button class="pv-topbar-btn pv-topbar-btn-primary" onclick="pcDoPrint()" style="flex-shrink:0;">🖨 Печат</button>
 {% endblock %}
 
 {% block extra_head %}
@@ -21,15 +26,19 @@
     max-width: 1380px; margin: 0 auto; padding: 12px 0 60px;
     color: var(--text-primary);
   }
-  [x-cloak] { display: none !important; }
 
-  .pv-actionbar {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    padding: 12px 16px; margin-bottom: 16px;
-    background: var(--card-bg); border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    box-shadow: 0 1px 6px rgba(99,71,77,.08);
+  /* Topbar buttons (rendered inside base.html topbar flex row) */
+  .pv-topbar-btn {
+    padding: 8px 16px; border-radius: var(--radius-sm); border: none;
+    cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit;
+    transition: opacity .15s, background .15s;
+    display: inline-flex; align-items: center; gap: 5px;
+    text-decoration: none;
   }
+  .pv-topbar-btn:hover { opacity: .92; }
+  .pv-topbar-btn-primary   { background: var(--c-coral); color: #fff; }
+  .pv-topbar-btn-secondary { background: #fff; color: var(--text-muted); border: 1px solid var(--border-subtle); }
+
   .pv-fmt-tabs { display: flex; gap: 6px; }
   .pv-fmt {
     padding: 6px 12px; border-radius: var(--radius-sm);
@@ -40,16 +49,6 @@
   }
   .pv-fmt:hover  { border-color: var(--c-clay); color: var(--text-primary); }
   .pv-fmt.active { background: var(--c-coral); border-color: var(--c-coral); color: #fff; font-weight: 600; }
-  .pv-action-buttons { display: flex; gap: 8px; margin-left: auto; }
-  .pv-btn {
-    padding: 8px 16px; border-radius: var(--radius-sm); border: none;
-    cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit;
-    transition: opacity .15s, background .15s;
-    display: inline-flex; align-items: center; gap: 5px;
-  }
-  .pv-btn:hover { opacity: .92; }
-  .pv-btn-primary   { background: var(--c-coral); color: #fff; }
-  .pv-btn-secondary { background: #fff; color: var(--text-muted); border: 1px solid var(--border-subtle); }
 
   /* Paper viewport */
   .pv-canvas {
@@ -158,26 +157,13 @@
 
 {% block content %}
 
-<div x-data="protocolPrintChoose()" x-cloak class="pv-root">
-
-  <!-- ═══ Action bar ═══ -->
-  <div class="pv-actionbar">
-    <div class="pv-fmt-tabs">
-      <button class="pv-fmt" :class="{active: fmt==='a5'}"      @click="fmt='a5'">A5 (2 стр.)</button>
-      <button class="pv-fmt" :class="{active: fmt==='a5-land'}" @click="fmt='a5-land'">A5 → A4 пейзаж</button>
-      <button class="pv-fmt" :class="{active: fmt==='a4-p'}"    @click="fmt='a4-p'">A4 портрет</button>
-    </div>
-    <div class="pv-action-buttons">
-      <a class="pv-btn pv-btn-primary" :href="printUrl()" style="text-decoration:none;">🖨 Печат</a>
-      <a class="pv-btn pv-btn-secondary" href="{% url 'core:protocol_view' protocol.pk %}" style="text-decoration:none;">← Назад</a>
-    </div>
-  </div>
+<div class="pv-root">
 
   <!-- ═══ Paper area ═══ -->
   <div class="pv-canvas">
 
     <!-- Format 1: A5 — TRUE render via existing protocol partials -->
-    <div x-show="fmt==='a5'">
+    <div id="pv-a5" style="display:block;">
       <div class="pv-paper">
         <div class="a5-panel">
           {% include "protocol/_protocol_front.html" with protocol=protocol %}
@@ -200,7 +186,7 @@
     </div>
 
     <!-- Format 2: A5 → A4 landscape — future -->
-    <div x-show="fmt==='a5-land'">
+    <div id="pv-a5-land" style="display:none;">
       <div class="pv-future">
         <div class="pv-future-inner">
           <div class="pv-future-icon">⚙</div>
@@ -214,7 +200,7 @@
     </div>
 
     <!-- Format 3: A4 portrait — future -->
-    <div x-show="fmt==='a4-p'">
+    <div id="pv-a4-p" style="display:none;">
       <div class="pv-future">
         <div class="pv-future-inner">
           <div class="pv-future-icon">⚙</div>
@@ -229,18 +215,41 @@
 
   </div>
 
-</div>{# /pv-root #}
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-document.addEventListener('alpine:init', () => {
-  Alpine.data('protocolPrintChoose', () => ({
-    fmt: 'a5',
-    printUrl() {
-      return '{% url "core:protocol_print" protocol.pk %}?fmt=' + this.fmt;
-    },
-  }));
-});
+(function () {
+  var _pcFmt = 'a5';
+  var _fmtPdfUrl = {
+    'a5':      '{% url "core:protocol_print" protocol.pk %}?fmt=a5',
+    'a5-land': '{% url "core:protocol_print" protocol.pk %}?fmt=a5-land',
+    'a4-p':    '{% url "core:protocol_print" protocol.pk %}?fmt=a4-p',
+  };
+
+  window.pcFmt = function (fmt) {
+    _pcFmt = fmt;
+    ['a5', 'a5-land', 'a4-p'].forEach(function (f) {
+      var panel = document.getElementById('pv-' + f);
+      var tab   = document.getElementById('pc-tab-' + f);
+      if (panel) panel.style.display = (f === fmt) ? 'block' : 'none';
+      if (tab)   tab.classList.toggle('active', f === fmt);
+    });
+  };
+
+  window.pcDoPrint = async function () {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.print_pdf) {
+      try {
+        await window.pywebview.api.print_pdf('{% url "core:protocol_pdf" protocol.pk %}');
+      } catch (e) {
+        console.error('pywebview print_pdf failed:', e);
+        window.location.href = _fmtPdfUrl[_pcFmt];
+      }
+    } else {
+      window.location.href = _fmtPdfUrl[_pcFmt];
+    }
+  };
+})();
 </script>
 {% endblock %}

@@ -1,0 +1,51 @@
+<form method="post"
+      hx-post="{% url 'core:firm_edit' firm.pk %}"
+      hx-target="#modal-content"
+      hx-swap="innerHTML">
+  {% csrf_token %}
+
+  <div class="modal-title">Редактирай фирма</div>
+
+  <div class="form-section-label">Информация</div>
+  <div class="form-inner">
+    <div class="form-row cols2">
+      <div class="form-group">
+        <label class="form-label">Фирма <span class="req">*</span></label>
+        {{ form.name }}
+        {% if form.name.errors %}<span class="form-error">{{ form.name.errors.0 }}</span>{% endif %}
+      </div>
+      <div class="form-group">
+        <label class="form-label">ЕИК</label>
+        {{ form.eik }}
+        {% if form.eik.errors %}<span class="form-error">{{ form.eik.errors.0 }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="form-row cols1">
+      <div class="form-group">
+        <label class="form-label">Адрес <span class="req">*</span></label>
+        {{ form.address }}
+        {% if form.address.errors %}<span class="form-error">{{ form.address.errors.0 }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="form-row cols1">
+      <div class="form-group">
+        <label class="form-label">Телефон</label>
+        {{ form.phone }}
+        {% if form.phone.errors %}<span class="form-error">{{ form.phone.errors.0 }}</span>{% endif %}
+      </div>
+    </div>
+    <span class="form-hint" style="display:block;margin-bottom:4px;">
+      Тази фирма може да е свързана с няколко обекта — промяната тук важи навсякъде, където е свързана.
+    </span>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn-cancel" onclick="closeModal()">Отказ</button>
+    <button type="submit" class="btn-save">Запази</button>
+  </div>
+</form>
+
+<script>
+  document.querySelectorAll('#modal-content input:not([type=checkbox]), #modal-content select, #modal-content textarea')
+    .forEach(el => el.classList.add('form-input'));
+</script>

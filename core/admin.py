@@ -9,25 +9,55 @@ class SiteInLine(admin.TabularInline):
 
     model = Site
     extra = 1
-    fields = ["name", "address", "area_m2"]
+    fields = ["name", "address", "area_m2", "is_active", "start_date", "end_date"]
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    """Admin for Clients."""
+    """Admin for Clients. Firm now attaches to Site, not Client — see
+    FirmAdmin/SiteFirmInline below."""
 
-    list_display = ("firm", "name", "eik", "phone", "address")
-    search_fields = ("firm", "name", "eik", "address")
+    list_display = ("name", "is_active_display")
+    search_fields = ("name",)
     inlines = [SiteInLine]
+
+    @admin.display(description="Активен", boolean=True)
+    def is_active_display(self, obj):
+        return obj.is_active
+
+@admin.register(Firm)
+class FirmAdmin(admin.ModelAdmin):
+    """Admin for the standalone, reusable Firm records (Stage 8a, reworked
+    2026-06-19) — a Firm can be linked to several Sites at once."""
+
+    list_display = ("name", "eik", "address", "phone", "linked_sites")
+    search_fields = ("name", "eik", "site_links__site__name", "site_links__site__pseudonym")
+
+    @admin.display(description="Свързани обекти")
+    def linked_sites(self, obj):
+        links = obj.site_links.select_related("site").all()
+        return ", ".join(
+            f"{link.site.pseudonym} ({'активна' if link.is_active else 'неактивна'})"
+            for link in links
+        ) or "—"
+
+class SiteFirmInLine(admin.TabularInline):
+    """Lets you manage a Site's firm-link history directly on the Site edit page."""
+
+    model = SiteFirm
+    extra = 1
+    fields = ["firm", "is_active", "start_date", "end_date"]
+    autocomplete_fields = ["firm"]
 
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
     """Admin for Sites."""
 
-    list_display = ("client", "pseudonym", "name", "address", "notes")
-    search_fields = ("pseudonym", "name", "address", "client__name", "client__eik", "client__firm")
-    list_filter = ("client", "tags",)
+    list_display = ("client", "pseudonym", "name", "address", "is_active", "start_date", "end_date")
+    search_fields = ("pseudonym", "name", "address", "client__name", "firm_links__firm__eik", "firm_links__firm__name")
+    list_filter = ("client", "tags", "is_active")
     autocomplete_fields = ("client",)
     filter_horizontal = ("tags",)
+    inlines = [SiteFirmInLine]
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
@@ -138,7 +168,7 @@ class ProtocolAdmin(admin.ModelAdmin):
     )
     list_filter = ("is_preset", "is_long_term_contract", "tags", "client", "prepared_by")
     search_fields = (
-        "client__firm", "client__name", "site__name", "preset_name", "notes",
+        "snapshot_firm_name", "client__name", "site__name", "preset_name", "notes",
     )
     autocomplete_fields = ("client", "site", "prepared_by", "executed_by")
     filter_horizontal = ("tags",)

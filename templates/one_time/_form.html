@@ -11,7 +11,8 @@
       hx-swap="innerHTML">
   {% csrf_token %}
 
-  <div class="modal-scroll">
+
+<div class="modal-scroll">
 
     <!-- ── 1. Basic info ── -->
     <div class="fsection">
@@ -34,26 +35,9 @@
       </div>
 
       <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Контактно лице</label>
-          <input class="form-input" name="contact_name"
-                 value="{{ form.contact_name.value|default:'' }}"
-                 placeholder="Иван Иванов">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Телефон</label>
-          <input class="form-input" name="phone"
-                 value="{{ form.phone.value|default:'' }}"
-                 placeholder="0888 123 456">
-        </div>
-      </div>
-
-      <div class="form-row">
         <div class="form-group" style="flex:1.4">
-          <label class="form-label">Дата <span class="req">*</span></label>
-          <input class="form-input" type="date" name="date"
-                 value="{% if form.date.value %}{{ form.date.value|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}"
-                 required>
+          <label class="form-label">Дата</label>
+          <input class="form-input" type="date" name="date" value="{{ date_str }}">
           {% for e in form.date.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
         </div>
         <div class="form-group">
@@ -65,6 +49,75 @@
           <label class="form-label">Час до</label>
           <input class="form-input" type="time" name="time_to"
                  value="{{ form.time_to.value|default:'' }}">
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 1b. Contacts ── -->
+    <div class="fsection">
+      <div class="fsection-title">Контактни лица</div>
+
+      <div id="ot-contacts-list">
+        {% for c in existing_contacts %}
+          <div class="contact-row">
+            <input type="hidden" name="contact_name" value="{{ c.name }}">
+            <input type="hidden" name="contact_phone" value="{{ c.phone }}">
+            <input type="hidden" name="contact_position" value="{{ c.position }}">
+            <div class="contact-info">
+              <div class="contact-name">{{ c.name }}</div>
+              <div class="contact-detail">
+                {% if c.phone %}{{ c.phone }}{% endif %}
+                {% if c.phone and c.position %} · {% endif %}
+                {% if c.position %}{{ c.position }}{% endif %}
+                {% if not c.phone and not c.position %}<span style="color:var(--text-muted);font-style:italic">—</span>{% endif %}
+              </div>
+            </div>
+            <div class="contact-actions">
+              <button type="button" class="contact-btn" title="Редактирай" onclick="otEditContactRow(this)">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                     stroke-width="2" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652
+                           L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685
+                           a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/>
+                </svg>
+              </button>
+              <button type="button" class="contact-btn del" title="Изтрий" onclick="otRemoveContactRow(this)">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                     stroke-width="2" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                        d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21
+                           c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673
+                           a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1
+                           -2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0
+                           -3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0
+                           a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916
+                           c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0
+                           -3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916
+                           m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      <div id="ot-contacts-empty" class="no-contacts" {% if existing_contacts %}style="display:none"{% endif %}>
+        Няма добавени контактни лица.
+      </div>
+
+      <div class="tag-inline-wrap" style="margin-top:6px;">
+        <button type="button" class="tag-add-open-btn" onclick="otOpenContactForm(this)">+ Ново контактно лице</button>
+        <div class="contact-add-form" style="display:none;margin-top:6px;padding:10px;border:1px solid var(--border-subtle);border-radius:6px;background:var(--card-bg);">
+          <div class="form-row" style="margin-bottom:6px;">
+            <div class="form-group"><input type="text" class="form-input contact-add-name" placeholder="Име"></div>
+            <div class="form-group"><input type="text" class="form-input contact-add-phone" placeholder="Телефон"></div>
+            <div class="form-group"><input type="text" class="form-input contact-add-position" placeholder="Длъжност"></div>
+          </div>
+          <div class="contact-add-error" style="color:var(--c-coral);font-size:11px;display:none;margin-bottom:6px;"></div>
+          <div style="display:flex;gap:6px;">
+            <button type="button" class="btn-cancel" onclick="otCloseContactForm(this)">Отказ</button>
+            <button type="button" class="btn-save" onclick="otAddContactRow(this)">Добави</button>
+          </div>
         </div>
       </div>
     </div>
@@ -175,7 +228,7 @@
       <div class="form-row">
         <div class="form-group" style="flex:2">
           <label class="form-label">Етикети</label>
-          <div class="toggle-group">
+          <div class="toggle-group" id="ot-tag-group">
             {% for tag in form.tags.field.queryset %}
               <label class="toggle-tag">
                 <input type="checkbox" name="tags" value="{{ tag.pk }}"
@@ -185,12 +238,41 @@
             {% endfor %}
           </div>
           {% for e in form.tags.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+          <!-- Inline new tag -->
+          <div class="tag-inline-wrap" style="margin-top:6px;">
+            <button type="button" class="tag-add-open-btn" onclick="otOpenTagForm(this)">+ Нов етикет</button>
+            <div class="tag-add-form" style="display:none;margin-top:6px;padding:10px;border:1px solid var(--border-subtle);border-radius:6px;background:var(--card-bg);">
+              <input type="text" class="tag-add-name form-input" placeholder="Наименование" style="margin-bottom:6px;"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();otSubmitTag(this);}if(event.key==='Escape')otCloseTagForm(this);">
+              <div class="tag-add-color-row" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <input type="color" class="tag-add-color" value="#6b7280" style="width:32px;height:28px;padding:1px 2px;border:1px solid var(--border-subtle);border-radius:4px;cursor:pointer;">
+                <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#ffa686" onclick="otTagPreset(this,'#ffa686')"></div>
+                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#e74c3c" onclick="otTagPreset(this,'#e74c3c')"></div>
+                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#e67e22" onclick="otTagPreset(this,'#e67e22')"></div>
+                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#f1c40f" onclick="otTagPreset(this,'#f1c40f')"></div>
+                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#27ae60" onclick="otTagPreset(this,'#27ae60')"></div>
+                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#16a085" onclick="otTagPreset(this,'#16a085')"></div>
+                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#2980b9" onclick="otTagPreset(this,'#2980b9')"></div>
+                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#8e44ad" onclick="otTagPreset(this,'#8e44ad')"></div>
+                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#aa767c" onclick="otTagPreset(this,'#aa767c')"></div>
+                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#63474d" onclick="otTagPreset(this,'#63474d')"></div>
+                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#6b7280" onclick="otTagPreset(this,'#6b7280')"></div>
+                </div>
+              </div>
+              <textarea class="tag-add-desc form-input" placeholder="Описание (по желание)" rows="2" style="margin-bottom:6px;"></textarea>
+              <div class="tag-add-error" style="color:var(--c-coral);font-size:11px;display:none;margin-bottom:6px;"></div>
+              <div style="display:flex;gap:6px;">
+                <button type="button" class="btn-cancel" onclick="otCloseTagForm(this)">Отказ</button>
+                <button type="button" class="btn-save" onclick="otSubmitTag(this)">Създай</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="form-group" style="flex:1">
-          <label class="form-label">Цена (лв.)</label>
-          <input class="form-input" type="number" name="price"
-                 step="0.01" min="0"
-                 value="{{ form.price.value|default:'' }}"
+          <label class="form-label">Цена (€)</label>
+          <input class="form-input" type="text" inputmode="decimal" name="price"
+                 value="{{ form.price.value|stringformat:'s'|default:'' }}"
                  placeholder="85.00">
           {% for e in form.price.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
         </div>
@@ -199,9 +281,11 @@
 
     <!-- ── 7. Notes ── -->
     <div class="fsection">
-      <div class="fsection-title">Бележка</div>
-      <textarea class="form-input" name="notes" rows="3"
-                placeholder="Бележки…">{{ form.notes.value|default:'' }}</textarea>
+      <div class="fsection-title">Бележка <span style="color:var(--text-muted);font-weight:400;">(⌘B / ⌘I / ⌘U)</span></div>
+      <div class="rn-field">
+        <div class="form-input rn-editable" contenteditable="true" data-placeholder="Бележки…"></div>
+        <textarea class="rn-source" name="notes">{{ form.notes.value|default:'' }}</textarea>
+      </div>
       {% for e in form.notes.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
     </div>
 
@@ -215,3 +299,199 @@
   </div>
 
 </form>
+
+<script>
+function otOpenTagForm(btn) {
+  const wrap = btn.closest('.tag-inline-wrap');
+  btn.style.display = 'none';
+  wrap.querySelector('.tag-add-form').style.display = 'block';
+  wrap.querySelector('.tag-add-name').focus();
+}
+function otCloseTagForm(el) {
+  const wrap = el.closest('.tag-inline-wrap');
+  wrap.querySelector('.tag-add-form').style.display = 'none';
+  wrap.querySelector('.tag-add-open-btn').style.display = '';
+  wrap.querySelector('.tag-add-name').value = '';
+  wrap.querySelector('.tag-add-desc').value = '';
+  wrap.querySelector('.tag-add-error').style.display = 'none';
+}
+function otTagPreset(dot, hex) {
+  dot.closest('div').querySelectorAll('div').forEach(d => d.style.borderColor = 'transparent');
+  dot.style.borderColor = '#333';
+  dot.closest('.tag-add-color-row').querySelector('.tag-add-color').value = hex;
+}
+async function otSubmitTag(el) {
+  const wrap = el.closest('.tag-inline-wrap');
+  const nameEl = wrap.querySelector('.tag-add-name');
+  const colorEl = wrap.querySelector('.tag-add-color');
+  const errEl = wrap.querySelector('.tag-add-error');
+  const name = nameEl.value.trim();
+  if (!name) { errEl.textContent = 'Въведете наименование'; errEl.style.display = 'block'; return; }
+  const btn = wrap.querySelector('.btn-save');
+  btn.disabled = true;
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('color', colorEl.value);
+  fd.append('description', wrap.querySelector('.tag-add-desc').value.trim());
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  try {
+    const r = await fetch('{% url "core:tag_create_inline" %}', {
+      method: 'POST', body: fd, headers: { 'X-CSRFToken': csrf }
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      errEl.textContent = Object.values(data.errors || {}).flat().join(', ') || 'Грешка';
+      errEl.style.display = 'block'; btn.disabled = false; return;
+    }
+    // Inject new checked toggle-tag label
+    const group = document.getElementById('ot-tag-group');
+    const lbl = document.createElement('label');
+    lbl.className = 'toggle-tag';
+    lbl.innerHTML = `<input type="checkbox" name="tags" value="${data.id}" checked>
+      <span class="tag-pill" style="background:${data.color}22;border-color:${data.color};color:${data.color};">${data.name}</span>`;
+    group.appendChild(lbl);
+    otCloseTagForm(el);
+  } catch(e) {
+    errEl.textContent = String(e); errEl.style.display = 'block'; btn.disabled = false;
+  }
+}
+
+/* ── One-time treatment contacts (client-staged, no pk yet) ── */
+const OT_PENCIL_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round"
+        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652
+           L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685
+           a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/>
+</svg>`;
+const OT_TRASH_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round"
+        d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21
+           c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673
+           a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1
+           -2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0
+           -3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0
+           a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916
+           c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0
+           -3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916
+           m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+</svg>`;
+const OT_CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+</svg>`;
+const OT_X_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+</svg>`;
+
+function otOpenContactForm(btn) {
+  const wrap = btn.closest('.tag-inline-wrap');
+  btn.style.display = 'none';
+  wrap.querySelector('.contact-add-form').style.display = 'block';
+  wrap.querySelector('.contact-add-name').focus();
+}
+function otCloseContactForm(el) {
+  const wrap = el.closest('.tag-inline-wrap');
+  wrap.querySelector('.contact-add-form').style.display = 'none';
+  wrap.querySelector('.tag-add-open-btn').style.display = '';
+  wrap.querySelector('.contact-add-name').value = '';
+  wrap.querySelector('.contact-add-phone').value = '';
+  wrap.querySelector('.contact-add-position').value = '';
+  wrap.querySelector('.contact-add-error').style.display = 'none';
+}
+function otAddContactRow(btn) {
+  const wrap = btn.closest('.tag-inline-wrap');
+  const nameEl = wrap.querySelector('.contact-add-name');
+  const phoneEl = wrap.querySelector('.contact-add-phone');
+  const posEl = wrap.querySelector('.contact-add-position');
+  const errEl = wrap.querySelector('.contact-add-error');
+  const name = nameEl.value.trim();
+  if (!name) { errEl.textContent = 'Въведете име'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  otAppendContactRow(name, phoneEl.value.trim(), posEl.value.trim());
+  otCloseContactForm(btn);
+}
+function otRenderDisplayRow(row, name, phone, position) {
+  row.classList.remove('contact-row--editing');
+  row.removeAttribute('style');
+  row.innerHTML = `
+    <input type="hidden" name="contact_name">
+    <input type="hidden" name="contact_phone">
+    <input type="hidden" name="contact_position">
+    <div class="contact-info">
+      <div class="contact-name"></div>
+      <div class="contact-detail"></div>
+    </div>
+    <div class="contact-actions">
+      <button type="button" class="contact-btn" title="Редактирай" onclick="otEditContactRow(this)">${OT_PENCIL_SVG}</button>
+      <button type="button" class="contact-btn del" title="Изтрий" onclick="otRemoveContactRow(this)">${OT_TRASH_SVG}</button>
+    </div>`;
+  row.querySelector('input[name=contact_name]').value = name;
+  row.querySelector('input[name=contact_phone]').value = phone;
+  row.querySelector('input[name=contact_position]').value = position;
+  row.querySelector('.contact-name').textContent = name;
+  const detailEl = row.querySelector('.contact-detail');
+  const parts = [phone, position].filter(Boolean);
+  if (parts.length) {
+    detailEl.textContent = parts.join(' · ');
+  } else {
+    detailEl.innerHTML = '';
+    const span = document.createElement('span');
+    span.style.color = 'var(--text-muted)';
+    span.style.fontStyle = 'italic';
+    span.textContent = '—';
+    detailEl.appendChild(span);
+  }
+}
+function otAppendContactRow(name, phone, position) {
+  document.getElementById('ot-contacts-empty').style.display = 'none';
+  const row = document.createElement('div');
+  row.className = 'contact-row';
+  otRenderDisplayRow(row, name, phone, position);
+  document.getElementById('ot-contacts-list').appendChild(row);
+}
+function otRemoveContactRow(btn) {
+  const row = btn.closest('.contact-row');
+  row.remove();
+  if (!document.querySelector('#ot-contacts-list .contact-row')) {
+    document.getElementById('ot-contacts-empty').style.display = '';
+  }
+}
+function otEditContactRow(btn) {
+  const row = btn.closest('.contact-row');
+  const name = row.querySelector('input[name=contact_name]').value;
+  const phone = row.querySelector('input[name=contact_phone]').value;
+  const position = row.querySelector('input[name=contact_position]').value;
+  row.dataset.otName = name;
+  row.dataset.otPhone = phone;
+  row.dataset.otPosition = position;
+  row.classList.add('contact-row--editing');
+  row.style.display = 'flex';
+  row.style.gap = '8px';
+  row.style.alignItems = 'flex-start';
+  row.innerHTML = `
+    <div style="display:flex;gap:8px;flex:1;flex-wrap:wrap;">
+      <div class="form-group" style="flex:1;min-width:110px;"><input class="form-input ot-edit-name" placeholder="Име"></div>
+      <div class="form-group" style="flex:1;min-width:110px;"><input class="form-input ot-edit-phone" placeholder="Телефон"></div>
+      <div class="form-group" style="flex:1;min-width:110px;"><input class="form-input ot-edit-position" placeholder="Длъжност"></div>
+    </div>
+    <div class="contact-actions">
+      <button type="button" class="contact-btn" title="Запази" onclick="otSaveContactRow(this)">${OT_CHECK_SVG}</button>
+      <button type="button" class="contact-btn" title="Откажи" onclick="otCancelEditContactRow(this)">${OT_X_SVG}</button>
+    </div>`;
+  row.querySelector('.ot-edit-name').value = name;
+  row.querySelector('.ot-edit-phone').value = phone;
+  row.querySelector('.ot-edit-position').value = position;
+}
+function otSaveContactRow(btn) {
+  const row = btn.closest('.contact-row');
+  const nameEl = row.querySelector('.ot-edit-name');
+  const name = nameEl.value.trim();
+  if (!name) { nameEl.focus(); return; }
+  const phone = row.querySelector('.ot-edit-phone').value.trim();
+  const position = row.querySelector('.ot-edit-position').value.trim();
+  otRenderDisplayRow(row, name, phone, position);
+}
+function otCancelEditContactRow(btn) {
+  const row = btn.closest('.contact-row');
+  otRenderDisplayRow(row, row.dataset.otName || '', row.dataset.otPhone || '', row.dataset.otPosition || '');
+}
+</script>

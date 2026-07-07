@@ -1,14 +1,22 @@
 {% load core_tags %}
 {% for site in sites %}
-<tr class="site-row"
+<tr class="site-row{% if not site.is_active %} site-row--inactive{% endif %}"
     id="site-row-{{ site.pk }}"
-    data-search="{{ site.pseudonym }} {{ site.name }} {{ site.client.firm }} {{ site.address }}">
-  <td><span class="site-name-cell">{{ site.pseudonym }}</span></td>
-  <td><span class="site-client-cell">{{ site.client.firm }}</span></td>
+    data-search="{{ site.pseudonym }} {{ site.name }} {{ site.client.name }} {{ site.address }}"
+    style="cursor:pointer"
+    hx-get="{% url 'core:site_popup' site.pk %}"
+    hx-target="#popup-root"
+    hx-swap="innerHTML"
+    hx-on::after-swap="lockScroll()">
+  <td>
+    <span class="site-name-cell">{{ site.pseudonym }}</span>
+    {% if not site.is_active %}<span class="site-inactive-badge">Неактивен</span>{% endif %}
+  </td>
+  <td><span class="site-client-cell">{{ site.client.name }}</span></td>
   <td><span class="site-addr-cell">{{ site.address|default:"—" }}</span></td>
   <td>
     {% if site.notes %}
-      <span class="site-notes-cell" title="{{ site.notes }}">{{ site.notes|truncatechars:60 }}</span>
+      <span class="site-notes-cell" title="{{ site.notes|plaintext_notes }}">{{ site.notes|richtruncate:60 }}</span>
     {% else %}
       <span class="site-contact-empty">—</span>
     {% endif %}
@@ -19,7 +27,7 @@
     {% endfor %}
   </td>
   <td>
-    <div class="row-actions">
+    <div class="row-actions" onclick="event.stopPropagation()">
       <!-- Contacts -->
       <button class="site-btn contacts" title="Контактни лица"
               hx-get="{% url 'core:site_contacts' site.pk %}"

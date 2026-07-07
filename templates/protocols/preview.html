@@ -5,9 +5,7 @@
 {% block topbar_title %}Преглед на протокол{% endblock %}
 
 {% block topbar_actions %}
-  <a href="{% url 'core:protocol_create' %}" class="btn-outline" style="text-decoration:none;">
-    ← Към редактиране
-  </a>
+  <button type="submit" form="return-to-editor-form" class="btn-outline">← Към редактиране</button>
 {% endblock %}
 
 {% block extra_head %}
@@ -270,9 +268,16 @@
 
 {% block content %}
 
-{# Payload echoed by the server so we can re-POST it on action. #}
 <script id="preview-payload" type="application/json">{{ payload_json|safe }}</script>
 <script id="preview-folders" type="application/json">{{ folders_json|safe }}</script>
+
+<form id="return-to-editor-form" method="post"
+      action="{% url 'core:protocol_return_to_editor' %}"
+      style="display:none">
+  {% csrf_token %}
+  <input type="hidden" name="payload" value="{{ payload_json }}">
+  <input type="hidden" name="back_url" value="{{ back_url|default:'' }}">
+</form>
 
 <div x-data="protocolPreview()" x-cloak class="pv-root">
 
@@ -313,7 +318,6 @@
          and the user doesn't need to switch tabs to trigger it. -->
     <div x-show="fmt==='a5'">
       <div class="pv-paper">
-        {# Page 1: two FRONT copies #}
         <div class="a5-panel">
           {% include "protocol/_protocol_front.html" with protocol=preview_protocol %}
         </div>
@@ -324,7 +328,6 @@
       <div class="pv-paper-label">Лист 1 — лицева страна (2 копия)</div>
 
       <div class="pv-paper" style="margin-top:24px;">
-        {# Page 2: two BACK copies #}
         <div class="a5-panel">
           {% include "protocol/_protocol_back.html" with protocol=preview_protocol %}
         </div>
@@ -414,7 +417,7 @@
     </div>
   </div>
 
-</div>{# /pv-root #}
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -513,7 +516,8 @@ document.addEventListener('alpine:init', () => {
 
         // ─── save ───
         try { sessionStorage.removeItem('pdforge.editorDraft'); } catch (e) {}
-        window.location.href = data.redirect_url;
+        const backUrl = '{{ back_url|default:"" }}';
+        window.location.href = backUrl || data.redirect_url;
       } catch (e) {
         this.errMsg = String(e);
         this.busy = false;

@@ -38,6 +38,11 @@
   .client-card{background:#fff;border:1px solid var(--border-subtle);
     border-radius:var(--radius-md);overflow:hidden;transition:border-color var(--t-fast)}
   .client-card.is-open{border-color:rgba(170,118,124,.3)}
+  .client-card--inactive{opacity:.55}
+  .client-card--inactive:hover{opacity:.8}
+  .client-inactive-badge{font-size:10px;font-weight:600;text-transform:uppercase;
+    letter-spacing:.06em;color:var(--text-muted);background:var(--content-bg);
+    border:1px solid var(--border-subtle);border-radius:8px;padding:2px 8px;flex-shrink:0}
 
   .client-header{display:flex;align-items:center;gap:14px;padding:14px 18px;
     cursor:pointer;user-select:none;transition:background var(--t-fast)}
@@ -206,6 +211,11 @@
   </div>
 </div>
 
+<!-- ── Full-detail popup mount (Stage 9a/9b) — self-contained veil+card,
+     NOT nested inside .modal-box, so it isn't constrained by its smaller
+     max-width/padding. See clients/_popup.html. ── -->
+<div id="popup-root"></div>
+
 <!-- ── Toolbar ── -->
 <div class="toolbar">
   <div class="search-wrap">
@@ -261,6 +271,36 @@
     }
   }
   document.body.addEventListener('closeModal', closeModal);
+
+  /* ── Full-detail popup (Stage 9a/9b) — separate from the modal above.
+     Locks background scroll two ways: CSS overflow on every plausible
+     scroll container (belt), and a capturing wheel/touchmove blocker on
+     anything outside the popup card (suspenders) — the wheel blocker is
+     what actually matters since it doesn't depend on which element the
+     browser decided is "the" scroll container. ── */
+  function lockScroll() {
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    const pb = document.querySelector('.page-body');
+    if (pb) pb.style.overflow = 'hidden';
+    document.addEventListener('wheel', _blockBgScroll, { passive: false, capture: true });
+    document.addEventListener('touchmove', _blockBgScroll, { passive: false, capture: true });
+  }
+  function unlockScroll() {
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+    const pb = document.querySelector('.page-body');
+    if (pb) pb.style.overflow = '';
+    document.removeEventListener('wheel', _blockBgScroll, { capture: true });
+    document.removeEventListener('touchmove', _blockBgScroll, { capture: true });
+  }
+  function _blockBgScroll(e) {
+    if (!e.target.closest('.cp-card')) e.preventDefault();
+  }
+  function closePopup() {
+    document.getElementById('popup-root').innerHTML = '';
+    unlockScroll();
+  }
 
   /* ── Accordion ── */
   function toggleClient(pk) {

@@ -12,7 +12,6 @@
   <span class="doc-appendix">Приложение № 5 към чл. 15, т. 6</span>
 </div>
 
-{# ===== Header table — извършител / заявител / обект + engagement ===== #}
 <table class="header-table">
   <colgroup>
     <col style="width: 33.34%">
@@ -37,7 +36,6 @@
   <tr>
     <td><strong>Адрес:</strong> гр.София, ул."Нишава", №58, ет.1, ап.6</td>
     <td><strong>Адрес:</strong> {{ protocol.client.address }}</td>
-    {# Site address spans this row (rowspan from previous tr) #}
   </tr>
   <tr>
     <td><strong>Телефон:</strong> 0888 61 47 46, 0888 28 24 90</td>
@@ -57,17 +55,16 @@
   </tr>
 </table>
 
-{# ===== Main 14-row table ===== #}
 {% with cols=protocol.columns_by_service %}
 {% with vrows=protocol.pest_grid_rows %}
 <table class="protocol-table">
   <colgroup>
-    <col style="width: 3%">     {# № #}
-    <col style="width: 35%">    {# label #}
-    <col style="width: 16px"><col style="width: 40px">      {# дез. cb1 / name1 #}
-    <col style="width: 16px"><col style="width: 40px">      {# дез. cb2 / name2 #}
-    <col style="width: 16px"><col style="width: 40px">      {# дерат. cb / name #}
-    <col style="width: 16px"><col style="width: 40px">      {# дезинф. cb / name #}
+    <col style="width: 3%">
+    <col style="width: 35%">
+    <col style="width: 16px"><col style="width: 40px">
+    <col style="width: 16px"><col style="width: 40px">
+    <col style="width: 16px"><col style="width: 40px">
+    <col style="width: 16px"><col style="width: 40px">
   </colgroup>
   <thead>
     <tr>
@@ -79,7 +76,6 @@
     </tr>
   </thead>
   <tbody>
-{# ===== Row 1 — pests ===== #}
     {% for vrow in vrows %}
     <tr>
       {% if forloop.first %}
@@ -87,7 +83,6 @@
         <td rowspan="{{ vrows|length }}">Вид на вредителите, срещу които е извършена обработката / спектър на действие при дезинфектантите</td>
       {% endif %}
 
-      {# --- Дезинсекция (4 sub-columns) --- #}
       {% if vrow.dis.kind == "pairs" %}
         <td class="cb">{% if vrow.dis.left.sel %}X{% endif %}</td>
         <td class="pname">{{ vrow.dis.left.name }}</td>
@@ -104,7 +99,6 @@
         <td class="cb"></td><td></td><td class="cb"></td><td></td>
       {% endif %}
 
-      {# --- Дератизация (2 sub-columns) --- #}
       {% if vrow.der.kind == "pest" %}
         <td class="cb">{% if vrow.der.entry.sel %}X{% endif %}</td>
         <td class="pname">{{ vrow.der.entry.name }}</td>
@@ -112,12 +106,10 @@
         <td class="cb" rowspan="{{ vrow.der.rowspan }}">{% if vrow.der.entry.sel %}X{% endif %}</td>
         <td class="pname" rowspan="{{ vrow.der.rowspan }}">{{ vrow.der.entry.name }}</td>
       {% elif vrow.der.kind == "covered" %}
-        {# cells above span into this row — render nothing #}
       {% else %}
         <td class="cb"></td><td></td>
       {% endif %}
 
-      {# --- Дезинфекция (2 sub-columns) --- #}
       {% if vrow.dinf.kind == "pest" %}
         <td class="cb">{% if vrow.dinf.entry.sel %}X{% endif %}</td>
         <td class="pname">{{ vrow.dinf.entry.name }}</td>
@@ -127,7 +119,6 @@
     </tr>
     {% endfor %}
 
-    {# ===== Rows 2–14 — each service cell spans its sub-columns ===== #}
     <tr>
       <td class="col-num">2</td>
       <td>Обработена площ (m²)</td>
@@ -191,7 +182,6 @@
       <td colspan="2">{% for pp in cols.deratization.protocol_products.all %}{{ forloop.counter }}. {{ pp.snapshot_working_solution }}<br>{% endfor %}</td>
       <td colspan="2">{% for pp in cols.disinfection.protocol_products.all %}{{ forloop.counter }}. {{ pp.snapshot_working_solution }}<br>{% endfor %}</td>
     </tr>
-    {# Row 11a — Общо количество (Дезинсекция / Дезинфекция) #}
     {% if protocol.row11_show_total %}
     <tr>
       <td class="col-num"{% if protocol.row11_show_baits %} rowspan="2"{% endif %}>11</td>
@@ -201,7 +191,6 @@
       <td colspan="2">{{ cols.disinfection.total_used }}</td>
     </tr>
     {% endif %}
-    {# Row 11b — Брой на поставените дератизационни кутии (Дератизация) #}
     {% if protocol.row11_show_baits %}
     <tr>
       {% if not protocol.row11_show_total %}<td class="col-num">11</td>{% endif %}
@@ -246,7 +235,6 @@
       <td colspan="2">{% for pp in cols.deratization.protocol_products.all %}{{ forloop.counter }}. {{ pp.snapshot_antidote }}<br>{% endfor %}</td>
       <td colspan="2">{% for pp in cols.disinfection.protocol_products.all %}{{ forloop.counter }}. {{ pp.snapshot_antidote }}<br>{% endfor %}</td>
     </tr>
-    {# Row 12.5 — Други #}
     <tr>
       <td class="col-num">12.5</td>
       <td>Други</td>
@@ -274,12 +262,11 @@
 {% endwith %}
 {% endwith %}
 
-{# ===== Footer ===== #}
 <table class="footer-table">
   <colgroup>
-    <col style="width: 46%">   {# роля + име #}
-    <col style="width: 16%">   {# подпис #}
-    <col style="width: 38%">   {# дата (+ време на ред 2) #}
+    <col style="width: 46%">
+    <col style="width: 16%">
+    <col style="width: 38%">
   </colgroup>
   <tr>
     <td>

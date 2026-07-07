@@ -1,3 +1,4 @@
+{% load core_tags %}
 {% for mean in means %}
 <tr class="cat-row" id="nonchemical-row-{{ mean.pk }}" data-search="{{ mean.name }} {{ mean.get_category_display }}">
   <td><span class="cat-name">{{ mean.name }}</span></td>
@@ -7,7 +8,7 @@
     {% else %}<span class="cat-chip cat-inf">Дезинфекция</span>{% endif %}
   </td>
   <td>
-    {% if mean.notes %}<span class="cat-muted">{{ mean.notes }}</span>
+    {% if mean.notes %}<span class="cat-muted" title="{{ mean.notes|plaintext_notes }}">{{ mean.notes|richtruncate:60 }}</span>
     {% else %}<span style="color:var(--border-subtle)">—</span>{% endif %}
   </td>
   <td>

@@ -1,13 +1,13 @@
 """
 OneDrive / local-folder backup sync (Stage 6a).
 
-The "sync" is a one-way push of a whole-file copy of db.sqlite3 to a
+The "sync" is a one-way push of a whole-file copy of db_old.sqlite3 to a
 configured backup folder, plus a startup check that can pull a newer
 remote copy or flag a conflict for the user to resolve.
 
 Bookkeeping that must survive process restarts but is *not* part of the
 app data itself lives in a small JSON sidecar file (sync_meta.json) next
-to db.sqlite3 — this avoids the chicken-and-egg problem of storing sync
+to db_old.sqlite3 — this avoids the chicken-and-egg problem of storing sync
 state inside the database whose changes we are tracking.
 """
 import json
@@ -83,15 +83,19 @@ def folder_reachable(app_settings=None):
     app_settings = app_settings or _get_settings()
     if not folder_configured(app_settings):
         return False
-    return Path(app_settings.sync_folder_path).is_dir()
-
+    try:
+        return Path(app_settings.sync_folder_path).is_dir()
+    except OSError:
+        return False
 
 def list_backups(folder):
     folder = Path(folder)
-    if not folder.is_dir():
+    try:
+        if not folder.is_dir():
+            return []
+        return sorted(folder.glob(f"{BACKUP_PREFIX}*{BACKUP_SUFFIX}"))
+    except OSError:
         return []
-    return sorted(folder.glob(f"{BACKUP_PREFIX}*{BACKUP_SUFFIX}"))
-
 
 def _latest_backup(folder):
     backups = list_backups(folder)
@@ -154,7 +158,7 @@ def get_status(app_settings=None):
 # ── push / pull ──────────────────────────────────────────────────────────
 
 def push(app_settings=None):
-    """Copy db.sqlite3 to the backup folder, rotate old backups, update meta."""
+    """Copy db_old.sqlite3 to the backup folder, rotate old backups, update meta."""
     app_settings = app_settings or _get_settings()
     meta = load_meta()
 
@@ -196,7 +200,7 @@ def push(app_settings=None):
 
 
 def pull(app_settings=None):
-    """Overwrite local db.sqlite3 with the latest backup from the folder."""
+    """Overwrite local db_old.sqlite3 with the latest backup from the folder."""
     app_settings = app_settings or _get_settings()
     folder = Path(app_settings.sync_folder_path)
     backup = _latest_backup(folder)

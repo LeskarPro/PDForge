@@ -184,6 +184,25 @@
   .btn-rm{display:flex;align-items:center;justify-content:center;width:22px;height:22px;color:rgba(170,118,124,.45);border:none;background:none;cursor:pointer;border-radius:3px;transition:color var(--t-fast)}
   .btn-rm:hover{color:#b03030}
   .btn-rm svg{width:13px;height:13px}
+
+  /* Contacts inline (mirrors templates/clients/list.html's contacts-modal styles) */
+  .contact-row{display:flex;align-items:center;gap:8px;padding:8px 0;
+    border-bottom:1px solid var(--border-subtle)}
+  .contact-row:last-child{border-bottom:none}
+  .contact-info{flex:1;min-width:0}
+  .contact-name{font-size:13.5px;font-weight:600;color:var(--text-primary)}
+  .contact-detail{font-size:12px;color:var(--text-muted);margin-top:1px}
+  .contact-actions{display:flex;align-items:center;gap:3px;flex-shrink:0}
+  .contact-btn{display:flex;align-items:center;justify-content:center;
+    width:26px;height:26px;border-radius:var(--radius-sm);
+    color:var(--text-muted);border:1px solid transparent;
+    transition:all var(--t-fast)}
+  .contact-btn svg{width:13px;height:13px}
+  .contact-btn:hover{background:var(--content-bg);border-color:var(--border-subtle);color:var(--text-primary)}
+  .contact-btn.del:hover{color:#b03030;background:rgba(200,80,80,.08);border-color:rgba(200,80,80,.25)}
+  .no-contacts{font-size:12.5px;color:var(--text-muted);font-style:italic;padding:10px 0}
+  .tag-inline-wrap .tag-add-open-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;font-size:12.5px;color:var(--text-muted);border:1px dashed rgba(170,118,124,.35);border-radius:var(--radius-sm);background:transparent;cursor:pointer;transition:color var(--t-fast),border-color var(--t-fast)}
+  .tag-inline-wrap .tag-add-open-btn:hover{color:var(--text-primary);border-color:var(--c-clay)}
   /* ── Toggle-select tags (pests, services, tags) ── */
   .toggle-group { display:flex; flex-wrap:wrap; gap:6px 10px; }
   .toggle-tag { cursor:pointer; user-select:none; }
@@ -236,7 +255,6 @@
   </div>
 </div>
 
-{# ── Toolbar + Filters ── #}
 <form id="filter-form" method="get"
       x-data="{
         showFilters: false,
@@ -269,7 +287,6 @@
     <span class="records-count" id="treatment-count">{{ treatments|length }} записа</span>
   </div>
 
-  {# ── Active filter chips ── #}
   {% if q or active_pests or active_tags %}
   <div class="active-chips">
     {% if q %}
@@ -298,7 +315,6 @@
   </div>
   {% endif %}
 
-  {# ── Filter panel ── #}
   <div class="filter-panel" x-show="showFilters" x-cloak style="display:none">
     <div class="filter-panel-head">
       <span class="filter-panel-title">Филтри</span>
@@ -363,6 +379,7 @@
     e.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
   });
 
+
   function closeModal() {
     document.getElementById('modal').classList.add('hidden');
     document.getElementById('modal-content').innerHTML = '';
@@ -374,6 +391,7 @@
       const n  = document.querySelectorAll('#treatment-list .entry-card').length;
       const el = document.getElementById('treatment-count');
       if (el) el.textContent = n + ' записа';
+      closeModal();
     }
   });
 

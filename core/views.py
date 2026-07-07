@@ -18,64 +18,149 @@ import os
 import uuid as uuid_mod
 from datetime import datetime
 from pathlib import Path
-
 from core import sync_service
 
-from django.db.models import Prefetch, Max, Count, Q
+from django.db.models import Prefetch, Max, Count, Q, Exists, OuterRef
 
 from core.models import (
     Protocol, ProtocolColumn, ProtocolProduct, TemplateFolder,
-    Client, Site, SiteContact, Tag,
-    OneTimeTreatment, OneTimeTreatmentProduct,
+    Client, Site, Firm, SiteFirm, Contact, Tag,
+    OneTimeTreatment, OneTimeTreatmentProduct, OneTimeTreatmentContact,
     Product, Pest, NonChemicalMean, Worker, Company,
-    AppSettings,
+    AppSettings, _first_of_this_month,
 )
+from core.notes_html import sanitize_notes_html
 from core.forms import (
-    ClientForm, SiteForm, SiteFormFull, SiteContactForm, TagForm,
+    ClientForm, FirmForm, SiteFirmForm, SiteForm, SiteFormFull, ContactForm, TagForm,
     OneTimeTreatmentForm, ProductForm, CompanyForm, WorkerForm,
     PestForm, NonChemicalMeanForm,
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Month+year date inputs (2026-06-21) — pairs with the month_year_select
+# template tag, which renders "<field>_month" / "<field>_year" <select>
+# elements instead of <input type="month"> (inconsistent native support
+# across browsers/webviews was silently breaking date validation). Call
+# this to fold the two posted parts back into a single "YYYY-MM" string
+# before constructing/validating the Django form.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _merge_month_year(post, *field_names):
+    """Returns a NEW QueryDict-like dict (mutable copy of `post`) where each
+    given field name's `_month`/`_year` POST keys are combined into a single
+    'YYYY-MM' value under that field name. If neither split key is present
+    for a given field (e.g. a caller — the protocol editor's Alpine modal —
+    still posts that field as one pre-combined value directly), the
+    original value is left untouched."""
+    merged = post.copy()
+    for name in field_names:
+        if f'{name}_month' not in post and f'{name}_year' not in post:
+            continue
+        month = post.get(f'{name}_month', '')
+        year = post.get(f'{name}_year', '')
+        merged[name] = f'{year}-{month}' if month and year else ''
+    return merged
+
+
+def _merge_date_select(post, *field_names):
+    """Returns a NEW QueryDict-like dict (mutable copy of `post`) where each
+    given field name's `_day`/`_month`/`_year` POST keys are combined into a
+    single 'YYYY-MM-DD' value under that field name.
+
+    Mirrors _merge_month_year — pair with the date_select template tag that
+    renders the three <select> elements in the form. <input type="date"> is
+    unreliable in the pywebview WebKit webview (same class of bug as
+    <input type="month">, which this pattern already fixed for Firm/Site dates)."""
+    merged = post.copy()
+    for name in field_names:
+        if f'{name}_day' not in post:
+            continue
+        day   = post.get(f'{name}_day', '').zfill(2)
+        month = post.get(f'{name}_month', '').zfill(2)
+        year  = post.get(f'{name}_year', '')
+        merged[name] = f'{year}-{month}-{day}' if day and month and year else ''
+    return merged
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared querysets
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _clients_qs():
-    active_contacts = SiteContact.objects.order_by('order', 'created_at')
     active_sites = (
         Site.objects
         .filter(deleted_at__isnull=True)
-        .prefetch_related('tags', Prefetch('contacts', queryset=active_contacts))
+        .prefetch_related('tags', 'firm_links__firm')
         .order_by('name')
+    )
+    # Stage 8a (reworked): a client with no active Site is inactive — kept
+    # in the list (greyed out, sorted to the bottom), not hidden.
+    # has_active_site is an annotation (Client.is_active is a derived
+    # property, not a DB column) so templates/ordering can use it without an
+    # extra query per row.
+    has_active_site = Site.objects.filter(
+        client_id=OuterRef('pk'), is_active=True, deleted_at__isnull=True,
     )
     return (
         Client.objects
         .filter(deleted_at__isnull=True)
-        .prefetch_related(Prefetch('sites', queryset=active_sites))
-        .order_by('firm', 'name')
+        .annotate(
+            has_active_site=Exists(has_active_site),
+            site_count=Count('sites', filter=Q(sites__deleted_at__isnull=True), distinct=True),
+            active_site_count=Count(
+                'sites', filter=Q(sites__is_active=True, sites__deleted_at__isnull=True), distinct=True,
+            ),
+        )
+        .prefetch_related(Prefetch('sites', queryset=active_sites), 'contacts')
+        .order_by('-has_active_site', 'name')
     )
+
+
+def _client_card_client(client_pk):
+    """Fetch a single client with the same annotations/prefetches as
+    _clients_qs() — needed whenever a single client's card is re-rendered
+    on its own (live refresh after a site/contact change) instead of the
+    whole Клиенти list, since has_active_site/site_count/active_site_count
+    are queryset annotations, not real model fields."""
+    return get_object_or_404(_clients_qs(), pk=client_pk)
+
+
+def _oob_client_card(request, client_pk):
+    """Rendered '<div ... hx-swap-oob>' for one client's card — appended to
+    a response whose own hx-target is something else (e.g. a contacts modal),
+    so the Клиенти list row behind it refreshes too without a page reload."""
+    return render_to_string('clients/_client_card.html',
+                            {'client': _client_card_client(client_pk), 'oob': True},
+                            request=request)
 
 
 def _sites_qs(client):
-    active_contacts = SiteContact.objects.order_by('order', 'created_at')
     return (
         client.sites
         .filter(deleted_at__isnull=True)
-        .prefetch_related('tags', Prefetch('contacts', queryset=active_contacts))
-        .order_by('name')
+        .prefetch_related('tags')
+        .order_by('-is_active', 'name')
     )
 
 
-def _all_sites_qs():
-    """Used by the standalone Обекти list page."""
-    active_contacts = SiteContact.objects.order_by('order', 'created_at')
-    return (
+def _all_sites_qs(status=None):
+    """Used by the standalone Обекти list page.
+
+    Stage 8b: `status` filters to 'active' / 'inactive'; left unfiltered
+    (None / anything else) shows both, with inactive sites sorted to the
+    bottom rather than hidden.
+    """
+    qs = (
         Site.objects
         .filter(deleted_at__isnull=True)
         .select_related('client')
-        .prefetch_related('tags', Prefetch('contacts', queryset=active_contacts))
-        .order_by('client__firm', 'name')
+        .prefetch_related('tags')
     )
+    if status == 'active':
+        qs = qs.filter(is_active=True)
+    elif status == 'inactive':
+        qs = qs.filter(is_active=False)
+    return qs.order_by('-is_active', 'client__name', 'name')
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -102,7 +187,10 @@ def _protocol_list_qs(request):
         # match in Python with .casefold() instead — dataset is small.
         qf = q.casefold()
         search_fields = (
-            'pseudonym', 'client__firm', 'client__eik',
+            # snapshot_firm_* (Stage 8a) rather than a site__firm_links__*
+            # join — searches what's actually printed on this protocol, not
+            # the site's whole firm history, and avoids row fan-out.
+            'pseudonym', 'snapshot_firm_name', 'snapshot_firm_eik',
             'site__name', 'site__address', 'snapshot_company_name',
         )
         rows = qs.values('pk', *search_fields)
@@ -156,28 +244,32 @@ def protocol_list_body(request):
 
 
 def template_list(request, folder_id=None):
+    show_deleted = (request.GET.get('mode') == 'deleted')
+
     current_folder = None
     if folder_id:
-        current_folder = get_object_or_404(TemplateFolder, pk=folder_id)
+        if show_deleted:
+            current_folder = get_object_or_404(TemplateFolder, pk=folder_id)
+        else:
+            current_folder = get_object_or_404(TemplateFolder, pk=folder_id, deleted_at__isnull=True)
 
     q = (request.GET.get('q') or '').strip()
     search_results = None
-    subfolders = TemplateFolder.objects.none()
-    templates_qs = Protocol.objects.none()
+    subfolders     = TemplateFolder.objects.none()
+    templates_qs   = Protocol.objects.none()
 
     if q:
-        # Global search across the entire template library — folders are
-        # not shown, only matching protocol templates with their location.
+        # Global search across the entire template library.
         # SQLite's icontains doesn't case-fold Cyrillic, so match in Python.
         qf = q.casefold()
         base_qs = (
             Protocol.objects
-            .filter(is_preset=True, deleted_at__isnull=True)
+            .filter(is_preset=True, deleted_at__isnull=(not show_deleted))
             .select_related('client', 'site', 'folder')
             .prefetch_related('tags', 'columns__pests')
         )
         search_fields = (
-            'pseudonym', 'preset_name', 'client__firm', 'client__name',
+            'pseudonym', 'preset_name', 'snapshot_firm_name', 'client__name',
             'site__name', 'site__pseudonym', 'site__address',
         )
         rows = base_qs.values('pk', *search_fields)
@@ -190,8 +282,58 @@ def template_list(request, folder_id=None):
         )
         for tpl in search_results:
             tpl.folder_path = tpl.folder.get_breadcrumb() if tpl.folder else []
+    elif show_deleted:
+        if current_folder:
+            # Inside a deleted folder: show ALL children regardless of their own
+            # deleted_at — pre-cascade data may have children with deleted_at=None.
+            subfolders = (
+                TemplateFolder.objects
+                .filter(parent=current_folder)
+                .annotate(
+                    deleted_sub_count=Count('subfolders', distinct=True),
+                    deleted_tpl_count=Count(
+                        'templates',
+                        filter=Q(templates__is_preset=True),
+                        distinct=True,
+                    ),
+                )
+                .order_by('name')
+            )
+            templates_qs = (
+                Protocol.objects
+                .filter(is_preset=True, folder=current_folder)
+                .select_related('client', 'site')
+                .prefetch_related('tags', 'columns__pests')
+                .order_by('pseudonym', 'preset_name', '-created_at')
+            )
+        else:
+            # Archive root: only top-level deleted items.
+            subfolders = (
+                TemplateFolder.objects
+                .filter(parent__isnull=True, deleted_at__isnull=False)
+                .annotate(
+                    deleted_sub_count=Count('subfolders', distinct=True),
+                    deleted_tpl_count=Count(
+                        'templates',
+                        filter=Q(templates__is_preset=True),
+                        distinct=True,
+                    ),
+                )
+                .order_by('name')
+            )
+            templates_qs = (
+                Protocol.objects
+                .filter(is_preset=True, folder__isnull=True, deleted_at__isnull=False)
+                .select_related('client', 'site')
+                .prefetch_related('tags', 'columns__pests')
+                .order_by('pseudonym', 'preset_name', '-created_at')
+            )
     else:
-        subfolders = TemplateFolder.objects.filter(parent=current_folder).order_by('name')
+        subfolders = (
+            TemplateFolder.objects
+            .filter(parent=current_folder, deleted_at__isnull=True)
+            .order_by('name')
+        )
         templates_qs = (
             Protocol.objects
             .filter(is_preset=True, folder=current_folder, deleted_at__isnull=True)
@@ -200,15 +342,23 @@ def template_list(request, folder_id=None):
             .order_by('pseudonym', 'preset_name', '-created_at')
         )
 
+    # Badge count for the toggle button (total deleted items across the whole bin)
+    deleted_count = (
+        TemplateFolder.objects.filter(deleted_at__isnull=False).count()
+        + Protocol.objects.filter(is_preset=True, deleted_at__isnull=False).count()
+    )
+
     breadcrumb = current_folder.get_breadcrumb() if current_folder else []
     context = {
-        'active_nav': 'shabloni',
+        'active_nav':     'shabloni',
         'current_folder': current_folder,
-        'breadcrumb': breadcrumb,
-        'subfolders': subfolders,
-        'templates': templates_qs,
-        'search_query': q,
+        'breadcrumb':     breadcrumb,
+        'subfolders':     subfolders,
+        'templates':      templates_qs,
+        'search_query':   q,
         'search_results': search_results,
+        'show_deleted':   show_deleted,
+        'deleted_count':  deleted_count,
     }
     if request.headers.get('HX-Request'):
         return render(request, 'template_folders/_tpl_content.html', context)
@@ -258,6 +408,33 @@ def client_list(request):
     })
 
 
+def _save_new_client_contacts(request, client):
+    """Create Contact rows staged on the client-create form (Stage 10c-2).
+
+    Only used at creation time, when the client is guaranteed to have no
+    contacts yet — unlike `_save_treatment_contacts` this does NOT delete
+    existing contacts first, so it must never be called from client_edit
+    (that would risk wiping Contact<->Site links managed by the separate
+    contacts UI). The protocol editor's own "+ Нов клиент" modal posts
+    contacts one-by-one to a different endpoint, so these lists are simply
+    empty/absent there — this is a no-op in that flow.
+    """
+    names     = request.POST.getlist('contact_name')
+    phones    = request.POST.getlist('contact_phone')
+    positions = request.POST.getlist('contact_position')
+    for i, name in enumerate(names):
+        name = name.strip()
+        if not name:
+            continue
+        Contact.objects.create(
+            client=client,
+            name=name,
+            phone=phones[i].strip()    if i < len(phones)    else '',
+            position=positions[i].strip() if i < len(positions) else '',
+            order=i,
+        )
+
+
 def client_create(request):
     """Create a client.
 
@@ -266,22 +443,27 @@ def client_create(request):
       * success → 200 JSON with the new client's fields (no HTML render).
       * validation failure → 422 JSON with form errors.
     Existing HTMX behaviour is preserved when `as` is absent.
+
+    Stage 10c-2 adds optional staged `contact_name`/`contact_phone`/
+    `contact_position` repeated POST fields (Клиенти page create form only)
+    — see `_save_new_client_contacts`.
+
+    Stage 8a (reworked 2026-06-19): Firm no longer attaches to Client at
+    all (it attaches to Site, via SiteFirm) — Client creation is back to
+    just name + notes, no firm bundling.
     """
     as_json = request.GET.get('as') == 'json' or request.POST.get('as') == 'json'
     if request.method == 'POST':
         form = ClientForm(request.POST)
         if form.is_valid():
             client = form.save()
+            _save_new_client_contacts(request, client)
             if as_json:
                 return JsonResponse({
                     'ok': True,
                     'client': {
                         'id': str(client.pk),
-                        'firm': client.firm,
                         'name': client.name,
-                        'eik': client.eik,
-                        'address': client.address,
-                        'phone': client.phone,
                     },
                 })
             response = render(request, 'clients/_list_body.html',
@@ -300,6 +482,7 @@ def client_create(request):
 
 def client_edit(request, pk):
     client = get_object_or_404(Client, pk=pk, deleted_at__isnull=True)
+    contacts = client.contacts.order_by('order', 'created_at')
     if request.method == 'POST':
         form = ClientForm(request.POST, instance=client)
         if form.is_valid():
@@ -311,9 +494,9 @@ def client_edit(request, pk):
             response['HX-Trigger']  = 'closeModal'
             return response
         return render(request, 'clients/_client_form.html',
-                      {'form': form, 'mode': 'edit', 'client': client})
+                      {'form': form, 'mode': 'edit', 'client': client, 'contacts': contacts})
     return render(request, 'clients/_client_form.html',
-                  {'form': ClientForm(instance=client), 'mode': 'edit', 'client': client})
+                  {'form': ClientForm(instance=client), 'mode': 'edit', 'client': client, 'contacts': contacts})
 
 
 @require_http_methods(["DELETE"])
@@ -338,39 +521,62 @@ def sites_section(request, pk):
 
 
 def site_list(request):
+    status = request.GET.get('status')
     return render(request, 'sites/list.html', {
         'active_nav': 'obekti',
-        'sites': _all_sites_qs(),
+        'sites': _all_sites_qs(status),
+        'status': status or 'all',
     })
 
 
 def site_list_body(request):
-    """HTMX partial: re-render the sites list (after contacts change on Обекти page)."""
+    """HTMX partial: re-render the sites list (after contacts change, or the
+    active/inactive filter changes, on the Обекти page)."""
+    status = request.GET.get('status')
     return render(request, 'sites/_list_body.html', {
-        'sites': _all_sites_qs(),
+        'sites': _all_sites_qs(status),
     })
 
 
 def site_create(request, client_pk):
-    """Create a site from the Клиенти accordion (client is fixed)."""
+    """Create a site from the Клиенти accordion (client is fixed).
+
+    Stage 10c-2 adds an optional `contacts` POST list (repeated field, contact
+    PKs) — mirrors site_create_full's Stage 10c logic, scoped to this client
+    so a stray/foreign id can't link a contact across clients. The form's
+    "Контактни лица" checklist is rendered server-side since the client is
+    already known here.
+    """
     client = get_object_or_404(Client, pk=client_pk, deleted_at__isnull=True)
+    client_contacts = client.contacts.order_by('order', 'created_at')
     if request.method == 'POST':
-        form = SiteForm(request.POST)
+        form = SiteForm(_merge_month_year(request.POST, 'start_date', 'end_date'))
         if form.is_valid():
             site = form.save(commit=False)
             site.client = client
             site.save()
             form.save_m2m()
-            response = render(request, 'clients/_sites_section.html',
-                              {'client': client, 'sites': _sites_qs(client)})
-            response['HX-Retarget'] = f'#sites-section-{client.pk}'
-            response['HX-Reswap']   = 'innerHTML'
+            _process_site_firm_from_post(request, site)
+            contact_ids = request.POST.getlist('contacts')
+            if contact_ids:
+                site.contacts.set(
+                    Contact.objects.filter(pk__in=contact_ids, client=client)
+                )
+            response = render(request, 'clients/_client_card.html',
+                              {'client': _client_card_client(client.pk)})
+            response['HX-Retarget'] = f'#card-{client.pk}'
+            response['HX-Reswap']   = 'outerHTML'
             response['HX-Trigger']  = 'closeModal'
             return response
+        selected_contact_ids = set(request.POST.getlist('contacts'))
         return render(request, 'clients/_site_form.html',
-                      {'form': form, 'client': client, 'mode': 'create', 'ctx': 'clients'})
+                      {'form': form, 'client': client, 'mode': 'create', 'ctx': 'clients',
+                       'client_contacts': client_contacts,
+                       'selected_contact_ids': selected_contact_ids})
     return render(request, 'clients/_site_form.html',
-                  {'form': SiteForm(), 'client': client, 'mode': 'create', 'ctx': 'clients'})
+                  {'form': SiteForm(initial={'start_date': _first_of_this_month()}),
+                   'client': client, 'mode': 'create', 'ctx': 'clients',
+                   'client_contacts': client_contacts, 'selected_contact_ids': set()})
 
 
 def site_create_full(request):
@@ -381,22 +587,49 @@ def site_create_full(request):
       * success → 200 JSON with the new site's fields.
       * validation failure → 422 JSON with form errors.
     Existing HTMX behaviour is preserved when `as` is absent.
+
+    Stage 10c adds an optional `contacts` POST list (repeated field, contact
+    PKs) — used by the protocol editor's new-site modal to link zero-to-many
+    of the chosen client's existing contacts at creation time. Scoped to the
+    site's own client so a stray/foreign id can't link a contact across
+    clients. The standalone Обекти page form doesn't send this field, so its
+    behaviour is unchanged.
     """
     as_json = request.GET.get('as') == 'json' or request.POST.get('as') == 'json'
     if request.method == 'POST':
-        form = SiteFormFull(request.POST)
+        form = SiteFormFull(_merge_month_year(request.POST, 'start_date', 'end_date'))
         if form.is_valid():
-            site = form.save()
+            site = form.save(commit=False)
+            if as_json:
+                # Protocol editor's quick "+ Нов обект" modal doesn't show
+                # the active/inactive toggle (Stage 8b) — a site created this
+                # way is always active; start_date still comes from the
+                # modal's own date field (defaults to this month, editable).
+                site.is_active = True
+                site.end_date = None
+            site.save()
+            form.save_m2m()
+            _process_site_firm_from_post(request, site)
+            contact_ids = request.POST.getlist('contacts')
+            if contact_ids:
+                site.contacts.set(
+                    Contact.objects.filter(pk__in=contact_ids, client=site.client)
+                )
             if as_json:
                 return JsonResponse({
                     'ok': True,
                     'site': {
                         'id': str(site.pk),
                         'client_id': str(site.client_id),
+                        'client_name': site.client.name,
                         'pseudonym': site.pseudonym,
                         'name': site.name,
                         'address': site.address,
                         'area_m2': site.area_m2,
+                        'is_active': site.is_active,
+                        # Brand new — no firm linked yet (done from the 9b
+                        # site popup afterwards).
+                        'firm': '', 'eik': '', 'firm_address': '', 'phone': '',
                     },
                 })
             response = render(request, 'sites/_list_body.html',
@@ -407,38 +640,51 @@ def site_create_full(request):
             return response
         if as_json:
             return JsonResponse({'ok': False, 'errors': form.errors}, status=422)
-        return render(request, 'clients/_site_form.html',
-                      {'form': form, 'mode': 'create', 'ctx': 'sites', 'show_client': True})
+        ctx = {'form': form, 'mode': 'create', 'ctx': 'sites', 'show_client': True}
+        chosen_client_id = request.POST.get('client')
+        if chosen_client_id:
+            ctx['client_contacts'] = Contact.objects.filter(
+                client_id=chosen_client_id).order_by('order', 'created_at')
+            ctx['selected_contact_ids'] = set(request.POST.getlist('contacts'))
+        return render(request, 'clients/_site_form.html', ctx)
     return render(request, 'clients/_site_form.html',
-                  {'form': SiteFormFull(), 'mode': 'create', 'ctx': 'sites', 'show_client': True})
+                  {'form': SiteFormFull(initial={'start_date': _first_of_this_month()}),
+                   'mode': 'create', 'ctx': 'sites', 'show_client': True})
 
 
 def site_edit(request, pk):
+    """Edit a site. Stage 8a (further reworked 2026-06-21): uses
+    SiteFormFull (not the plain SiteForm) so the client itself is also
+    reassignable here, not just at creation."""
     site = get_object_or_404(Site, pk=pk, deleted_at__isnull=True)
     client = site.client
     ctx = request.GET.get('ctx', 'clients')  # persisted via hidden field on POST
 
     if request.method == 'POST':
         ctx = request.POST.get('_ctx', 'clients')
-        form = SiteForm(request.POST, instance=site)
+        form = SiteFormFull(_merge_month_year(request.POST, 'start_date', 'end_date'), instance=site)
         if form.is_valid():
             form.save()
+            _process_site_firm_from_post(request, site)
             if ctx == 'sites':
                 response = render(request, 'sites/_list_body.html',
                                   {'sites': _all_sites_qs()})
                 response['HX-Retarget'] = '#site-list'
+                response['HX-Reswap']  = 'innerHTML'
             else:
-                response = render(request, 'clients/_sites_section.html',
-                                  {'client': client, 'sites': _sites_qs(client)})
-                response['HX-Retarget'] = f'#sites-section-{client.pk}'
-            response['HX-Reswap']  = 'innerHTML'
+                response = render(request, 'clients/_client_card.html',
+                                  {'client': _client_card_client(client.pk)})
+                response['HX-Retarget'] = f'#card-{client.pk}'
+                response['HX-Reswap']  = 'outerHTML'
             response['HX-Trigger'] = 'closeModal'
             return response
         return render(request, 'clients/_site_form.html',
-                      {'form': form, 'site': site, 'client': client, 'mode': 'edit', 'ctx': ctx})
+                      {'form': form, 'site': site, 'client': client, 'mode': 'edit',
+                       'ctx': ctx, 'show_client': True, 'current_firm': site.active_firm})
     return render(request, 'clients/_site_form.html',
-                  {'form': SiteForm(instance=site), 'site': site,
-                   'client': client, 'mode': 'edit', 'ctx': ctx})
+                  {'form': SiteFormFull(instance=site), 'site': site,
+                   'client': client, 'mode': 'edit', 'ctx': ctx,
+                   'show_client': True, 'current_firm': site.active_firm})
 
 
 @require_http_methods(["DELETE"])
@@ -451,68 +697,317 @@ def site_delete(request, pk):
     hx_target = request.headers.get('HX-Target', '')
     if hx_target.startswith('site-row-'):
         return HttpResponse('')   # Обекти page: remove the <tr> via outerHTML swap
-    return render(request, 'clients/_sites_section.html',
-                  {'client': client, 'sites': _sites_qs(client)})
+    response = render(request, 'clients/_client_card.html',
+                      {'client': _client_card_client(client.pk)})
+    response['HX-Retarget'] = f'#card-{client.pk}'
+    response['HX-Reswap']  = 'outerHTML'
+    return response
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Site contact views
+# Site popup (9b) + Firm management (Stage 8a, reworked 2026-06-19 — Firm
+# attaches to Site via SiteFirm, not to Client). The client popup (9a) was
+# removed 2026-06-21 per Kiril — client management (contacts, etc.) now
+# lives directly on the client create/edit form instead.
 # ─────────────────────────────────────────────────────────────────────────────
 
-def site_contacts(request, site_pk):
-    site = get_object_or_404(Site, pk=site_pk, deleted_at__isnull=True)
-    return render(request, 'clients/_contacts_modal.html', {
+def site_popup(request, pk):
+    """9b — full site detail popup: the site's own status, and the
+    firm-link archive scoped to this site."""
+    site = get_object_or_404(Site, pk=pk, deleted_at__isnull=True)
+    firm_links = (
+        site.firm_links
+        .filter(deleted_at__isnull=True)
+        .select_related('firm')
+        .order_by('-is_active', '-start_date')
+    )
+    return render(request, 'sites/_popup.html', {
         'site': site,
-        'contacts': site.contacts.order_by('order', 'created_at'),
-        'form': SiteContactForm(),
+        'client': site.client,
+        'firm_links': firm_links,
     })
 
 
-def site_contact_create(request, site_pk):
+@require_POST
+def firm_create_inline(request):
+    """AJAX: create a standalone Firm record on its own (2026-06-21) — used
+    by the site create/edit form's "Нова фирма" tab so clicking "Запази
+    фирмата" stages it immediately (visible confirmation) without waiting
+    for the whole site form to submit. The site doesn't need to exist yet
+    for this — Firm is standalone; the SiteFirm *link* is only created once
+    the site itself saves (see _process_site_firm_from_post)."""
+    form = FirmForm(request.POST)
+    if not form.is_valid():
+        return JsonResponse({'ok': False, 'errors': form.errors}, status=422)
+    firm = form.save()
+    return JsonResponse({'ok': True, 'id': str(firm.pk), 'name': firm.name, 'eik': firm.eik})
+
+
+def firm_search(request, site_pk=None):
+    """JSON: search reusable Firm records by name/EIK — used by the site
+    popup's "+ Свържи фирма" tab (site_pk set) and by the site create/edit
+    form's own embedded Firm section (site_pk=None, no site exists yet at
+    creation time — see firm_search_generic in urls.py)."""
+    if site_pk:
+        get_object_or_404(Site, pk=site_pk, deleted_at__isnull=True)
+    q = (request.GET.get('q') or '').strip()
+    qs = Firm.objects.filter(deleted_at__isnull=True)
+    if q:
+        # SQLite's default icontains doesn't case-fold Cyrillic — match in
+        # Python instead, same pattern used elsewhere in this file.
+        qf = q.casefold()
+        rows = qs.values('id', 'name', 'eik')
+        matching_ids = [r['id'] for r in rows if qf in f"{r['name']} {r['eik']}".casefold()]
+        qs = qs.filter(pk__in=matching_ids)
+    results = [
+        {
+            'id': str(f.pk), 'name': f.name, 'eik': f.eik, 'address': f.address,
+            'site_count': f.site_links.filter(deleted_at__isnull=True)
+                           .values('site_id').distinct().count(),
+        }
+        for f in qs.order_by('name')[:20]
+    ]
+    return JsonResponse({'results': results})
+
+
+@require_POST
+def site_firm_link_create(request, site_pk):
+    """"+ Свържи фирма" in the 9b popup — links this site to either an
+    existing reusable Firm (`firm_id` in POST) or a brand-new one (firm
+    fields in POST), then creates the SiteFirm link."""
     site = get_object_or_404(Site, pk=site_pk, deleted_at__isnull=True)
-    if request.method == 'POST':
-        form = SiteContactForm(request.POST)
-        if form.is_valid():
-            contact = form.save(commit=False)
-            contact.site = site
-            max_order = site.contacts.aggregate(m=Max('order'))['m']
-            contact.order = (max_order or 0) + 1
-            contact.save()
-            return render(request, 'clients/_contacts_list.html', {
-                'site': site,
-                'contacts': site.contacts.order_by('order', 'created_at'),
-            })
-        return render(request, 'clients/_contacts_modal.html', {
-            'site': site,
-            'contacts': site.contacts.order_by('order', 'created_at'),
-            'form': form,
+    firm_id = request.POST.get('firm_id')
+    if firm_id:
+        firm = get_object_or_404(Firm, pk=firm_id, deleted_at__isnull=True)
+    else:
+        firm_form = FirmForm(request.POST)
+        if not firm_form.is_valid():
+            return render(request, 'sites/_firm_link_errors.html',
+                          {'errors': firm_form.errors}, status=422)
+        firm = firm_form.save()
+
+    merged = _merge_month_year(request.POST, 'start_date')
+    link_form = SiteFirmForm(data={
+        'is_active': True,
+        'start_date': merged.get('start_date', ''),
+    })
+    if not link_form.is_valid():
+        return render(request, 'sites/_firm_link_errors.html',
+                      {'errors': link_form.errors}, status=422)
+    link = link_form.save(commit=False)
+    link.site = site
+    link.firm = firm
+    link.save()
+
+    response = render(request, 'sites/_firm_links_section.html', {
+        'site': site, 'firm_links': _site_firm_links_qs(site),
+    })
+    response['HX-Trigger'] = 'closeFirmLinkForm'
+    return response
+
+
+def _site_firm_links_qs(site):
+    return (
+        site.firm_links
+        .filter(deleted_at__isnull=True)
+        .select_related('firm')
+        .order_by('-is_active', '-start_date')
+    )
+
+
+def _process_site_firm_from_post(request, site):
+    """Optional Firm select/create section embedded directly in the site
+    create/edit form (2026-06-21) — leaving it blank means "don't touch the
+    site's current firm link". Mirrors site_firm_link_create's logic but
+    is called from the site form's own save path instead of the 9b popup's
+    dedicated endpoint.
+    """
+    firm_id = request.POST.get('firm_id')
+    firm_name = (request.POST.get('firm_name') or '').strip()
+    if not firm_id and not firm_name:
+        return
+    if firm_id:
+        firm = Firm.objects.filter(pk=firm_id, deleted_at__isnull=True).first()
+        if not firm:
+            return
+    else:
+        firm_form = FirmForm(data={
+            'name': firm_name,
+            'eik': request.POST.get('firm_eik', ''),
+            'address': request.POST.get('firm_address', ''),
+            'phone': request.POST.get('firm_phone', ''),
         })
-    return render(request, 'clients/_contacts_modal.html', {
-        'site': site,
-        'contacts': site.contacts.order_by('order', 'created_at'),
-        'form': SiteContactForm(),
+        if not firm_form.is_valid():
+            return
+        firm = firm_form.save()
+
+    merged = _merge_month_year(request.POST, 'firm_start_date')
+    link_form = SiteFirmForm(data={
+        'is_active': True,
+        'start_date': merged.get('firm_start_date', ''),
+    })
+    if not link_form.is_valid():
+        return
+    link = link_form.save(commit=False)
+    link.site = site
+    link.firm = firm
+    link.save()
+
+
+@require_POST
+def site_firm_link_toggle(request, pk):
+    """Sliding toggle switch in the 9b popup — flips a SiteFirm link's
+    is_active. Turning it back on auto-clears end_date and (per
+    SiteFirm.save()) auto-ends any other active link for the same site."""
+    link = get_object_or_404(SiteFirm, pk=pk, deleted_at__isnull=True)
+    link.is_active = not link.is_active
+    if not link.is_active and not link.end_date:
+        link.end_date = timezone.localdate().replace(day=1)
+    link.save()
+    return render(request, 'sites/_firm_links_section.html', {
+        'site': link.site, 'firm_links': _site_firm_links_qs(link.site),
     })
 
 
 @require_http_methods(["DELETE"])
-def site_contact_delete(request, pk):
-    contact = get_object_or_404(SiteContact, pk=pk)
-    site = contact.site
-    contact.delete()
-    return render(request, 'clients/_contacts_list.html', {
-        'site': site,
-        'contacts': site.contacts.order_by('order', 'created_at'),
+def site_firm_link_delete(request, pk):
+    """Delete button on every firm-link row in the 9b popup (active or
+    inactive — Kiril asked for delete on all rows, not just ended ones)."""
+    link = get_object_or_404(SiteFirm, pk=pk, deleted_at__isnull=True)
+    site = link.site
+    link.deleted_at = timezone.now()
+    link.save()
+    return render(request, 'sites/_firm_links_section.html', {
+        'site': site, 'firm_links': _site_firm_links_qs(site),
     })
 
 
+def _firmi_qs():
+    firms = list(
+        Firm.objects.filter(deleted_at__isnull=True)
+        .prefetch_related(
+            Prefetch(
+                'site_links',
+                queryset=SiteFirm.objects.filter(deleted_at__isnull=True)
+                .select_related('site', 'site__client').order_by('-is_active', 'site__pseudonym'),
+            ),
+        )
+        .order_by('name')
+    )
+    for firm in firms:
+        links = list(firm.site_links.all())
+        firm.links = links
+        # Distinct client names, in first-seen order — a firm can in theory
+        # be linked to sites under more than one client.
+        seen = []
+        for link in links:
+            name = link.site.client.name
+            if name not in seen:
+                seen.append(name)
+        firm.client_names = seen
+    return firms
+
+
+def firmi_list(request):
+    """Top-level Фирми page (after Обекти in the nav)."""
+    return render(request, 'firmi/list.html', {
+        'active_nav': 'firmi',
+        'firms': _firmi_qs(),
+    })
+
+
+def firmi_list_body(request):
+    return render(request, 'firmi/_list_body.html', {'firms': _firmi_qs()})
+
+
+def firm_edit(request, pk):
+    """Edit a Firm directly from the Фирми page — it's a standalone reusable
+    record, so this updates the data everywhere the firm is linked."""
+    firm = get_object_or_404(Firm, pk=pk, deleted_at__isnull=True)
+    if request.method == 'POST':
+        form = FirmForm(request.POST, instance=firm)
+        if form.is_valid():
+            form.save()
+            r = HttpResponse(status=204)
+            r['HX-Trigger'] = 'firmsChanged'
+            return r
+    else:
+        form = FirmForm(instance=firm)
+    return render(request, 'firmi/_form.html', {'form': form, 'firm': firm})
+
+
+@require_http_methods(['DELETE'])
+def firm_delete(request, pk):
+    """Hard-delete a Firm. CASCADE on SiteFirm.firm removes all link rows
+    automatically, so deleted firms can never block site lookups or reuse
+    of the same EIK for a new firm."""
+    firm = get_object_or_404(Firm, pk=pk, deleted_at__isnull=True)
+    firm.delete()
+    return render(request, 'firmi/_list_body.html', {'firms': _firmi_qs()})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Contact views  (client-level contacts + site M2M assignment)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def client_contacts(request, client_pk):
+    """HTMX: open the client contacts management modal."""
+    client = get_object_or_404(Client, pk=client_pk, deleted_at__isnull=True)
+    return render(request, 'clients/_client_contacts_modal.html', {
+        'client': client,
+        'contacts': client.contacts.order_by('order', 'created_at'),
+        'form': ContactForm(),
+    })
+
+
+def contact_create(request, client_pk):
+    """HTMX POST: add a contact to a client."""
+    client = get_object_or_404(Client, pk=client_pk, deleted_at__isnull=True)
+    if request.method == 'POST':
+        form = ContactForm(request.POST)
+        if form.is_valid():
+            contact = form.save(commit=False)
+            contact.client = client
+            max_order = client.contacts.aggregate(m=Max('order'))['m']
+            contact.order = (max_order or 0) + 1
+            contact.save()
+            html = render_to_string('clients/_client_contacts_list.html', {
+                'client': client,
+                'contacts': client.contacts.order_by('order', 'created_at'),
+            }, request=request)
+            return HttpResponse(html + _oob_client_card(request, client.pk))
+        return render(request, 'clients/_client_contacts_modal.html', {
+            'client': client,
+            'contacts': client.contacts.order_by('order', 'created_at'),
+            'form': form,
+        })
+    return render(request, 'clients/_client_contacts_modal.html', {
+        'client': client,
+        'contacts': client.contacts.order_by('order', 'created_at'),
+        'form': ContactForm(),
+    })
+
+
+@require_http_methods(["DELETE"])
+def contact_delete(request, pk):
+    contact = get_object_or_404(Contact, pk=pk)
+    client = contact.client
+    contact.delete()
+    html = render_to_string('clients/_client_contacts_list.html', {
+        'client': client,
+        'contacts': client.contacts.order_by('order', 'created_at'),
+    }, request=request)
+    return HttpResponse(html + _oob_client_card(request, client.pk))
+
+
 @require_http_methods(["POST"])
-def site_contact_move(request, pk, direction):
-    contact = get_object_or_404(SiteContact, pk=pk)
-    site = contact.site
-    contacts = list(site.contacts.order_by('order', 'created_at'))
+def contact_move(request, pk, direction):
+    contact = get_object_or_404(Contact, pk=pk)
+    client = contact.client
+    contacts = list(client.contacts.order_by('order', 'created_at'))
     for i, c in enumerate(contacts):
         c.order = i
-    SiteContact.objects.bulk_update(contacts, ['order'])
+    Contact.objects.bulk_update(contacts, ['order'])
     idx = next((i for i, c in enumerate(contacts) if c.pk == contact.pk), None)
     if idx is not None:
         if direction == 'up' and idx > 0:
@@ -525,9 +1020,94 @@ def site_contact_move(request, pk, direction):
                 contacts[idx + 1].order, contacts[idx].order)
             contacts[idx].save()
             contacts[idx + 1].save()
-    return render(request, 'clients/_contacts_list.html', {
+    html = render_to_string('clients/_client_contacts_list.html', {
+        'client': client,
+        'contacts': client.contacts.order_by('order', 'created_at'),
+    }, request=request)
+    return HttpResponse(html + _oob_client_card(request, client.pk))
+
+
+def contact_edit(request, pk):
+    """HTMX: inline-edit a single contact row.
+
+    GET  → re-render the list with this row swapped into edit-mode inputs.
+    POST → validate + save, re-render the list back in display mode.
+    """
+    contact = get_object_or_404(Contact, pk=pk)
+    client = contact.client
+    if request.method == 'POST':
+        form = ContactForm(request.POST, instance=contact)
+        if form.is_valid():
+            form.save()
+            html = render_to_string('clients/_client_contacts_list.html', {
+                'client': client,
+                'contacts': client.contacts.order_by('order', 'created_at'),
+            }, request=request)
+            return HttpResponse(html + _oob_client_card(request, client.pk))
+        return render(request, 'clients/_client_contacts_list.html', {
+            'client': client,
+            'contacts': client.contacts.order_by('order', 'created_at'),
+            'editing_pk': contact.pk,
+            'edit_form': form,
+        })
+    return render(request, 'clients/_client_contacts_list.html', {
+        'client': client,
+        'contacts': client.contacts.order_by('order', 'created_at'),
+        'editing_pk': contact.pk,
+    })
+
+
+def client_contacts_list(request, client_pk):
+    """HTMX: re-render the bare contacts list — used to cancel an inline edit."""
+    client = get_object_or_404(Client, pk=client_pk, deleted_at__isnull=True)
+    return render(request, 'clients/_client_contacts_list.html', {
+        'client': client,
+        'contacts': client.contacts.order_by('order', 'created_at'),
+    })
+
+
+def client_contacts_json(request, client_pk):
+    """JSON: return all contacts for a client (used by site form + protocol editor)."""
+    client = get_object_or_404(Client, pk=client_pk, deleted_at__isnull=True)
+    data = [
+        {
+            'id': str(c.pk),
+            'name': c.name,
+            'phone': c.phone,
+            'position': c.position,
+        }
+        for c in client.contacts.order_by('order', 'created_at')
+    ]
+    return JsonResponse({'contacts': data})
+
+
+def site_contacts(request, site_pk):
+    """HTMX: manage which of a client's contacts are linked to this site."""
+    site = get_object_or_404(Site, pk=site_pk, deleted_at__isnull=True)
+    client = site.client
+    all_contacts = client.contacts.order_by('order', 'created_at')
+    linked_ids = set(site.contacts.values_list('pk', flat=True))
+
+    if request.method == 'POST':
+        selected_ids = request.POST.getlist('contacts')
+        site.contacts.set(
+            Contact.objects.filter(pk__in=selected_ids, client=client)
+        )
+        linked_ids = set(site.contacts.values_list('pk', flat=True))
+        # Return updated list so HTMX can swap it
+        return render(request, 'clients/_contacts_modal.html', {
+            'site': site,
+            'client': client,
+            'all_contacts': all_contacts,
+            'linked_ids': linked_ids,
+            'saved': True,
+        })
+
+    return render(request, 'clients/_contacts_modal.html', {
         'site': site,
-        'contacts': site.contacts.order_by('order', 'created_at'),
+        'client': client,
+        'all_contacts': all_contacts,
+        'linked_ids': linked_ids,
     })
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -561,6 +1141,20 @@ def tag_create(request):
             return response
         return render(request, 'tags/_tag_form.html', {'form': form, 'mode': 'create'})
     return render(request, 'tags/_tag_form.html', {'form': TagForm(), 'mode': 'create'})
+
+
+def tag_create_inline(request):
+    """Lightweight JSON endpoint for inline tag creation from any picker."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    form = TagForm(request.POST)
+    if form.is_valid():
+        max_order = Tag.objects.filter(deleted_at__isnull=True).aggregate(m=Max('order'))['m']
+        tag = form.save(commit=False)
+        tag.order = (max_order or 0) + 1
+        tag.save()
+        return JsonResponse({'id': str(tag.pk), 'name': tag.name, 'color': tag.color})
+    return JsonResponse({'errors': form.errors}, status=400)
 
 
 def tag_edit(request, pk):
@@ -611,7 +1205,7 @@ def _one_time_qs():
     return (
         OneTimeTreatment.objects
         .filter(deleted_at__isnull=True)
-        .prefetch_related('pests', 'executed_by', 'tags', 'products__product')
+        .prefetch_related('pests', 'executed_by', 'tags', 'products__product', 'contacts')
         .order_by('-date', '-created_at')
     )
 
@@ -637,6 +1231,24 @@ def _save_treatment_products(request, treatment):
         )
 
 
+def _save_treatment_contacts(request, treatment):
+    treatment.contacts.all().delete()
+    names     = request.POST.getlist('contact_name')
+    phones    = request.POST.getlist('contact_phone')
+    positions = request.POST.getlist('contact_position')
+    for i, name in enumerate(names):
+        name = name.strip()
+        if not name:
+            continue
+        OneTimeTreatmentContact.objects.create(
+            treatment=treatment,
+            name=name,
+            phone=phones[i].strip()    if i < len(phones)    else '',
+            position=positions[i].strip() if i < len(positions) else '',
+            order=i,
+        )
+
+
 def one_time_list(request):
     q = request.GET.get('q', '').strip()
     pest_ids = request.GET.getlist('pests')
@@ -647,8 +1259,8 @@ def one_time_list(request):
         qs = qs.filter(
             Q(pseudonym__icontains=q) |
             Q(address__icontains=q) |
-            Q(contact_name__icontains=q)
-        )
+            Q(contacts__name__icontains=q)
+        ).distinct()
     if pest_ids:
         qs = qs.filter(pests__pk__in=pest_ids).distinct()
     if tag_ids:
@@ -677,16 +1289,22 @@ def one_time_create(request):
     if request.method == 'POST':
         form = OneTimeTreatmentForm(request.POST)
         if form.is_valid():
-            treatment = form.save()
+            treatment = form.save(commit=False)
+            if not treatment.date:
+                treatment.date = timezone.localdate()
+            treatment.save()
+            form.save_m2m()
             _save_treatment_products(request, treatment)
+            _save_treatment_contacts(request, treatment)
             response = render(request, 'one_time/_list_body.html',
                               {'treatments': _one_time_qs()})
-            response['HX-Retarget'] = '#treatment-list'
-            response['HX-Reswap']   = 'innerHTML'
-            response['HX-Trigger']  = 'closeModal'
+            response['HX-Trigger'] = 'closeModal'
             return response
-        # form invalid — re-render form with errors
-        return render(request, 'one_time/_form.html', _form_ctx(request, form, 'create'))
+        # form invalid — re-render inside the modal, not the list area
+        err = render(request, 'one_time/_form.html', _form_ctx(request, form, 'create'))
+        err['HX-Retarget'] = '#modal-content'
+        err['HX-Reswap']   = 'innerHTML'
+        return err
 
     form = OneTimeTreatmentForm()
     return render(request, 'one_time/_form.html', _form_ctx(request, form, 'create'))
@@ -697,15 +1315,22 @@ def one_time_edit(request, pk):
     if request.method == 'POST':
         form = OneTimeTreatmentForm(request.POST, instance=treatment)
         if form.is_valid():
-            treatment = form.save()
+            treatment = form.save(commit=False)
+            if not treatment.date:
+                treatment.date = timezone.localdate()
+            treatment.save()
+            form.save_m2m()
             _save_treatment_products(request, treatment)
+            _save_treatment_contacts(request, treatment)
             response = render(request, 'one_time/_list_body.html',
                               {'treatments': _one_time_qs()})
-            response['HX-Retarget'] = '#treatment-list'
-            response['HX-Reswap']   = 'innerHTML'
-            response['HX-Trigger']  = 'closeModal'
+            response['HX-Trigger'] = 'closeModal'
             return response
-        return render(request, 'one_time/_form.html', _form_ctx(request, form, 'edit', treatment))
+        # form invalid — re-render inside the modal
+        err = render(request, 'one_time/_form.html', _form_ctx(request, form, 'edit', treatment))
+        err['HX-Retarget'] = '#modal-content'
+        err['HX-Reswap']   = 'innerHTML'
+        return err
 
     form = OneTimeTreatmentForm(instance=treatment)
     return render(request, 'one_time/_form.html',
@@ -732,25 +1357,35 @@ def one_time_delete(request, pk):
 
 def _form_ctx(request, form, mode, treatment=None):
     existing_products = []
+    existing_contacts = []
     if form.is_bound:
         selected_pest_ids   = set(form.data.getlist('pests'))
         selected_worker_ids = set(form.data.getlist('executed_by'))
         selected_tag_ids    = set(form.data.getlist('tags'))
+        # Preserve the submitted date string as-is so the template can set
+        # value="..." on <input type="date"> without going through the date
+        # filter (which silently returns '' when given a string, not a date).
+        date_str = form.data.get('date', '')
     elif treatment and treatment.pk:
         selected_pest_ids   = set(str(pk) for pk in treatment.pests.values_list('id', flat=True))
         selected_worker_ids = set(str(pk) for pk in treatment.executed_by.values_list('id', flat=True))
         selected_tag_ids    = set(str(pk) for pk in treatment.tags.values_list('id', flat=True))
         existing_products   = list(treatment.products.select_related('product').order_by('order'))
+        existing_contacts   = list(treatment.contacts.order_by('order'))
+        date_str = treatment.date.isoformat() if treatment.date else timezone.localdate().isoformat()
     else:
         selected_pest_ids   = set()
         selected_worker_ids = set()
         selected_tag_ids    = set()
+        date_str = timezone.localdate().isoformat()
     return {
         'form':               form,
         'mode':               mode,
         'treatment':          treatment,
+        'date_str':           date_str,
         'all_products':       Product.objects.filter(deleted_at__isnull=True).order_by('category', 'name'),
         'existing_products':  existing_products,
+        'existing_contacts':  existing_contacts,
         'selected_pest_ids':  selected_pest_ids,
         'selected_worker_ids': selected_worker_ids,
         'selected_tag_ids':   selected_tag_ids,
@@ -782,18 +1417,42 @@ def _build_editor_bootstrap():
         .order_by('-is_default', 'name')
         .values('id', 'name', 'eik', 'address', 'phone', 'slogan', 'is_default')
     )
+    # Stage 8a (reworked 2026-06-19): Firm now attaches to Site, not Client
+    # — the editor's search is site-first (see editor.html), and picking a
+    # site auto-fills the firm panel from that site's active firm link.
+    # Clients no longer need firm-based filtering.
+    #
+    # NOTE: this list intentionally includes INACTIVE sites too (unlike the
+    # is_active=True filtering on the standalone Обекти page) — editor.html
+    # hides them from the live search dropdown (filteredSites), but an old
+    # protocol referencing a site that's since gone inactive must still be
+    # able to restore that site's data on edit/view via allSites.find().
     clients = list(
         Client.objects
         .filter(deleted_at__isnull=True)
-        .order_by('firm', 'name')
-        .values('id', 'firm', 'name', 'eik', 'address', 'phone')
+        .order_by('name')
+        .values('id', 'name')
     )
-    sites = list(
+    sites = []
+    for s in (
         Site.objects
         .filter(deleted_at__isnull=True)
-        .order_by('client__firm', 'name')
-        .values('id', 'client_id', 'pseudonym', 'name', 'address', 'area_m2')
-    )
+        .select_related('client')
+        .prefetch_related('firm_links__firm')
+        .order_by('client__name', 'name')
+    ):
+        firm = s.active_firm
+        sites.append({
+            'id': str(s.pk), 'client_id': str(s.client_id),
+            'client_name': s.client.name,
+            'pseudonym': s.pseudonym, 'name': s.name,
+            'address': s.address, 'area_m2': s.area_m2,
+            'is_active': s.is_active,
+            'firm': firm.name if firm else '',
+            'eik': firm.eik if firm else '',
+            'firm_address': firm.address if firm else '',
+            'phone': firm.phone if firm else '',
+        })
 
     products = {svc: [] for svc in _SERVICES}
     for p in Product.objects.filter(deleted_at__isnull=True).order_by('category', 'name'):
@@ -1023,7 +1682,10 @@ def _save_or_rewrite_protocol(payload, *, is_preset=False,
         'executed_by_id':  _safe_uuid(payload.get('executed_by_id')),
         'client_signatory': (payload.get('client_signatory') or '')[:255],
         'pseudonym':       (payload.get('pseudonym') or '')[:255],
-        'notes':           payload.get('notes') or '',
+        # Stage 10e-3 — no ModelForm sits in front of this payload, so
+        # whitelist-sanitize the rich-HTML notes here, same rules as
+        # ClientForm.clean_notes() etc.
+        'notes':           sanitize_notes_html(payload.get('notes') or ''),
         'price':           _safe_decimal(payload.get('price')),
         'is_preset':       bool(is_preset),
         'preset_name':     (preset_name or '')[:255],
@@ -1034,13 +1696,20 @@ def _save_or_rewrite_protocol(payload, *, is_preset=False,
         'snapshot_company_eik':     '',
         'snapshot_company_address': '',
         'snapshot_company_phone':   '',
+        # Stage 8a (reworked) — same idea, for the site's active Firm link.
+        'snapshot_firm_name':    '',
+        'snapshot_firm_eik':     '',
+        'snapshot_firm_address': '',
+        'snapshot_firm_phone':   '',
     }
 
     protocol, created = Protocol.objects.update_or_create(
         pk=client_uuid, defaults=defaults,
     )
-    # Force a fresh company snapshot on every rewrite (in case company changed).
+    # Force a fresh company + firm snapshot on every rewrite (in case either
+    # changed since the last save).
     protocol.refresh_company_snapshot()
+    protocol.refresh_firm_snapshot()
     protocol.save()
 
     # Tags M2M
@@ -1233,13 +1902,22 @@ def _build_preview_protocol(payload):
     else:
         bait_text = "....бр. комбинирани примамки - " + " + ".join(descriptors)
 
+    site_firm = site_o.active_firm if site_o else None
     return SimpleNamespace(
         company=company or SimpleNamespace(slogan=''),
         snapshot_company_name=(company.name if company else ''),
         snapshot_company_eik=(company.eik if company else ''),
         snapshot_company_address=(company.address if company else ''),
         snapshot_company_phone=(company.phone if company else ''),
-        client=client_o or SimpleNamespace(firm='', name='', eik='', address='', phone=''),
+        client=client_o or SimpleNamespace(name=''),
+        # Stage 8a (reworked) — preview has no saved Protocol row to
+        # snapshot, so this mirrors what Protocol.refresh_firm_snapshot()
+        # would freeze right now, computed live from the chosen site's
+        # active Firm link.
+        snapshot_firm_name=(site_firm.name if site_firm else ''),
+        snapshot_firm_eik=(site_firm.eik if site_firm else ''),
+        snapshot_firm_address=(site_firm.address if site_firm else ''),
+        snapshot_firm_phone=(site_firm.phone if site_firm else ''),
         site=site_o   or SimpleNamespace(name='', address='', area_m2=None),
         is_long_term_contract=bool(payload.get('is_long_term_contract', False)),
         prepared_by=prep_o or SimpleNamespace(name=''),
@@ -1306,7 +1984,7 @@ def protocol_view(request, pk):
     """Read-only view of a saved protocol, rendered in the editor layout."""
     protocol = get_object_or_404(
         Protocol.objects.select_related('source_template'),
-        pk=pk, deleted_at__isnull=True,
+        pk=pk,
     )
     bootstrap = _build_editor_bootstrap()
     bootstrap['prefill'] = _build_prefill_from_protocol(protocol, include_pk=True)
@@ -1349,6 +2027,7 @@ def protocol_preview(request):
     We DO NOT save here — save only happens when the user clicks one of
     the action buttons on the preview page.
     """
+    back_url = ''
     if request.content_type == 'application/json':
         payload, err = _parse_payload(request)
         if err:
@@ -1360,6 +2039,7 @@ def protocol_preview(request):
             payload = json.loads(request.POST.get('payload', '') or '{}')
         except (ValueError, TypeError):
             return JsonResponse({'ok': False, 'error': 'invalid_payload'}, status=400)
+        back_url = request.POST.get('back_url', '')
 
     try:
         preview_protocol = _build_preview_protocol(payload)
@@ -1375,6 +2055,7 @@ def protocol_preview(request):
             if getattr(preview_protocol.company, 'logo', None) else ''
         ),
         'payload_json': json.dumps(payload, ensure_ascii=False),
+        'back_url': back_url,
         # Folder tree for the "Save as template" picker
         'folders_json': json.dumps(
             list(TemplateFolder.objects
@@ -1383,6 +2064,36 @@ def protocol_preview(request):
                  .values('id', 'name', 'parent_id')),
             ensure_ascii=False, default=str,
         ),
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Return to editor from preview (POST — payload round-trip)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@require_POST
+def protocol_return_to_editor(request):
+    """POST from the preview page's '← Към редактиране' button.
+
+    The preview page embeds the full editor payload in a hidden form and
+    submits it here, so the editor re-opens pre-filled with exactly what
+    the user was working on.  No session, no localStorage — data lives only
+    in the HTTP round-trip.
+
+    back_url is forwarded so the editor's own 'Отказ' button still works.
+    """
+    try:
+        payload = json.loads(request.POST.get('payload', '') or '{}')
+    except (ValueError, TypeError):
+        payload = {}
+    back_url = request.POST.get('back_url', '')
+    bootstrap = _build_editor_bootstrap()
+    bootstrap['prefill'] = payload
+    return render(request, 'protocols/editor.html', {
+        'active_nav':     'protokoli',
+        'editor_mode':    'create',
+        'bootstrap_json': json.dumps(bootstrap, ensure_ascii=False, default=str),
+        'back_url':       back_url,
     })
 
 
@@ -1410,6 +2121,13 @@ def protocol_save_action(request):
     is_preset = action == 'save_as_template'
     preset_name = (payload.get('preset_name') or '') if is_preset else ''
     folder_id   = payload.get('folder_id') if is_preset else None
+
+    if is_preset:
+        # Templates must be a separate DB record from the editor draft.
+        # Stripping client_uuid forces _save_or_rewrite_protocol to generate
+        # a fresh UUID4, so a subsequent "Запази протокола" click on the same
+        # preview page cannot overwrite (and erase) the saved template.
+        payload = {k: v for k, v in payload.items() if k != 'client_uuid'}
 
     try:
         protocol, created = _save_or_rewrite_protocol(
@@ -1621,7 +2339,7 @@ def _companies_qs():
 
 def company_list(request):
     return render(request, 'companies/list.html', {
-        'active_nav': 'firmi',
+        'active_nav': 'lichni_danni',
         'companies': _companies_qs(),
     })
 
@@ -2011,8 +2729,33 @@ def sync_conflict(request):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Шаблони — Folder CRUD (Stage current batch)
+# Шаблони — Folder CRUD
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _soft_delete_folder_tree(folder, ts):
+    """Recursively soft-delete a folder, all its sub-folders, and its templates."""
+    Protocol.objects.filter(
+        is_preset=True, folder=folder, deleted_at__isnull=True
+    ).update(deleted_at=ts)
+    for child in TemplateFolder.objects.filter(parent=folder, deleted_at__isnull=True):
+        _soft_delete_folder_tree(child, ts)
+    folder.deleted_at = ts
+    folder.save(update_fields=['deleted_at'])
+
+
+def _restore_folder_tree(folder, move_to_root=False):
+    """Recursively restore a soft-deleted folder and all its contents.
+    If move_to_root is True the folder's parent FK is cleared first."""
+    if move_to_root:
+        folder.parent = None
+    folder.deleted_at = None
+    folder.save(update_fields=['deleted_at', 'parent'])
+    Protocol.objects.filter(
+        is_preset=True, folder=folder, deleted_at__isnull=False
+    ).update(deleted_at=None)
+    for child in TemplateFolder.objects.filter(parent=folder, deleted_at__isnull=False):
+        _restore_folder_tree(child)
+
 
 def _folders_json():
     return json.dumps(
@@ -2073,11 +2816,36 @@ def folder_edit(request, pk):
 @require_http_methods(['DELETE'])
 def folder_delete(request, pk):
     folder = get_object_or_404(TemplateFolder, pk=pk, deleted_at__isnull=True)
-    folder.deleted_at = timezone.now()
-    folder.save(update_fields=['deleted_at'])
-    from django.http import HttpResponse as _HR
-    r = _HR(status=204)
+    _soft_delete_folder_tree(folder, timezone.now())
+    r = HttpResponse(status=204)
     r['HX-Trigger'] = 'foldersChanged'
+    return r
+
+
+@require_http_methods(['POST'])
+def folder_restore(request, pk):
+    folder = get_object_or_404(TemplateFolder, pk=pk, deleted_at__isnull=False)
+    # If the parent is also deleted, move this folder to root on restore
+    move_to_root = bool(
+        folder.parent_id and
+        TemplateFolder.objects.filter(pk=folder.parent_id, deleted_at__isnull=False).exists()
+    )
+    _restore_folder_tree(folder, move_to_root=move_to_root)
+    r = HttpResponse(status=204)
+    r['HX-Trigger'] = 'foldersChanged'
+    return r
+
+
+@require_http_methods(['POST'])
+def template_restore(request, pk):
+    tpl = get_object_or_404(Protocol, pk=pk, is_preset=True, deleted_at__isnull=False)
+    # If the folder it was in is also deleted, move template to root
+    if tpl.folder_id and TemplateFolder.objects.filter(pk=tpl.folder_id, deleted_at__isnull=False).exists():
+        tpl.folder = None
+    tpl.deleted_at = None
+    tpl.save(update_fields=['deleted_at', 'folder'])
+    r = HttpResponse(status=204)
+    r['HX-Trigger'] = 'templatesChanged'
     return r
 
 
@@ -2093,10 +2861,15 @@ def template_use(request, pk):
     prefill['date'] = timezone.localdate().isoformat()
     prefill['source_template_id'] = str(source.pk)
     bootstrap['prefill'] = prefill
+    back_url = (
+        reverse('core:template_folder', kwargs={'folder_id': str(source.folder_id)})
+        if source.folder_id else reverse('core:template_list')
+    )
     return render(request, 'protocols/editor.html', {
         'active_nav':     'shabloni',
         'editor_mode':    'create_from',
         'bootstrap_json': json.dumps(bootstrap, ensure_ascii=False, default=str),
+        'back_url':       back_url,
     })
 
 
@@ -2105,12 +2878,17 @@ def template_edit_view(request, pk):
     template = get_object_or_404(Protocol, pk=pk, is_preset=True, deleted_at__isnull=True)
     bootstrap = _build_editor_bootstrap()
     bootstrap['prefill'] = _build_prefill_from_protocol(template, include_pk=True)
+    back_url = (
+        reverse('core:template_folder', kwargs={'folder_id': str(template.folder_id)})
+        if template.folder_id else reverse('core:template_list')
+    )
     return render(request, 'protocols/editor.html', {
         'active_nav':     'shabloni',
         'editor_mode':    'edit',
         'protocol_pk':    str(template.pk),
         'is_template':    True,
         'bootstrap_json': json.dumps(bootstrap, ensure_ascii=False, default=str),
+        'back_url':       back_url,
     })
 
 

@@ -1,33 +1,49 @@
-<div class="contacts-title">Контактни лица</div>
-<div class="contacts-subtitle">{{ site.name }}{% if site.address %} — {{ site.address }}{% endif %}</div>
+<div class="contacts-title">Контакти за обекта</div>
+<div class="contacts-subtitle">{{ site.pseudonym }}{% if site.address %} — {{ site.address }}{% endif %}</div>
 
-<div id="contacts-{{ site.pk }}">
-  {% include "clients/_contacts_list.html" %}
+{% if saved %}
+<div style="background:var(--c-green-bg,#eafaf1);color:var(--c-green,#27ae60);border:1px solid var(--c-green,#27ae60);
+            border-radius:6px;padding:8px 12px;font-size:13px;margin-bottom:12px;">
+  Контактите са запазени.
 </div>
+{% endif %}
 
-<div class="contacts-add-title">Добави контакт</div>
-<form hx-post="{% url 'core:site_contact_create' site.pk %}"
-      hx-target="#contacts-{{ site.pk }}"
-      hx-swap="innerHTML"
-      hx-on::after-request="if(event.detail.successful) this.reset()">
+<form hx-post="{% url 'core:site_contacts' site.pk %}"
+      hx-target="#modal-content"
+      hx-swap="innerHTML">
   {% csrf_token %}
-  <div class="contacts-add-row">
-    <div class="form-group">
-      <label class="form-label">Ime <span class="req">*</span></label>
-      <input class="form-input" name="name" placeholder="Иван Петров" required>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Телефон</label>
-      <input class="form-input" name="phone" placeholder="0888 123 456">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Длъжност</label>
-      <input class="form-input" name="position" placeholder="Управител">
-    </div>
+
+  {% if all_contacts %}
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+    {% for contact in all_contacts %}
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 10px;
+                  border:1px solid var(--border-subtle);border-radius:6px;
+                  background:{% if contact.pk in linked_ids %}var(--card-selected-bg,#f0f7ff){% else %}var(--card-bg){% endif %};">
+      <input type="checkbox" name="contacts" value="{{ contact.pk }}"
+             {% if contact.pk in linked_ids %}checked{% endif %}
+             style="width:16px;height:16px;accent-color:var(--c-accent);flex-shrink:0;">
+      <div>
+        <div style="font-weight:600;font-size:13.5px;">{{ contact.name }}</div>
+        <div style="font-size:12px;color:var(--text-muted);">
+          {% if contact.phone %}{{ contact.phone }}{% endif %}
+          {% if contact.phone and contact.position %} · {% endif %}
+          {% if contact.position %}{{ contact.position }}{% endif %}
+          {% if not contact.phone and not contact.position %}—{% endif %}
+        </div>
+      </div>
+    </label>
+    {% endfor %}
   </div>
-  {% for e in form.name.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+  {% else %}
+  <div style="color:var(--text-muted);font-size:13px;margin-bottom:16px;font-style:italic;">
+    Клиентът няма добавени контактни лица. Добавете контакти от страницата с клиенти.
+  </div>
+  {% endif %}
+
   <div class="modal-footer">
     <button type="button" class="btn-cancel" onclick="closeModal()">Затвори</button>
-    <button type="submit" class="btn-save">Добави</button>
+    {% if all_contacts %}
+    <button type="submit" class="btn-save">Запази</button>
+    {% endif %}
   </div>
 </form>
