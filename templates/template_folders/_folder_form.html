@@ -45,7 +45,11 @@
 (function() {
   const allFolders = JSON.parse(document.getElementById('ff-data').textContent);
   const selfId     = '{{ folder.pk|default:"" }}';
-  const initParent = '{{ folder.parent_id|default:"" }}' || null;
+  // Editing: preselect the folder's current parent. Creating: preselect
+  // the folder the user was browsing when they opened this dialog (passed
+  // through as ?parent_id=... — see folder_create()), instead of always
+  // defaulting to root. Either way, still changeable below.
+  const initParent = '{% if folder %}{{ folder.parent_id|default:"" }}{% else %}{{ initial_parent.pk|default:"" }}{% endif %}' || null;
   const submitUrl  = '{% if folder %}{% url "core:folder_edit" folder.pk %}{% else %}{% url "core:folder_create" %}{% endif %}';
 
   // Exclude self from the picker to prevent cycles

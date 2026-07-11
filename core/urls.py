@@ -14,6 +14,7 @@ urlpatterns = [
     path("protocols/<uuid:pk>/edit/", views.protocol_edit_view, name="protocol_edit"),
     path("protocols/<uuid:pk>/create-from/", views.protocol_create_from, name="protocol_create_from"),
     path("protocols/<uuid:pk>/delete/", views.protocol_delete, name="protocol_delete"),
+    path("protocols/<uuid:pk>/refresh-snapshot/", views.protocol_refresh_snapshot, name="protocol_refresh_snapshot"),
     path("protocols/<uuid:pk>/view/", views.protocol_view, name="protocol_view"),
     path("protocols/<uuid:pk>/print-choose/", views.protocol_print_choose, name="protocol_print_choose"),
     path("protocols/<uuid:pk>/save-as-template/", views.protocol_save_as_template, name="protocol_save_as_template"),

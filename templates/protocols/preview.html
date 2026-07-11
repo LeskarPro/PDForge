@@ -157,63 +157,9 @@
   .pv-future-title { font-size: 13.5px; font-weight: 700; color: #333; margin-bottom: 8px; }
   .pv-future-body  { font-size: 11.5px; color: #555; line-height: 1.5; font-style: italic; }
 
-  /* Folder picker modal */
-  .pv-modal-veil {
-    position: fixed; inset: 0; background: rgba(40,28,30,.55);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 1000; padding: 20px;
-  }
-  .pv-modal-card {
-    background: #fff; color: var(--text-primary);
-    border-radius: 10px; box-shadow: 0 20px 60px rgba(40,28,30,.4);
-    width: 100%; max-width: 540px; max-height: 80vh; display: flex; flex-direction: column;
-    overflow: hidden;
-  }
-  .pv-modal-head {
-    padding: 14px 18px; border-bottom: 1px solid var(--border-subtle);
-    display: flex; align-items: center; justify-content: space-between;
-    background: var(--content-bg);
-  }
-  .pv-modal-title { font-size: 14.5px; font-weight: 700; }
-  .pv-modal-x { background: none; border: none; cursor: pointer; font-size: 22px; line-height: 1; color: var(--text-muted); padding: 0 4px; }
-  .pv-modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; }
-  .pv-modal-foot {
-    padding: 12px 18px; border-top: 1px solid var(--border-subtle);
-    display: flex; justify-content: flex-end; gap: 8px; background: var(--content-bg);
-  }
-  .pv-modal-btn {
-    padding: 8px 16px; border-radius: 5px; font-size: 12.5px; font-weight: 600;
-    font-family: inherit; cursor: pointer; transition: opacity .12s;
-  }
-  .pv-modal-btn.cancel { background: transparent; color: var(--text-muted); border: 1px solid var(--border-subtle); }
-  .pv-modal-btn.save   { background: var(--c-coral); color: #fff; border: none; }
-  .pv-modal-btn.save:disabled { opacity: .35; cursor: not-allowed; }
-
-  .pv-bc { font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-  .pv-bc-crumb {
-    cursor: pointer; padding: 2px 6px; border-radius: 3px;
-    background: var(--content-bg); color: var(--text-primary);
-  }
-  .pv-bc-crumb:hover { background: rgba(255,166,134,.18); }
-  .pv-bc-sep { color: var(--text-muted); }
-
-  .pv-folder-list { display: flex; flex-direction: column; gap: 4px; }
-  .pv-folder-row {
-    padding: 8px 12px; border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm); cursor: pointer; font-size: 13px;
-    display: flex; align-items: center; gap: 8px;
-    transition: background .12s, border-color .12s;
-  }
-  .pv-folder-row:hover { background: rgba(255,166,134,.10); border-color: var(--c-clay); }
-  .pv-folder-icon { color: var(--c-coral); }
-  .pv-folder-empty { font-size: 12px; color: var(--text-muted); font-style: italic; padding: 8px 0; }
-
-  .pv-name-input {
-    width: 100%; margin-top: 14px; padding: 8px 10px;
-    border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
-    font-size: 13px; color: var(--text-primary);
-  }
-  .pv-name-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+  /* Folder picker modal now lives in _template_folder_picker.html (shared
+     with the protocol editor's view mode), with its own tfp-* prefixed
+     CSS — nothing needed here any more. */
 
   /* ══════════════════════════════════════════════
      Print styles.
@@ -292,7 +238,7 @@
     </div>
     <div class="pv-action-buttons">
       <button class="pv-btn pv-btn-secondary" @click="printPage()"             :disabled="busy">🖨 Печат</button>
-      <button class="pv-btn pv-btn-template"  @click="openFolderPicker()"     :disabled="busy">Запази като шаблон</button>
+      <button class="pv-btn pv-btn-template"  @click="openTplPicker()"        :disabled="busy">Запази като шаблон</button>
       <button class="pv-btn pv-btn-secondary" @click="act('download')"        :disabled="busy">⤓ Изтегли (PDF)</button>
       <button class="pv-btn pv-btn-primary"   @click="act('save')"            :disabled="busy">Запази протокол</button>
     </div>
@@ -370,52 +316,10 @@
 
   <!-- ═══════════════════════════════════════════
        MODAL — Folder picker (Save as template)
+       Shared with the protocol editor's view mode — see
+       _template_folder_picker.html.
        ═══════════════════════════════════════════ -->
-  <div x-show="picker.open" class="pv-modal-veil" @click.self="picker.open=false" x-cloak>
-    <div class="pv-modal-card">
-      <div class="pv-modal-head">
-        <div class="pv-modal-title">Запази като шаблон — изберете папка</div>
-        <button class="pv-modal-x" @click="picker.open=false">×</button>
-      </div>
-      <div class="pv-modal-body">
-        <!-- Breadcrumb -->
-        <div class="pv-bc">
-          <span class="pv-bc-crumb" @click="navTo(null)">Шаблони</span>
-          <template x-for="(c, i) in picker.breadcrumb" :key="c.id">
-            <template x-if="c">
-              <span style="display:inline-flex;gap:4px;align-items:center;">
-                <span class="pv-bc-sep">›</span>
-                <span class="pv-bc-crumb" @click="navTo(c.id)" x-text="c.name"></span>
-              </span>
-            </template>
-          </template>
-        </div>
-
-        <!-- Subfolders -->
-        <div class="pv-folder-list">
-          <template x-for="f in subfoldersOf(picker.currentId)" :key="f.id">
-            <div class="pv-folder-row" @click="navTo(f.id)">
-              <span class="pv-folder-icon">📁</span>
-              <span x-text="f.name"></span>
-            </div>
-          </template>
-          <div x-show="subfoldersOf(picker.currentId).length === 0" class="pv-folder-empty">
-            Тази папка няма подпапки.
-          </div>
-        </div>
-
-        <!-- Name input -->
-        <label class="pv-name-label" style="display:block;margin-top:14px;">Име на шаблона *</label>
-        <input class="pv-name-input" type="text" placeholder="напр. „Виктория Нутс — стандарт"" x-model="picker.presetName">
-      </div>
-      <div class="pv-modal-foot">
-        <button class="pv-modal-btn cancel" @click="picker.open=false">Отказ</button>
-        <button class="pv-modal-btn save" @click="confirmSaveAsTemplate()" :disabled="!picker.presetName || busy">
-          Запази тук
-        </button>
-      </div>
-    </div>
-  </div>
+  {% include "protocols/_template_folder_picker.html" %}
 
 </div>
 {% endblock %}
@@ -425,18 +329,21 @@
 document.addEventListener('alpine:init', () => {
   Alpine.data('protocolPreview', () => ({
 
+    // Shared "Save as template" folder-picker state/methods — see
+    // templateFolderPickerMixin() in _template_folder_picker.html.
+    ...templateFolderPickerMixin(),
+
     fmt: 'a5',
     busy: false,
     errMsg: '',
     successMsg: '',
     successUrl: '',     // populated after save_as_template — link to the saved folder
     payload: {},
-    allFolders: [],
-    picker: { open: false, currentId: null, breadcrumb: [], presetName: '' },
+    folders: [],
 
     init() {
-      this.payload    = JSON.parse(document.getElementById('preview-payload').textContent);
-      this.allFolders = JSON.parse(document.getElementById('preview-folders').textContent);
+      this.payload = JSON.parse(document.getElementById('preview-payload').textContent);
+      this.folders = JSON.parse(document.getElementById('preview-folders').textContent);
 
       // Clone the two visible papers onto <body> before Chrome computes the
       // print layout, then clean up.  This avoids every flex/overflow
@@ -556,39 +463,14 @@ document.addEventListener('alpine:init', () => {
       window.print();
     },
 
-    // ── Folder picker
-    subfoldersOf(parentId) {
-      // parent_id stored as UUID string or null on the root
-      return this.allFolders.filter(f =>
-        String(f.parent_id || '') === String(parentId || ''));
-    },
-    navTo(folderId) {
-      this.picker.currentId = folderId;
-      this.picker.breadcrumb = this._breadcrumbFor(folderId);
-    },
-    _breadcrumbFor(folderId) {
-      if (!folderId) return [];
-      const trail = [];
-      let cursor = this.allFolders.find(f => String(f.id) === String(folderId));
-      const seen = new Set();
-      while (cursor && !seen.has(cursor.id)) {
-        trail.unshift(cursor);
-        seen.add(cursor.id);
-        cursor = cursor.parent_id
-          ? this.allFolders.find(f => String(f.id) === String(cursor.parent_id))
-          : null;
-      }
-      return trail;
-    },
-    openFolderPicker() {
-      this.picker = { open: true, currentId: null, breadcrumb: [],
-                      presetName: '' };
-    },
-    confirmSaveAsTemplate() {
-      const folderId = this.picker.currentId;
-      const presetName = this.picker.presetName.trim();
+    // ── Folder picker: search / browse / create-folder all come from the
+    // shared tplPicker mixin. This is just the final save call, specific
+    // to this page (saves the not-yet-persisted editor draft).
+    confirmTplSave() {
+      const folderId = this.tplPicker.currentId;
+      const presetName = this.tplPicker.presetName.trim();
       if (!presetName) return;
-      this.picker.open = false;
+      this.tplPicker.open = false;
       this.act('save_as_template', { folder_id: folderId, preset_name: presetName });
     },
 

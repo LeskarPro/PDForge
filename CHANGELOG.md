@@ -65,3 +65,36 @@ One-time treatments — decimal comma in the price field prevented saving change
 
 v1.4.15 — July 6, 2026 — Protocol column width fix
 Fixed a rendering mismatch where table columns in the protocol preview (especially the empty Disinfection column) could stretch wider than they appear in the actual printed/exported PDF. Column widths are now fixed to match the actual printed protocol exactly, so what's shown in the preview now matches what gets printed.
+
+v1.5.0 — July 11, 2026 — VAT pricing, template folder picker, date/UX fixes
+
+VAT pricing
+- Added an optional "price with VAT" field next to the existing net price, with a toggle — editing either price recalculates the other automatically.
+- The VAT percentage is a configurable setting (Settings page); the rate used is frozen onto each protocol/treatment at the time it's set, so later changes to the setting don't retroactively change already-saved prices.
+- Available on both protocols and one-time treatments.
+
+Tag styling
+- One-time treatment tags now show their real assigned color when unselected, instead of being dimmed to near-illegibility.
+- Protocol editor tags match the same styling.
+- The tags section on the one-time treatment form was widened to span the full form.
+
+Bug fixes
+- Fixed the protocol preview rendering blank when opening an existing protocol (a locale-formatting bug was breaking the page's JavaScript).
+- Fixed empty price fields showing the literal word "None" instead of being blank.
+
+Protocol data integrity
+- Protocol company/executor and firm data is no longer silently overwritten every time a protocol is re-saved — it's frozen at creation now, with an explicit "⟳ Обнови данни за фирма" button to refresh it on purpose.
+
+Save as template
+- Added folder search — shows the folder hierarchy above nested matches, with matches highlighted.
+- Added the ability to create new folders directly from the save dialog.
+- Unified the two separate versions of this dialog (opened from an already-saved protocol vs. from the create/edit flow) into one.
+
+Folder creation
+- New folders — from the Templates page or the save-as-template dialog — now default to the folder you're currently browsing, instead of always to the root.
+
+Dates
+- Site start/end dates and firm start dates now accept any typed year, instead of being limited to a small fixed dropdown range.
+
+Protocol editor
+- The site search field was decluttered — the "+Клиент"/"+Обект" buttons moved below the search box, which now spans the full width.

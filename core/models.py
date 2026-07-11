@@ -435,6 +435,19 @@ class TemplateFolder(TimeStampedModel):
         return self.get_ancestors() + [self]
 
 
+def _normalize_tax_fields(instance):
+    """Freeze `tax_rate_snapshot` the first time VAT is turned on for a
+    record, and clear the VAT fields when it's off. Shared by Protocol and
+    OneTimeTreatment save() — see AppSettings.vat_percent for the live
+    default rate new records pick up."""
+    if instance.tax_included:
+        if instance.tax_rate_snapshot is None:
+            instance.tax_rate_snapshot = AppSettings.get().vat_percent
+    else:
+        instance.price_with_tax = None
+        instance.tax_rate_snapshot = None
+
+
 class Protocol(TimeStampedModel):
     """One DDD treatment protocol (or a saved preset for one)."""
 
@@ -510,10 +523,24 @@ class Protocol(TimeStampedModel):
                   "Ако е празно, се използва client.name.",
     )
 
-    # Price — often filled in after the protocol is printed and signed
+    # Price — often filled in after the protocol is printed and signed.
+    # `price` is always the net (no-VAT) amount — the canonical value used
+    # everywhere (dashboard, справки). `price_with_tax` + `tax_rate_snapshot`
+    # are only meaningful when `tax_included` is True — see save() below.
     price = models.DecimalField(
         "Цена (лв)", max_digits=10, decimal_places=2,
         null=True, blank=True,
+    )
+    tax_included = models.BooleanField("Цена с ДДС", default=False)
+    price_with_tax = models.DecimalField(
+        "Цена с ДДС (лв)", max_digits=10, decimal_places=2,
+        null=True, blank=True,
+    )
+    tax_rate_snapshot = models.DecimalField(
+        "ДДС % (за тази цена)", max_digits=5, decimal_places=2,
+        null=True, blank=True,
+        help_text="Замразен ДДС процент към момента на въвеждане — не се "
+                   "променя ако общата настройка за ДДС бъде сменена по-късно.",
     )
 
     # Template folder — only relevant when is_preset=True
@@ -589,6 +616,7 @@ class Protocol(TimeStampedModel):
             self.refresh_company_snapshot()
         if self.site_id and not self.snapshot_firm_name:
             self.refresh_firm_snapshot()
+        _normalize_tax_fields(self)
         super().save(*args, **kwargs)
         if is_new:
             for code, _ in Product.Category.choices:
@@ -914,8 +942,18 @@ class OneTimeTreatment(TimeStampedModel):
         verbose_name="Етикети",
     )
 
+    # `price` is always the net (no-VAT) amount — see _normalize_tax_fields().
     price = models.DecimalField(
         "Цена (лв)", max_digits=10, decimal_places=2,
+        null=True, blank=True,
+    )
+    tax_included = models.BooleanField("Цена с ДДС", default=False)
+    price_with_tax = models.DecimalField(
+        "Цена с ДДС (лв)", max_digits=10, decimal_places=2,
+        null=True, blank=True,
+    )
+    tax_rate_snapshot = models.DecimalField(
+        "ДДС % (за тази цена)", max_digits=5, decimal_places=2,
         null=True, blank=True,
     )
     notes = models.TextField("Бележки", blank=True)
@@ -927,6 +965,10 @@ class OneTimeTreatment(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.date} — {self.pseudonym}"
+
+    def save(self, *args, **kwargs):
+        _normalize_tax_fields(self)
+        super().save(*args, **kwargs)
 
 
 class OneTimeTreatmentProduct(models.Model):
@@ -1005,6 +1047,14 @@ class AppSettings(models.Model):
     default_protocol_format = models.CharField(
         'Формат на протокол по подразбиране', max_length=20,
         choices=ProtocolFormat.choices, default=ProtocolFormat.A5,
+    )
+
+    # ── Pricing (price/VAT toggle on protocols + one-time treatments) ────
+    vat_percent = models.DecimalField(
+        'ДДС %', max_digits=5, decimal_places=2, default=20,
+        help_text='Използва се за изчисляване на цената с ДДС. Промяна тук '
+                   'засяга само нови/бъдещи изчисления — вече запазени цени '
+                   'пазят своя замразен процент.',
     )
 
     # ── OneDrive / backup sync (Stage 6a) ─────────────────────────────────

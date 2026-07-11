@@ -1580,6 +1580,8 @@ def _build_prefill_from_protocol(protocol, *, include_pk=True):
         'pseudonym':            protocol.pseudonym or '',
         'notes':                protocol.notes or '',
         'price':                str(protocol.price) if protocol.price else '',
+        'tax_included':         protocol.tax_included,
+        'price_with_tax':       str(protocol.price_with_tax) if protocol.price_with_tax else '',
         'tag_ids':              [str(t.pk) for t in protocol.tags.all()],
         'source_template_id':  str(protocol.source_template_id) if protocol.source_template_id else None,
         'columns':              columns,
@@ -1687,30 +1689,24 @@ def _save_or_rewrite_protocol(payload, *, is_preset=False,
         # ClientForm.clean_notes() etc.
         'notes':           sanitize_notes_html(payload.get('notes') or ''),
         'price':           _safe_decimal(payload.get('price')),
+        'tax_included':    bool(payload.get('tax_included', False)),
+        'price_with_tax':  _safe_decimal(payload.get('price_with_tax')),
         'is_preset':       bool(is_preset),
         'preset_name':     (preset_name or '')[:255],
         'folder_id':       _safe_uuid(folder_id),
         'source_template_id': _safe_uuid(payload.get('source_template_id')),
-        # snapshot_* fields are recomputed by Protocol.save() when company is set.
-        'snapshot_company_name':    '',
-        'snapshot_company_eik':     '',
-        'snapshot_company_address': '',
-        'snapshot_company_phone':   '',
-        # Stage 8a (reworked) — same idea, for the site's active Firm link.
-        'snapshot_firm_name':    '',
-        'snapshot_firm_eik':     '',
-        'snapshot_firm_address': '',
-        'snapshot_firm_phone':   '',
+        # snapshot_* fields are intentionally NOT listed here. Protocol.save()
+        # only fills them in when they're still blank (i.e. on first save),
+        # so re-saving an existing protocol never silently overwrites its
+        # frozen company/firm data — see refresh_company_snapshot() /
+        # refresh_firm_snapshot() and the explicit "⟳ Обнови данни за
+        # фирма" action (protocol_refresh_snapshot view) for the deliberate
+        # opt-in refresh path.
     }
 
     protocol, created = Protocol.objects.update_or_create(
         pk=client_uuid, defaults=defaults,
     )
-    # Force a fresh company + firm snapshot on every rewrite (in case either
-    # changed since the last save).
-    protocol.refresh_company_snapshot()
-    protocol.refresh_firm_snapshot()
-    protocol.save()
 
     # Tags M2M
     tag_ids = [_safe_uuid(t) for t in (payload.get('tag_ids') or [])]
@@ -2005,6 +2001,27 @@ def protocol_delete(request, pk):
     protocol.deleted_at = timezone.now()
     protocol.save(update_fields=['deleted_at'])
     return HttpResponse(status=200)
+
+
+@require_POST
+def protocol_refresh_snapshot(request, pk):
+    """Explicit, opt-in refresh of a protocol's frozen company/firm data.
+
+    Protocol.save() only fills snapshot_* fields when they're blank, so a
+    saved protocol's snapshot never drifts on its own. This is the deliberate
+    escape hatch: pull the company's / site's-active-firm's CURRENT text
+    identity into the snapshot, overwriting whatever was frozen before.
+    """
+    protocol = get_object_or_404(Protocol, pk=pk, deleted_at__isnull=True)
+    protocol.refresh_company_snapshot()
+    protocol.refresh_firm_snapshot()
+    protocol.save(update_fields=[
+        'snapshot_company_name', 'snapshot_company_eik',
+        'snapshot_company_address', 'snapshot_company_phone',
+        'snapshot_firm_name', 'snapshot_firm_eik',
+        'snapshot_firm_address', 'snapshot_firm_phone',
+    ])
+    return JsonResponse({'ok': True})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2608,7 +2625,20 @@ def settings_save(request):
         settings.theme = theme
     if fmt in dict(AppSettings.ProtocolFormat.choices):
         settings.default_protocol_format = fmt
-    settings.save(update_fields=['theme', 'default_protocol_format'])
+
+    update_fields = ['theme', 'default_protocol_format']
+    vat_raw = request.POST.get('vat_percent')
+    if vat_raw is not None:
+        from decimal import Decimal, InvalidOperation
+        try:
+            vat_val = Decimal(vat_raw.strip().replace(',', '.'))
+            if 0 <= vat_val <= 100:
+                settings.vat_percent = vat_val
+                update_fields.append('vat_percent')
+        except (InvalidOperation, ValueError, AttributeError):
+            pass
+
+    settings.save(update_fields=update_fields)
     from django.http import HttpResponse as _HR
     return _HR(status=204)
 
@@ -2776,13 +2806,33 @@ def folder_create(request):
         parent = None
         if parent_id:
             parent = get_object_or_404(TemplateFolder, pk=parent_id, deleted_at__isnull=True)
-        TemplateFolder.objects.create(name=name, parent=parent)
-        from django.http import HttpResponse as _HR
-        r = _HR(status=204)
+        folder = TemplateFolder.objects.create(name=name, parent=parent)
+        # JSON body (id/name/parent_id) so callers that need the new folder's
+        # PK right away (e.g. the protocol editor's inline "+ Нова папка")
+        # don't have to re-fetch the folder list. The older HTMX-driven
+        # caller (_folder_form.html) only checks `r.ok`, so this stays
+        # backwards compatible with it.
+        r = JsonResponse({
+            'ok': True,
+            'id': str(folder.pk),
+            'name': folder.name,
+            'parent_id': str(folder.parent_id) if folder.parent_id else None,
+        })
         r['HX-Trigger'] = 'foldersChanged'
         return r
+    # Preselect the folder the user was browsing when they clicked "Нова
+    # папка" (passed as ?parent_id=... from template_folders/list.html),
+    # instead of always defaulting to root — still changeable via the
+    # picker in the form itself.
+    initial_parent = None
+    initial_parent_id = request.GET.get('parent_id')
+    if initial_parent_id:
+        initial_parent = TemplateFolder.objects.filter(
+            pk=initial_parent_id, deleted_at__isnull=True,
+        ).first()
     return render(request, 'template_folders/_folder_form.html', {
         'folder': None,
+        'initial_parent': initial_parent,
         'folders_json': _folders_json(),
     })
 

@@ -97,7 +97,7 @@
   /* Col 4 — Tags + Price */
   .col-meta{flex-shrink:0;width:130px;padding:10px 12px;border-left:1px solid var(--border-subtle);display:flex;flex-direction:column;justify-content:center;gap:8px}
   .tags-row{display:flex;flex-wrap:wrap;gap:4px}
-  .tag-pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:500}
+  .tag-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:500}
   .price-val{font-size:13px;font-weight:600;color:var(--text-primary)}
   .price-none{font-size:12px;color:var(--text-muted);font-style:italic}
 
@@ -231,15 +231,19 @@
     border: 1px solid rgba(170,118,124,.3);
   }
 
-  /* Tag pills — dim when unselected */
+  /* Tag pills — unselected keep their normal light-tint color (same
+     recipe as everywhere else tags render, e.g. the list page) so the
+     text stays readable. Selected switches to a solid fill in the tag's
+     own color instead of relying on opacity/outline, which is a much
+     clearer "on" state and doesn't wash out the text. */
   .toggle-tag .tag-pill {
-    opacity: 0.38;
-    transition: opacity var(--t-fast), outline var(--t-fast);
+    transition: background var(--t-fast), color var(--t-fast), box-shadow var(--t-fast);
   }
   .toggle-tag:has(input:checked) .tag-pill {
-    opacity: 1;
-    outline: 2px solid var(--c-coral);
-    outline-offset: 1px;
+    background: var(--tag-color, var(--c-coral)) !important;
+    color: #fff !important;
+    border-color: var(--tag-color, var(--c-coral)) !important;
+    box-shadow: 0 0 0 2px rgba(0,0,0,.08);
   }
 </style>
 {% endblock %}

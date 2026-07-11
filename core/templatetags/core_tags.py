@@ -98,6 +98,10 @@ def tag_style(color):
         f"background:rgba({r},{g},{b},.12);"
         f"color:{color};"
         f"border:1px solid rgba({r},{g},{b},.3);"
+        # Exposed as a custom property so selected-state CSS (e.g. the
+        # one-time treatment toggle-tags) can switch to a solid fill using
+        # the tag's real color without duplicating the hex anywhere else.
+        f"--tag-color:{color};"
     )
 
 @register.filter
@@ -137,12 +141,16 @@ _MONTHS_FULL_BG = {
 
 
 @register.inclusion_tag('core/_month_year_select.html')
-def month_year_select(field_name, value=None, default_today=True, years_back=5, years_forward=2):
+def month_year_select(field_name, value=None, default_today=True):
     """`value` is a date (or None). When `value` is None and `default_today`
     is True, defaults to the current month — matching the "defaults to
     creation month, editable" rule agreed for Firm/Site *start* dates. Pass
     `default_today=False` for fields like end_date that should start blank
-    until the user actively sets them."""
+    until the user actively sets them.
+
+    The month is a <select>; the year is a plain numeric <input> (not a
+    bounded dropdown) so the user can type any year without being limited
+    to a fixed nearby range."""
     today = _date.today()
     # `value` can be a non-date (e.g. a raw invalid string) when re-rendering
     # a form that failed validation — fall through to the default in that case
@@ -155,13 +163,10 @@ def month_year_select(field_name, value=None, default_today=True, years_back=5, 
         sel_month, sel_year = today.month, today.year
     else:
         sel_month, sel_year = None, None
-    current_year = today.year
-    years = list(range(current_year + years_forward, current_year - years_back - 1, -1))
     months = [(i, _MONTHS_FULL_BG[i]) for i in range(1, 13)]
     return {
         'field_name': field_name,
         'months': months,
-        'years': years,
         'sel_month': sel_month,
         'sel_year': sel_year,
     }

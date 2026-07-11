@@ -1,0 +1,357 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Shared "Save as template — pick a folder" modal.
+
+     Included by BOTH templates/protocols/editor.html (view mode) and
+     templates/protocols/preview.html — previously these were two separate,
+     hand-duplicated implementations. This partial is now the single place
+     that owns the folder-search / breadcrumb-browse / inline-folder-create
+     UI and its Alpine logic (via the global `templateFolderPickerMixin()`
+     factory below).
+
+     Host page contract — the page including this partial must, inside its
+     own Alpine.data(...) object, do:
+       ...templateFolderPickerMixin(),
+     and must independently provide:
+       • `folders`  — flat array of {id, name, parent_id}, loaded on init()
+       • `_csrf()`  — returns the CSRF token string
+       • `confirmTplSave()` — its own save call, reading
+         `this.tplPicker.currentId` / `this.tplPicker.presetName`
+     The trigger button that opens this modal should call `openTplPicker()`.
+     ═══════════════════════════════════════════════════════════════════ -->
+<style>
+  .tfp-veil {
+    position: fixed; inset: 0; background: rgba(40,28,30,.55);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px;
+  }
+  .tfp-card {
+    background: var(--card-bg); color: var(--text-primary);
+    border-radius: 10px; box-shadow: 0 20px 60px rgba(40,28,30,.4);
+    width: 100%; max-width: 480px;
+    max-height: calc(100vh - 40px);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .tfp-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--border-subtle);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--content-bg);
+    flex: 0 0 auto;
+  }
+  .tfp-title { font-size: 14.5px; font-weight: 700; color: var(--text-primary); }
+  .tfp-x {
+    background: none; border: none; cursor: pointer; font-size: 22px;
+    line-height: 1; color: var(--text-muted); padding: 0 4px;
+    transition: color .12s;
+  }
+  .tfp-x:hover { color: #b30000; }
+  .tfp-body {
+    padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;
+    overflow-y: auto; flex: 1 1 auto; min-height: 0;
+  }
+  .tfp-foot {
+    padding: 12px 18px; border-top: 1px solid var(--border-subtle);
+    display: flex; justify-content: flex-end; gap: 8px; background: var(--content-bg);
+    flex: 0 0 auto;
+  }
+  .tfp-label {
+    display: block; font-size: 11px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px;
+  }
+  .tfp-input {
+    width: 100%; padding: 8px 10px;
+    border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+    font-size: 13px; color: var(--text-primary); font-family: inherit;
+    background: var(--card-bg);
+  }
+  .tfp-btn {
+    padding: 8px 16px; border-radius: 5px; font-size: 12.5px; font-weight: 600;
+    font-family: inherit; cursor: pointer; transition: opacity .12s; border: none;
+  }
+  .tfp-btn.cancel { background: transparent; color: var(--text-muted); border: 1px solid var(--border-subtle); }
+  .tfp-btn.save   { background: var(--c-coral); color: #fff; }
+  .tfp-btn.save:disabled { opacity: .35; cursor: not-allowed; }
+  .tfp-btn-new {
+    flex-shrink: 0; padding: 8px 12px; font-size: 12.5px; font-weight: 600;
+    font-family: inherit; cursor: pointer; white-space: nowrap;
+    background: var(--card-bg); color: var(--c-coral);
+    border: 1px solid var(--c-coral); border-radius: var(--radius-sm);
+    transition: all .12s;
+  }
+  .tfp-btn-new:hover { background: var(--c-coral); color: #fff; }
+  .tfp-search-row { display: flex; gap: 8px; align-items: flex-start; }
+  .tfp-search-row .tfp-input { flex: 1; }
+
+  .tfp-newfolder-box {
+    padding: 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .tfp-newfolder-actions { display: flex; gap: 8px; }
+
+  .tfp-bc { font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .tfp-bc-crumb {
+    cursor: pointer; padding: 2px 6px; border-radius: 3px;
+    background: var(--content-bg); color: var(--text-primary);
+  }
+  .tfp-bc-crumb:hover { background: rgba(255,166,134,.18); }
+  .tfp-bc-sep { color: var(--text-muted); }
+
+  .tfp-folder-list { display: flex; flex-direction: column; gap: 4px; }
+  .tfp-folder-row {
+    padding: 8px 12px; border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm); cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; gap: 8px;
+    transition: background .12s, border-color .12s;
+  }
+  .tfp-folder-row:hover { background: rgba(255,166,134,.10); border-color: var(--c-clay); }
+  .tfp-folder-icon { color: var(--c-coral); }
+  .tfp-folder-empty { font-size: 12px; color: var(--text-muted); font-style: italic; padding: 8px 0; }
+  /* Search results: highlight rows that actually match the query, so
+     ancestor rows shown purely for context stay visually secondary. */
+  .tfp-folder-row.match {
+    border-color: var(--c-coral);
+    background: rgba(255,166,134,.12);
+    font-weight: 700;
+  }
+  .tfp-folder-row.match .tfp-folder-icon { color: var(--c-coral); }
+  .tfp-err { color: #b30000; font-size: 11px; }
+</style>
+
+<div x-show="tplPicker.open" class="tfp-veil" @click.self="tplPicker.open=false" x-cloak>
+  <div class="tfp-card">
+    <div class="tfp-head">
+      <div class="tfp-title">Запази като шаблон — изберете папка</div>
+      <button class="tfp-x" @click="tplPicker.open=false">×</button>
+    </div>
+    <div class="tfp-body">
+
+      <!-- Template name (top) -->
+      <div>
+        <label class="tfp-label">Име на шаблона *</label>
+        <input class="tfp-input" type="text" placeholder="напр. „Виктория Нутс — стандарт"" x-model="tplPicker.presetName">
+      </div>
+
+      <!-- Folder search + create (top) -->
+      <div class="tfp-search-row">
+        <input class="tfp-input" type="text" placeholder="Търси папка по име…" x-model="tplPicker.search">
+        <button type="button" class="tfp-btn-new" x-show="!tplPicker.search.trim() && !tplPicker.creatingFolder"
+                @click="openTplNewFolderForm()">+ Нова папка</button>
+      </div>
+
+      <!-- Inline create-folder form -->
+      <template x-if="tplPicker.creatingFolder">
+        <div class="tfp-newfolder-box">
+          <input class="tfp-input" type="text" placeholder="Име на новата папка"
+                 x-model="tplPicker.newFolderName"
+                 @keydown.enter.prevent="confirmTplNewFolder()">
+          <div class="tfp-err" x-show="tplPicker.newFolderError" x-text="tplPicker.newFolderError"></div>
+          <div class="tfp-newfolder-actions">
+            <button type="button" class="tfp-btn cancel" @click="cancelTplNewFolderForm()" :disabled="tplPicker.newFolderSaving">Отказ</button>
+            <button type="button" class="tfp-btn save" @click="confirmTplNewFolder()"
+                    :disabled="!tplPicker.newFolderName.trim() || tplPicker.newFolderSaving">
+              <span x-show="!tplPicker.newFolderSaving">Създай</span>
+              <span x-show="tplPicker.newFolderSaving">Създаване…</span>
+            </button>
+          </div>
+        </div>
+      </template>
+
+      <!-- Search results: an indented tree — ancestors of a match are
+           shown once, above it, indented one level per nesting depth;
+           matched folders themselves are highlighted. -->
+      <template x-if="tplPicker.search.trim()">
+        <div class="tfp-folder-list">
+          <template x-for="f in tplSearchResults()" :key="f.id">
+            <div class="tfp-folder-row" :class="{match: f.isMatch}"
+                 :style="{ marginLeft: (f.depth * 18) + 'px' }"
+                 @click="tplNavTo(f.id); tplPicker.search='';">
+              <span class="tfp-folder-icon">📁</span>
+              <span x-text="f.name"></span>
+            </div>
+          </template>
+          <div x-show="tplSearchResults().length === 0" class="tfp-folder-empty">
+            Няма папки, отговарящи на търсенето.
+          </div>
+        </div>
+      </template>
+
+      <!-- Breadcrumb + subfolder browser -->
+      <template x-if="!tplPicker.search.trim()">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="tfp-bc">
+            <span class="tfp-bc-crumb" @click="tplNavTo(null)">Шаблони</span>
+            <template x-for="(c, i) in tplPicker.breadcrumb" :key="c.id">
+              <template x-if="c">
+                <span style="display:inline-flex;gap:4px;align-items:center;">
+                  <span class="tfp-bc-sep">›</span>
+                  <span class="tfp-bc-crumb" @click="tplNavTo(c.id)" x-text="c.name"></span>
+                </span>
+              </template>
+            </template>
+          </div>
+          <div class="tfp-folder-list">
+            <template x-for="f in tplSubfoldersOf(tplPicker.currentId)" :key="f.id">
+              <div class="tfp-folder-row" @click="tplNavTo(f.id)">
+                <span class="tfp-folder-icon">📁</span>
+                <span x-text="f.name"></span>
+              </div>
+            </template>
+            <div x-show="tplSubfoldersOf(tplPicker.currentId).length === 0" class="tfp-folder-empty">
+              Тази папка няма подпапки.
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <div class="tfp-err" x-show="tplPicker.error" x-text="tplPicker.error"></div>
+    </div>
+    <div class="tfp-foot">
+      <button class="tfp-btn cancel" @click="tplPicker.open=false" :disabled="tplPicker.saving">Отказ</button>
+      <button class="tfp-btn save" @click="confirmTplSave()" :disabled="!tplPicker.presetName.trim() || tplPicker.saving">
+        <span x-show="!tplPicker.saving">Запази тук</span>
+        <span x-show="tplPicker.saving">Запазване…</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Shared Alpine data mixin — spread into both protocolEditor() and
+  // protocolPreview(). See the contract note at the top of this file.
+  function templateFolderPickerMixin() {
+    return {
+      tplPicker: {
+        open: false, saving: false, error: '',
+        currentId: null, breadcrumb: [], presetName: '',
+        search: '', creatingFolder: false, newFolderName: '',
+        newFolderSaving: false, newFolderError: '',
+      },
+      openTplPicker() {
+        this.tplPicker = {
+          open: true, saving: false, error: '',
+          currentId: null, breadcrumb: [], presetName: '',
+          search: '', creatingFolder: false, newFolderName: '',
+          newFolderSaving: false, newFolderError: '',
+        };
+      },
+      tplSubfoldersOf(parentId) {
+        return this.folders.filter(f =>
+          String(f.parent_id || '') === String(parentId || ''));
+      },
+      tplBreadcrumbFor(folderId) {
+        if (!folderId) return [];
+        const trail = [];
+        let cursor = this.folders.find(f => String(f.id) === String(folderId));
+        const seen = new Set();
+        while (cursor && !seen.has(cursor.id)) {
+          trail.unshift(cursor);
+          seen.add(cursor.id);
+          cursor = cursor.parent_id
+            ? this.folders.find(f => String(f.id) === String(cursor.parent_id))
+            : null;
+        }
+        return trail;
+      },
+      tplNavTo(folderId) {
+        this.tplPicker.currentId = folderId;
+        this.tplPicker.breadcrumb = this.tplBreadcrumbFor(folderId);
+      },
+      // Search results as an indented tree, not a flat list. Every matched
+      // folder is shown together with its full ancestor chain (so you can
+      // see where it lives), but ancestors are only ever rendered ONCE even
+      // if several matches share them — e.g. two matching subfolders under
+      // the same (non-matching) parent show that parent a single time with
+      // both matches nested underneath it, and a match that itself has a
+      // matching descendant shows as one tree, not as two separate results.
+      tplSearchResults() {
+        const q = (this.tplPicker.search || '').trim().toLowerCase();
+        if (!q) return [];
+        const byId = new Map(this.folders.map(f => [String(f.id), f]));
+        const matchIds = new Set(
+          this.folders.filter(f => f.name.toLowerCase().includes(q)).map(f => String(f.id))
+        );
+        if (matchIds.size === 0) return [];
+
+        // Every match plus its full ancestor chain up to the root.
+        const relevant = new Set(matchIds);
+        matchIds.forEach(id => {
+          let cursor = byId.get(id);
+          while (cursor && cursor.parent_id) {
+            const pid = String(cursor.parent_id);
+            if (relevant.has(pid)) break; // that branch is already accounted for
+            relevant.add(pid);
+            cursor = byId.get(pid);
+          }
+        });
+
+        // Group by parent, restricted to the relevant set, so shared
+        // ancestors naturally end up with multiple children instead of
+        // being duplicated.
+        const childrenOf = new Map();
+        relevant.forEach(id => {
+          const f = byId.get(id);
+          const pid = f.parent_id ? String(f.parent_id) : null;
+          const key = (pid && relevant.has(pid)) ? pid : '__root__';
+          if (!childrenOf.has(key)) childrenOf.set(key, []);
+          childrenOf.get(key).push(f);
+        });
+        childrenOf.forEach(list => list.sort((a, b) => a.name.localeCompare(b.name, 'bg')));
+
+        // Flatten depth-first into rows the template can render with
+        // simple padding-left indentation.
+        const rows = [];
+        const walk = (key, depth) => {
+          (childrenOf.get(key) || []).forEach(f => {
+            rows.push({ id: f.id, name: f.name, depth, isMatch: matchIds.has(String(f.id)) });
+            walk(String(f.id), depth + 1);
+          });
+        };
+        walk('__root__', 0);
+        return rows;
+      },
+      openTplNewFolderForm() {
+        this.tplPicker.creatingFolder = true;
+        this.tplPicker.newFolderName = '';
+        this.tplPicker.newFolderError = '';
+      },
+      cancelTplNewFolderForm() {
+        this.tplPicker.creatingFolder = false;
+        this.tplPicker.newFolderName = '';
+        this.tplPicker.newFolderError = '';
+      },
+      async confirmTplNewFolder() {
+        const p = this.tplPicker;
+        const name = (p.newFolderName || '').trim();
+        if (!name || p.newFolderSaving) return;
+        p.newFolderSaving = true; p.newFolderError = '';
+        try {
+          const body = new FormData();
+          body.append('name', name);
+          if (p.currentId) body.append('parent_id', p.currentId);
+          const r = await fetch('{% url "core:folder_create" %}', {
+            method: 'POST',
+            body,
+            headers: { 'X-CSRFToken': this._csrf() },
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok || !data.ok) {
+            p.newFolderError = (data && data.error) || `HTTP ${r.status}`;
+            p.newFolderSaving = false;
+            return;
+          }
+          this.folders.push({ id: data.id, name: data.name, parent_id: data.parent_id });
+          p.creatingFolder = false;
+          p.newFolderName = '';
+          p.newFolderSaving = false;
+          // Navigate into the new folder — it becomes the current save
+          // location, but nothing is saved until "Запази тук" is clicked, so
+          // the user can keep nesting more folders here first if they want.
+          this.tplNavTo(data.id);
+        } catch (e) {
+          p.newFolderError = String(e);
+          p.newFolderSaving = false;
+        }
+      },
+    };
+  }
+</script>

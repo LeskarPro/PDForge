@@ -5,10 +5,7 @@
     <option value="{{ num|stringformat:'02d' }}" {% if num == sel_month %}selected{% endif %}>{{ label }}</option>
     {% endfor %}
   </select>
-  <select name="{{ field_name }}_year" class="form-input sff-my-year" style="flex:1">
-    <option value="">Година</option>
-    {% for y in years %}
-    <option value="{{ y }}" {% if y == sel_year %}selected{% endif %}>{{ y }}</option>
-    {% endfor %}
-  </select>
+  <input type="number" inputmode="numeric" name="{{ field_name }}_year"
+         class="form-input sff-my-year" style="flex:1"
+         placeholder="Година" value="{{ sel_year|default_if_none:'' }}">
 </div>

@@ -218,6 +218,20 @@
     </div>
   </div>
 
+  <!-- ── VAT / ДДС ── -->
+  <div class="settings-section">
+    <div class="section-head">
+      <div class="section-title">ДДС</div>
+      <div class="section-desc">Ползва се за изчисляване на цената с ДДС в протоколи и еднократни обработки. Промяна тук не засяга вече запазени цени - те пазят своя замразен процент от момента на въвеждане.</div>
+    </div>
+    <div class="section-body">
+      <input type="number" id="vat-percent-input" min="0" max="100" step="0.01"
+             value="{{ settings.vat_percent|stringformat:'s' }}"
+             style="width:120px;padding:8px 10px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);font:inherit;font-size:13.5px;color:var(--text-primary);">
+      <span style="margin-left:6px;color:var(--text-muted);font-size:13px;">%</span>
+    </div>
+  </div>
+
   <!-- ── Save bar ── -->
   <div class="save-bar">
     <button class="btn-save" onclick="saveSettings()">Запази настройките</button>
@@ -322,6 +336,7 @@
     const form = new FormData();
     form.append('theme', _currentTheme);
     form.append('default_protocol_format', _currentFormat);
+    form.append('vat_percent', document.getElementById('vat-percent-input').value);
     form.append('csrfmiddlewaretoken', '{{ csrf_token }}');
     fetch('{% url "core:settings_save" %}', { method: 'POST', body: form })
       .then(r => {

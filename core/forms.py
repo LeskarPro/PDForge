@@ -239,7 +239,7 @@ class OneTimeTreatmentForm(forms.ModelForm):
             'pseudonym', 'address',
             'date', 'time_from', 'time_to',
             'pests', 'executed_by', 'tags',
-            'price', 'notes',
+            'price', 'tax_included', 'price_with_tax', 'notes',
         ]
         widgets = {
             'pseudonym':     forms.TextInput(attrs={'placeholder': 'напр. бл.41, Ап. 43'}),
@@ -250,10 +250,28 @@ class OneTimeTreatmentForm(forms.ModelForm):
             'executed_by':   forms.CheckboxSelectMultiple(),
             'tags':          forms.CheckboxSelectMultiple(),
             'price':         forms.NumberInput(attrs={'placeholder': '85.00', 'step': '0.01', 'min': '0'}),
+            'tax_included':  forms.CheckboxInput(),
+            'price_with_tax': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
             'notes':         forms.Textarea(attrs={'rows': 3, 'placeholder': 'Бележки…'}),
         }
 
     def __init__(self, *args, **kwargs):
+        # Bulgarian locale renders decimals with a comma (e.g. "38,50").
+        # Django's built-in DecimalField validation runs BEFORE
+        # clean_price()/clean_price_with_tax() and rejects comma input
+        # outright ("Enter a number"), which made those methods'
+        # comma-handling unreachable dead code — normalize here instead,
+        # before the form is even bound.
+        data = args[0] if args else kwargs.get('data')
+        if data:
+            data = data.copy()
+            for key in ('price', 'price_with_tax'):
+                if data.get(key):
+                    data[key] = str(data[key]).replace(',', '.')
+            if args:
+                args = (data,) + args[1:]
+            else:
+                kwargs['data'] = data
         super().__init__(*args, **kwargs)
         self.fields['pests'].queryset = (
             Pest.objects.filter(deleted_at__isnull=True).order_by('category', 'name')
@@ -272,6 +290,20 @@ class OneTimeTreatmentForm(forms.ModelForm):
         Decimal values with a comma, so the submitted value may be e.g. '38,50')."""
         from decimal import Decimal, InvalidOperation
         raw = self.data.get('price', '').strip()
+        if not raw:
+            return None
+        raw = raw.replace(',', '.')
+        try:
+            return Decimal(raw)
+        except InvalidOperation:
+            raise forms.ValidationError("Въведете валидна цена (напр. 85.00 или 85,00).")
+
+    def clean_price_with_tax(self):
+        """Same comma/dot handling as clean_price() — this field is normally
+        computed client-side, but must survive a server-side validation
+        round-trip on error the same way."""
+        from decimal import Decimal, InvalidOperation
+        raw = self.data.get('price_with_tax', '').strip()
         if not raw:
             return None
         raw = raw.replace(',', '.')

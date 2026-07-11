@@ -222,64 +222,80 @@
       </button>
     </div>
 
-    <!-- ── 6. Tags + Price ── -->
+    <!-- ── 6. Tags (full width) ── -->
     <div class="fsection">
-      <div class="fsection-title">Етикети и цена</div>
-      <div class="form-row">
-        <div class="form-group" style="flex:2">
-          <label class="form-label">Етикети</label>
-          <div class="toggle-group" id="ot-tag-group">
-            {% for tag in form.tags.field.queryset %}
-              <label class="toggle-tag">
-                <input type="checkbox" name="tags" value="{{ tag.pk }}"
-                  {% if tag.pk|stringformat:"s" in selected_tag_ids %}checked{% endif %}>
-                <span class="tag-pill" style="{{ tag.color|tag_style }}">{{ tag.name }}</span>
-              </label>
-            {% endfor %}
-          </div>
-          {% for e in form.tags.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
-          <!-- Inline new tag -->
-          <div class="tag-inline-wrap" style="margin-top:6px;">
-            <button type="button" class="tag-add-open-btn" onclick="otOpenTagForm(this)">+ Нов етикет</button>
-            <div class="tag-add-form" style="display:none;margin-top:6px;padding:10px;border:1px solid var(--border-subtle);border-radius:6px;background:var(--card-bg);">
-              <input type="text" class="tag-add-name form-input" placeholder="Наименование" style="margin-bottom:6px;"
-                     onkeydown="if(event.key==='Enter'){event.preventDefault();otSubmitTag(this);}if(event.key==='Escape')otCloseTagForm(this);">
-              <div class="tag-add-color-row" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                <input type="color" class="tag-add-color" value="#6b7280" style="width:32px;height:28px;padding:1px 2px;border:1px solid var(--border-subtle);border-radius:4px;cursor:pointer;">
-                <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#ffa686" onclick="otTagPreset(this,'#ffa686')"></div>
-                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#e74c3c" onclick="otTagPreset(this,'#e74c3c')"></div>
-                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#e67e22" onclick="otTagPreset(this,'#e67e22')"></div>
-                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#f1c40f" onclick="otTagPreset(this,'#f1c40f')"></div>
-                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#27ae60" onclick="otTagPreset(this,'#27ae60')"></div>
-                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#16a085" onclick="otTagPreset(this,'#16a085')"></div>
-                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#2980b9" onclick="otTagPreset(this,'#2980b9')"></div>
-                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#8e44ad" onclick="otTagPreset(this,'#8e44ad')"></div>
-                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#aa767c" onclick="otTagPreset(this,'#aa767c')"></div>
-                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#63474d" onclick="otTagPreset(this,'#63474d')"></div>
-                  <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#6b7280" onclick="otTagPreset(this,'#6b7280')"></div>
-                </div>
-              </div>
-              <textarea class="tag-add-desc form-input" placeholder="Описание (по желание)" rows="2" style="margin-bottom:6px;"></textarea>
-              <div class="tag-add-error" style="color:var(--c-coral);font-size:11px;display:none;margin-bottom:6px;"></div>
-              <div style="display:flex;gap:6px;">
-                <button type="button" class="btn-cancel" onclick="otCloseTagForm(this)">Отказ</button>
-                <button type="button" class="btn-save" onclick="otSubmitTag(this)">Създай</button>
+      <div class="fsection-title">Етикети</div>
+      <div class="form-group">
+        <div class="toggle-group" id="ot-tag-group">
+          {% for tag in form.tags.field.queryset %}
+            <label class="toggle-tag">
+              <input type="checkbox" name="tags" value="{{ tag.pk }}"
+                {% if tag.pk|stringformat:"s" in selected_tag_ids %}checked{% endif %}>
+              <span class="tag-pill" style="{{ tag.color|tag_style }}">{{ tag.name }}</span>
+            </label>
+          {% endfor %}
+        </div>
+        {% for e in form.tags.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+        <!-- Inline new tag -->
+        <div class="tag-inline-wrap" style="margin-top:6px;">
+          <button type="button" class="tag-add-open-btn" onclick="otOpenTagForm(this)">+ Нов етикет</button>
+          <div class="tag-add-form" style="display:none;margin-top:6px;padding:10px;border:1px solid var(--border-subtle);border-radius:6px;background:var(--card-bg);">
+            <input type="text" class="tag-add-name form-input" placeholder="Наименование" style="margin-bottom:6px;"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();otSubmitTag(this);}if(event.key==='Escape')otCloseTagForm(this);">
+            <div class="tag-add-color-row" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <input type="color" class="tag-add-color" value="#6b7280" style="width:32px;height:28px;padding:1px 2px;border:1px solid var(--border-subtle);border-radius:4px;cursor:pointer;">
+              <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#ffa686" onclick="otTagPreset(this,'#ffa686')"></div>
+                <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#e74c3c" onclick="otTagPreset(this,'#e74c3c')"></div>
+                <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#e67e22" onclick="otTagPreset(this,'#e67e22')"></div>
+                <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#f1c40f" onclick="otTagPreset(this,'#f1c40f')"></div>
+                <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#27ae60" onclick="otTagPreset(this,'#27ae60')"></div>
+                <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#16a085" onclick="otTagPreset(this,'#16a085')"></div>
+                <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#2980b9" onclick="otTagPreset(this,'#2980b9')"></div>
+                <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#8e44ad" onclick="otTagPreset(this,'#8e44ad')"></div>
+                <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#aa767c" onclick="otTagPreset(this,'#aa767c')"></div>
+                <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#63474d" onclick="otTagPreset(this,'#63474d')"></div>
+                <div style="width:17px;height:17px;border-radius:50%;cursor:pointer;border:2px solid transparent;background:#6b7280" onclick="otTagPreset(this,'#6b7280')"></div>
               </div>
             </div>
+            <textarea class="tag-add-desc form-input" placeholder="Описание (по желание)" rows="2" style="margin-bottom:6px;"></textarea>
+            <div class="tag-add-error" style="color:var(--c-coral);font-size:11px;display:none;margin-bottom:6px;"></div>
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="btn-cancel" onclick="otCloseTagForm(this)">Отказ</button>
+              <button type="button" class="btn-save" onclick="otSubmitTag(this)">Създай</button>
+            </div>
           </div>
-        </div>
-        <div class="form-group" style="flex:1">
-          <label class="form-label">Цена (€)</label>
-          <input class="form-input" type="text" inputmode="decimal" name="price"
-                 value="{{ form.price.value|stringformat:'s'|default:'' }}"
-                 placeholder="85.00">
-          {% for e in form.price.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
         </div>
       </div>
     </div>
 
-    <!-- ── 7. Notes ── -->
+    <!-- ── 7. Price ── -->
+    <div class="fsection">
+      <div class="fsection-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>Цена</span>
+        <span style="display:flex;align-items:center;gap:5px;font-weight:400;text-transform:none;letter-spacing:0;">
+          <span style="font-size:11px;color:var(--text-muted);">Цена с ДДС</span>
+          <input type="checkbox" id="ot-tax-included" name="tax_included" value="1"
+                 {% if form.tax_included.value %}checked{% endif %}
+                 onchange="otTaxToggle()"
+                 style="width:14px;height:14px;cursor:pointer;accent-color:var(--c-coral);">
+        </span>
+      </div>
+      <div class="form-group">
+        <input class="form-input" type="text" inputmode="decimal" id="ot-price" name="price"
+               value="{{ form.price.value|default_if_none:''|stringformat:'s' }}"
+               placeholder="Цена без ДДС (85.00)"
+               oninput="otNetPriceInput()" style="margin-bottom:6px;">
+        {% for e in form.price.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+        <input class="form-input" type="text" inputmode="decimal" id="ot-price-with-tax" name="price_with_tax"
+               value="{{ form.price_with_tax.value|default_if_none:''|stringformat:'s' }}"
+               placeholder="Цена с ДДС"
+               oninput="otGrossPriceInput()">
+        {% for e in form.price_with_tax.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+      </div>
+    </div>
+
+    <!-- ── 8. Notes ── -->
     <div class="fsection">
       <div class="fsection-title">Бележка <span style="color:var(--text-muted);font-weight:400;">(⌘B / ⌘I / ⌘U)</span></div>
       <div class="rn-field">
@@ -301,6 +317,32 @@
 </form>
 
 <script>
+const OT_VAT_PERCENT = {{ app_settings.vat_percent|default:20|stringformat:"s" }};
+
+function otNetPriceInput() {
+  const taxOn = document.getElementById('ot-tax-included').checked;
+  if (!taxOn) return;
+  const net = document.getElementById('ot-price').value;
+  const grossField = document.getElementById('ot-price-with-tax');
+  grossField.value = net === '' ? '' : (parseFloat(net.replace(',', '.')) * (1 + OT_VAT_PERCENT / 100)).toFixed(2);
+}
+function otGrossPriceInput() {
+  document.getElementById('ot-tax-included').checked = true;
+  const gross = document.getElementById('ot-price-with-tax').value;
+  const netField = document.getElementById('ot-price');
+  netField.value = gross === '' ? '' : (parseFloat(gross.replace(',', '.')) / (1 + OT_VAT_PERCENT / 100)).toFixed(2);
+}
+function otTaxToggle() {
+  const taxOn = document.getElementById('ot-tax-included').checked;
+  const grossField = document.getElementById('ot-price-with-tax');
+  if (!taxOn) {
+    grossField.value = '';
+    return;
+  }
+  const net = document.getElementById('ot-price').value;
+  grossField.value = net === '' ? '' : (parseFloat(net.replace(',', '.')) * (1 + OT_VAT_PERCENT / 100)).toFixed(2);
+}
+
 function otOpenTagForm(btn) {
   const wrap = btn.closest('.tag-inline-wrap');
   btn.style.display = 'none';
@@ -348,7 +390,7 @@ async function otSubmitTag(el) {
     const lbl = document.createElement('label');
     lbl.className = 'toggle-tag';
     lbl.innerHTML = `<input type="checkbox" name="tags" value="${data.id}" checked>
-      <span class="tag-pill" style="background:${data.color}22;border-color:${data.color};color:${data.color};">${data.name}</span>`;
+      <span class="tag-pill" style="background:${data.color}22;border-color:${data.color};color:${data.color};--tag-color:${data.color};">${data.name}</span>`;
     group.appendChild(lbl);
     otCloseTagForm(el);
   } catch(e) {

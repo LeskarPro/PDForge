@@ -84,8 +84,8 @@
   .pe-field-lbl { font-weight: 700; color: var(--p-textD); font-size: 11.5px; white-space: nowrap; min-width: 52px; }
   .pe-field-val { color: var(--p-text); font-size: 12.5px; font-weight: 500; }
 
-  .pe-pick-row { display: flex; gap: 6px; margin-bottom: 8px; }
-  .pe-pick-row > :first-child { flex: 1; min-width: 0; }
+  .pe-pick-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+  .pe-pick-row-btns { display: flex; gap: 6px; }
 
   .pe-btn-new {
     flex-shrink: 0; padding: 5px 9px; font-size: 11.5px; font-weight: 600;
@@ -498,7 +498,13 @@
      (2026-06-21: .pe-view-header was missing here, which silently broke
      its "Изтрий" and "Запази като шаблон" buttons — Назад/Редактирай/
      Преглед are <a> tags so they weren't affected by this rule at all,
-     which is why only those two looked "broken".) */
+     which is why only those two looked "broken".)
+     (2026-07-11: the "Save as template" modal moved into the shared
+     _template_folder_picker.html partial, whose wrapper is .tfp-veil, not
+     .pe-modal-veil — this exception silently stopped covering it, which
+     is why its inputs/buttons went read-only in view mode. Both classes
+     are listed here now; .pe-modal-veil still covers the New client/New
+     site modals.) */
   .pe-root.pe-view-mode .pe-action-bar button,
   .pe-root.pe-view-mode .pe-action-bar a,
   .pe-root.pe-view-mode .pe-view-header button,
@@ -506,12 +512,19 @@
   .pe-root.pe-view-mode .pe-modal-veil button,
   .pe-root.pe-view-mode .pe-modal-veil input,
   .pe-root.pe-view-mode .pe-modal-veil select,
-  .pe-root.pe-view-mode .pe-modal-veil textarea {
+  .pe-root.pe-view-mode .pe-modal-veil textarea,
+  .pe-root.pe-view-mode .tfp-veil button,
+  .pe-root.pe-view-mode .tfp-veil input,
+  .pe-root.pe-view-mode .tfp-veil select,
+  .pe-root.pe-view-mode .tfp-veil textarea {
     pointer-events: auto !important;
   }
   .pe-root.pe-view-mode .pe-modal-veil input,
   .pe-root.pe-view-mode .pe-modal-veil select,
-  .pe-root.pe-view-mode .pe-modal-veil textarea {
+  .pe-root.pe-view-mode .pe-modal-veil textarea,
+  .pe-root.pe-view-mode .tfp-veil input,
+  .pe-root.pe-view-mode .tfp-veil select,
+  .pe-root.pe-view-mode .tfp-veil textarea {
     background: var(--p-bg) !important;
     cursor: text;
   }
@@ -606,30 +619,9 @@
     width: 15px; height: 15px; accent-color: var(--c-coral); flex-shrink: 0; margin-top: 1px;
   }
 
-  /* Folder picker (Save as template) */
-  .pe-bc { font-size: 11.5px; color: var(--p-textM); margin-bottom: 10px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-  .pe-bc-crumb {
-    cursor: pointer; padding: 2px 6px; border-radius: 3px;
-    background: var(--p-surface); color: var(--p-text);
-  }
-  .pe-bc-crumb:hover { background: rgba(255,166,134,.18); }
-  .pe-bc-sep { color: var(--p-textM); }
-  .pe-folder-list { display: flex; flex-direction: column; gap: 4px; }
-  .pe-folder-row {
-    padding: 8px 12px; border: 1px solid var(--p-border);
-    border-radius: var(--radius-sm); cursor: pointer; font-size: 13px;
-    display: flex; align-items: center; gap: 8px;
-    transition: background .12s, border-color .12s;
-  }
-  .pe-folder-row:hover { background: rgba(255,166,134,.10); border-color: var(--c-clay); }
-  .pe-folder-icon { color: var(--c-coral); }
-  .pe-folder-empty { font-size: 12px; color: var(--p-textM); font-style: italic; padding: 8px 0; }
-  .pe-name-input {
-    width: 100%; margin-top: 14px; padding: 8px 10px;
-    border: 1px solid var(--p-border); border-radius: var(--radius-sm);
-    font-size: 13px; color: var(--p-text);
-  }
-  .pe-name-label { font-size: 11px; font-weight: 600; color: var(--p-textM); text-transform: uppercase; letter-spacing: .05em; }
+  /* Folder picker (Save as template) now lives in
+     _template_folder_picker.html (shared with the preview page), with its
+     own tfp-* prefixed CSS — nothing needed here any more. */
 
   /* Cancel link in topbar */
   .btn-outline {
@@ -685,7 +677,7 @@
                 @click="deleteProtocol()">
           Изтрий
         </button>
-        <button type="button" class="pe-btn pe-btn-template" @click="openTemplatePicker()">
+        <button type="button" class="pe-btn pe-btn-template" @click="openTplPicker()">
           Запази като шаблон
         </button>
         <a href="{% url 'core:protocol_print_choose' protocol.pk %}" target="_top"
@@ -776,8 +768,10 @@
                 </template>
               </div>
             </div>
-            <button type="button" class="pe-btn-new" @click="openNewClient()" title="Нов клиент">+ Клиент</button>
-            <button type="button" class="pe-btn-new" @click="openNewSite()" title="Нов обект">+ Обект</button>
+            <div class="pe-pick-row-btns">
+              <button type="button" class="pe-btn-new" @click="openNewClient()" title="Нов клиент">+ Клиент</button>
+              <button type="button" class="pe-btn-new" @click="openNewSite()" title="Нов обект">+ Обект</button>
+            </div>
           </div>
         </template>
         <template x-if="siteId">
@@ -1130,11 +1124,28 @@
         <textarea x-model="notes" class="rn-source"></textarea>
       </div>
 
-      <!-- Price -->
-      <div class="pe-meta-row">
-        <label>Цена (€)</label>
-        <input type="number" min="0" step="0.01" x-model="price"
-               placeholder="напр. 150.00">
+      <!-- Price / VAT -->
+      <div class="pe-meta-row pe-meta-row-wide">
+        <label style="display:flex;align-items:center;justify-content:space-between;">
+          <span>Цена</span>
+          <span style="display:flex;align-items:center;gap:6px;font-weight:400;">
+            <span style="font-size:11px;color:var(--p-textM);">Цена с ДДС</span>
+            <input type="checkbox" x-model="taxIncluded" @change="onTaxToggle()"
+                   style="width:15px;height:15px;cursor:pointer;accent-color:var(--c-coral);">
+          </span>
+        </label>
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;">
+            <input type="number" min="0" step="0.01" x-model="price"
+                   @input="onNetPriceInput()"
+                   placeholder="Цена без ДДС (€)">
+          </div>
+          <div style="flex:1;">
+            <input type="number" min="0" step="0.01" x-model="priceWithTax"
+                   @input="onGrossPriceInput()"
+                   placeholder="Цена с ДДС (€)">
+          </div>
+        </div>
       </div>
 
       <!-- Tags multi-select -->
@@ -1144,9 +1155,7 @@
           <template x-for="t in allTags" :key="t.id">
             <button type="button" class="pe-tag-chip"
                     :class="{on: tagIds.includes(t.id)}"
-                    :style="tagIds.includes(t.id)
-                            ? ('background:' + t.color + '20;border-color:' + t.color + ';color:' + t.color + ';')
-                            : ''"
+                    :style="tagChipStyle(t.color, tagIds.includes(t.id))"
                     @click="toggleTag(t.id)">
               <span x-text="t.name"></span>
             </button>
@@ -1203,6 +1212,16 @@
 
       {% if editor_mode == 'edit' %}
         <button type="button" class="pe-btn pe-btn-secondary"
+                style="display:inline-flex;align-items:center;justify-content:center;gap:6px;"
+                @click="refreshSnapshot()"
+                :disabled="refreshingSnapshot || saving"
+                title="Презаписва замразените данни за фирма/изпълнител в този протокол с текущите им данни.">
+          <svg x-show="!refreshingSnapshot" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:13px;height:13px;flex-shrink:0;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/>
+          </svg>
+          <span x-text="refreshingSnapshot ? 'Обновяване…' : 'Обнови данни за фирма'"></span>
+        </button>
+        <button type="button" class="pe-btn pe-btn-secondary"
                 style="color:#b03030;border-color:rgba(200,80,80,.35);"
                 @click="deleteProtocol()"
                 :disabled="saving">
@@ -1219,6 +1238,13 @@
         </button>
       {% endif %}
     {% endif %}
+  </div>
+
+  <!-- ═══ Toast — "Refresh firm/company snapshot" result (edit mode) ═══ -->
+  <div x-show="snapshotToast" x-cloak class="pe-toast" style="margin-top:10px;">
+    <span style="font-size:18px;">✓</span>
+    <span x-text="snapshotToast"></span>
+    <button type="button" @click="snapshotToast=''" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#2d7a4a;font-size:18px;line-height:1;padding:0 6px;">×</button>
   </div>
 
   <!-- ═══ Toast — "Save as template" success message (view mode) ═══ -->
@@ -1362,9 +1388,7 @@
             <template x-for="t in allTags" :key="t.id">
               <button type="button" class="pe-tag-chip"
                       :class="{on: modal.newSite.tagIds.includes(t.id)}"
-                      :style="modal.newSite.tagIds.includes(t.id)
-                              ? ('background:' + t.color + '20;border-color:' + t.color + ';color:' + t.color + ';')
-                              : ''"
+                      :style="tagChipStyle(t.color, modal.newSite.tagIds.includes(t.id))"
                       @click="toggleNewSiteTag(t.id)">
                 <span x-text="t.name"></span>
               </button>
@@ -1424,10 +1448,8 @@
               <option value="09">Септември</option><option value="10">Октомври</option>
               <option value="11">Ноември</option><option value="12">Декември</option>
             </select>
-            <select x-model="modal.newSite.startYear" style="flex:1">
-              <option value="">Година</option>
-              <template x-for="y in yearOptions()" :key="y"><option :value="String(y)" x-text="y"></option></template>
-            </select>
+            <input type="number" inputmode="numeric" x-model="modal.newSite.startYear"
+                   placeholder="Година" style="flex:1">
           </div>
         </div>
         <div class="pe-ml-row">
@@ -1464,58 +1486,14 @@
     </div>
   </div>
 
-  {% if editor_mode == 'view' %}
   <!-- ═══════════════════════════════════════════
-       MODAL — Запази като шаблон (view mode only)
+       MODAL — Запази като шаблон (only ever opened from view mode — the
+       trigger button is gated below — but included unconditionally here
+       since it also defines templateFolderPickerMixin(), which every mode
+       of protocolEditor() spreads into its Alpine data.)
+       Shared with the preview page — see _template_folder_picker.html.
        ═══════════════════════════════════════════ -->
-  <div x-show="modal.saveTemplate.open" class="pe-modal-veil" @click.self="modal.saveTemplate.open=false" x-cloak>
-    <div class="pe-modal-card">
-      <div class="pe-modal-head">
-        <div class="pe-modal-title">Запази като шаблон — изберете папка</div>
-        <button class="pe-modal-x" @click="modal.saveTemplate.open=false">×</button>
-      </div>
-      <div class="pe-modal-body">
-        <!-- Breadcrumb -->
-        <div class="pe-bc">
-          <span class="pe-bc-crumb" @click="tplNavTo(null)">Шаблони</span>
-          <template x-for="(c, i) in modal.saveTemplate.breadcrumb" :key="c.id">
-            <template x-if="c">
-              <span style="display:inline-flex;gap:4px;align-items:center;">
-                <span class="pe-bc-sep">›</span>
-                <span class="pe-bc-crumb" @click="tplNavTo(c.id)" x-text="c.name"></span>
-              </span>
-            </template>
-          </template>
-        </div>
-
-        <!-- Subfolders -->
-        <div class="pe-folder-list">
-          <template x-for="f in tplSubfoldersOf(modal.saveTemplate.currentId)" :key="f.id">
-            <div class="pe-folder-row" @click="tplNavTo(f.id)">
-              <span class="pe-folder-icon">📁</span>
-              <span x-text="f.name"></span>
-            </div>
-          </template>
-          <div x-show="tplSubfoldersOf(modal.saveTemplate.currentId).length === 0" class="pe-folder-empty">
-            Тази папка няма подпапки.
-          </div>
-        </div>
-
-        <!-- Name input -->
-        <label class="pe-name-label" style="display:block;margin-top:14px;">Име на шаблона *</label>
-        <input class="pe-name-input" type="text" placeholder="напр. „Виктория Нутс — стандарт"" x-model="modal.saveTemplate.presetName">
-        <div class="pe-modal-err" x-show="modal.saveTemplate.error" x-text="modal.saveTemplate.error"></div>
-      </div>
-      <div class="pe-modal-foot">
-        <button class="pe-modal-btn cancel" @click="modal.saveTemplate.open=false" :disabled="modal.saveTemplate.saving">Отказ</button>
-        <button class="pe-modal-btn save" @click="confirmSaveAsTemplateCopy()" :disabled="!modal.saveTemplate.presetName || modal.saveTemplate.saving">
-          <span x-show="!modal.saveTemplate.saving">Запази тук</span>
-          <span x-show="modal.saveTemplate.saving">Запазване…</span>
-        </button>
-      </div>
-    </div>
-  </div>
-  {% endif %}
+  {% include "protocols/_template_folder_picker.html" %}
 
 </div>
 {% endblock %}
@@ -1533,9 +1511,15 @@
 document.addEventListener('alpine:init', () => {
   Alpine.data('protocolEditor', (viewMode = false) => ({
 
+    // Shared "Save as template" folder-picker state/methods — see
+    // templateFolderPickerMixin() in _template_folder_picker.html.
+    ...templateFolderPickerMixin(),
+
     // ── view mode (read-only protocol preview popup) ──
     viewMode: viewMode,
     tplToast: '',
+    snapshotToast: '',
+    refreshingSnapshot: false,
 
     // ── catalogs (from bootstrap JSON) ──
     companies: [], allClients: [], allSites: [],
@@ -1560,7 +1544,10 @@ document.addEventListener('alpine:init', () => {
     // ── metadata (not printed on the protocol body, but persisted) ──
     pseudonym: '',
     notes:     '',
-    price:     '',
+    price:         '',   // net price, always the canonical value
+    taxIncluded:   false,
+    priceWithTax:  '',
+    vatPercent:    {{ app_settings.vat_percent|default:20|stringformat:"s" }},
     tagIds:    [],
     newTag: { open: false, name: '', color: '#6b7280', description: '', saving: false, error: '' },
 
@@ -1592,8 +1579,9 @@ document.addEventListener('alpine:init', () => {
                    startMonth: '', startYear: '',
                    tagIds: [], newTag: { open: false, name: '', color: '#6b7280', description: '', saving: false, error: '' },
                    contacts: [], selectedContactIds: [] },
-      saveTemplate: { open: false, saving: false, error: '',
-                      currentId: null, breadcrumb: [], presetName: '' },
+      // "Save as template" folder picker used to live here — it's now the
+      // shared `tplPicker` top-level state (see templateFolderPickerMixin()
+      // in _template_folder_picker.html, spread in below).
     },
 
     // ── row metadata for the auto-fill loops ──
@@ -1936,8 +1924,45 @@ document.addEventListener('alpine:init', () => {
     },
 
     // ─────────────────────────────────────────────────────────────────
+    // PRICE / VAT (metadata strip) — `price` (net) is always the
+    // canonical value. `priceWithTax` is only meaningful when
+    // `taxIncluded` is on. Editing the net field only recalculates the
+    // gross field while VAT is already on; editing the gross field always
+    // turns VAT on and recalculates the net field.
+    // ─────────────────────────────────────────────────────────────────
+    onNetPriceInput() {
+      if (!this.taxIncluded) return;
+      this.priceWithTax = this.price === ''
+        ? ''
+        : (parseFloat(this.price) * (1 + this.vatPercent / 100)).toFixed(2);
+    },
+    onGrossPriceInput() {
+      this.taxIncluded = true;
+      this.price = this.priceWithTax === ''
+        ? ''
+        : (parseFloat(this.priceWithTax) / (1 + this.vatPercent / 100)).toFixed(2);
+    },
+    onTaxToggle() {
+      if (!this.taxIncluded) {
+        this.priceWithTax = '';
+      } else if (this.price !== '') {
+        this.priceWithTax = (parseFloat(this.price) * (1 + this.vatPercent / 100)).toFixed(2);
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────
     // TAGS multi-select (metadata strip)
     // ─────────────────────────────────────────────────────────────────
+    // Unselected chips always show the tag's own color as a light tint
+    // (same recipe as the one-time treatment tag pills) instead of a
+    // plain gray chip. Selected switches to a solid fill in the tag's
+    // color with white text — matches the one-time treatment styling.
+    tagChipStyle(color, isOn) {
+      if (!color) return '';
+      return isOn
+        ? `background:${color};border-color:${color};color:#fff;`
+        : `background:${color}1F;border-color:${color}4D;color:${color};`;
+    },
     toggleTag(id) {
       const idx = this.tagIds.findIndex(x => String(x) === String(id));
       if (idx >= 0) this.tagIds.splice(idx, 1);
@@ -2082,12 +2107,6 @@ document.addEventListener('alpine:init', () => {
         editingIdx: null, editDraft: { name: '', phone: '', position: '' } };
     },
 
-    yearOptions() {
-      const y = new Date().getFullYear();
-      const out = [];
-      for (let i = y + 2; i >= y - 5; i--) out.push(i);
-      return out;
-    },
     async openNewSite() {
       // Stage 8a (reworked) — site is primary now, so this modal no longer
       // requires a site to already be picked; it needs its OWN client
@@ -2238,7 +2257,9 @@ document.addEventListener('alpine:init', () => {
         // Metadata strip — not printed on the protocol body
         pseudonym: this.pseudonym || '',
         notes:     this.notes     || '',
-        price:     this.price === '' ? null : this.price,
+        price:          this.price        === '' ? null : this.price,
+        tax_included:   this.taxIncluded,
+        price_with_tax: this.priceWithTax === '' ? null : this.priceWithTax,
         tag_ids:   this.tagIds.slice(),
       };
     },
@@ -2306,6 +2327,29 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
+    async refreshSnapshot() {
+      const pk = '{{ protocol_pk|default:"" }}';
+      if (!pk || this.refreshingSnapshot) return;
+      if (!confirm('Данните за фирма/изпълнител, замразени в този протокол, ще бъдат презаписани с текущите. Продължи?')) return;
+      this.refreshingSnapshot = true;
+      try {
+        const r = await fetch(`/protocols/${pk}/refresh-snapshot/`, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': this._csrf() },
+        });
+        const data = await r.json();
+        if (r.ok && data.ok) {
+          this.snapshotToast = 'Данните за фирма/изпълнител са обновени.';
+        } else {
+          alert('Грешка при обновяване: ' + (data.error || r.status));
+        }
+      } catch (e) {
+        alert('Грешка при обновяване: ' + e);
+      } finally {
+        this.refreshingSnapshot = false;
+      }
+    },
+
     async deleteProtocol() {
       if (!confirm('Сигурни ли сте, че искате да изтриете този протокол? Действието е необратимо.')) return;
       const pk = '{{ protocol_pk|default:"" }}';
@@ -2363,6 +2407,8 @@ document.addEventListener('alpine:init', () => {
         window.rnSetValue && window.rnSetValue(this.$refs.protocolNotesField, d.notes);
       }
       if (d.price != null)    this.price       = d.price;
+      if (d.tax_included)     this.taxIncluded = true;
+      if (d.price_with_tax != null) this.priceWithTax = d.price_with_tax;
       if (Array.isArray(d.tag_ids)) this.tagIds = [...d.tag_ids];
 
       // Per-service columns
@@ -2405,58 +2451,33 @@ document.addEventListener('alpine:init', () => {
     // ─────────────────────────────────────────────────────────────────
     // VIEW MODE — "Запази като шаблон" (saves a separate template copy
     // of this already-saved protocol; the original record is untouched).
+    // Folder search / browse / create is handled by the shared tplPicker
+    // mixin (see templateFolderPickerMixin()) — this is just the final
+    // save call, specific to this page (copies an existing protocol pk).
     // ─────────────────────────────────────────────────────────────────
-    openTemplatePicker() {
-      this.modal.saveTemplate = {
-        open: true, saving: false, error: '',
-        currentId: null, breadcrumb: [], presetName: '',
-      };
-    },
-    tplSubfoldersOf(parentId) {
-      return this.folders.filter(f =>
-        String(f.parent_id || '') === String(parentId || ''));
-    },
-    tplNavTo(folderId) {
-      this.modal.saveTemplate.currentId = folderId;
-      this.modal.saveTemplate.breadcrumb = this._tplBreadcrumbFor(folderId);
-    },
-    _tplBreadcrumbFor(folderId) {
-      if (!folderId) return [];
-      const trail = [];
-      let cursor = this.folders.find(f => String(f.id) === String(folderId));
-      const seen = new Set();
-      while (cursor && !seen.has(cursor.id)) {
-        trail.unshift(cursor);
-        seen.add(cursor.id);
-        cursor = cursor.parent_id
-          ? this.folders.find(f => String(f.id) === String(cursor.parent_id))
-          : null;
-      }
-      return trail;
-    },
-    async confirmSaveAsTemplateCopy() {
-      const m = this.modal.saveTemplate;
-      const presetName = (m.presetName || '').trim();
-      if (!presetName || m.saving) return;
-      m.saving = true; m.error = '';
+    async confirmTplSave() {
+      const p = this.tplPicker;
+      const presetName = (p.presetName || '').trim();
+      if (!presetName || p.saving) return;
+      p.saving = true; p.error = '';
       const pk = '{{ protocol_pk|default:"" }}';
       try {
         const r = await fetch(`/protocols/${pk}/save-as-template/`, {
           method: 'POST',
-          body: JSON.stringify({ folder_id: m.currentId, preset_name: presetName }),
+          body: JSON.stringify({ folder_id: p.currentId, preset_name: presetName }),
           headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._csrf() },
         });
         const data = await r.json();
         if (!r.ok || !data.ok) {
-          m.error = (data && (data.error || data.detail)) || `HTTP ${r.status}`;
-          m.saving = false;
+          p.error = (data && (data.error || data.detail)) || `HTTP ${r.status}`;
+          p.saving = false;
           return;
         }
-        m.open = false; m.saving = false;
+        p.open = false; p.saving = false;
         this.tplToast = 'Шаблонът е запазен успешно.';
       } catch (e) {
-        m.error = String(e);
-        m.saving = false;
+        p.error = String(e);
+        p.saving = false;
       }
     },
 
