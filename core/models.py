@@ -931,6 +931,10 @@ class OneTimeTreatment(TimeStampedModel):
         related_name="one_time_treatments",
         verbose_name="Вредители / спектър",
     )
+    pests_other = models.CharField(
+        "Други (опишете)", max_length=255, blank=True,
+        help_text="Разделени със запетая, ако са повече от един.",
+    )
     executed_by = models.ManyToManyField(
         Worker, blank=True,
         related_name="one_time_treatments",

@@ -291,7 +291,7 @@
     <span class="records-count" id="treatment-count">{{ treatments|length }} записа</span>
   </div>
 
-  {% if q or active_pests or active_tags %}
+  {% if q or active_pests or active_tags or active_pests_other %}
   <div class="active-chips">
     {% if q %}
     <span class="active-chip">
@@ -304,6 +304,14 @@
       <span class="active-chip">
         {{ pest.name }}
         <button type="button" onclick="removeParam('pests','{{ pest.id }}')">×</button>
+      </span>
+      {% endif %}
+    {% endfor %}
+    {% for other in all_pests_other %}
+      {% if other in active_pests_other %}
+      <span class="active-chip">
+        {{ other }}
+        <button type="button" onclick="removeParam('pests_other','{{ other }}')">×</button>
       </span>
       {% endif %}
     {% endfor %}
@@ -325,7 +333,7 @@
       <span class="filter-clear-link" onclick="clearCheckboxes()">Изчисти филтрите</span>
     </div>
 
-    {% if all_pests %}
+    {% if all_pests or all_pests_other %}
     <div class="filter-section">
       <div class="filter-label">Вредители</div>
       {% regroup all_pests by category as pest_categories %}
@@ -343,6 +351,7 @@
           {% endfor %}
         </div>
       {% endfor %}
+      {% include "one_time/_other_pests_filter.html" %}
     </div>
     {% endif %}
 

@@ -74,6 +74,20 @@
   .btn-save:hover { background: var(--btn-primary-hover, #f09070); }
   .save-status { font-size: 12.5px; color: var(--text-muted); }
   .save-status.ok { color: #2d7a4a; font-weight: 500; }
+
+  /* Preview/print button reference */
+  .ref-surface { margin-bottom: 24px; }
+  .ref-surface:last-child { margin-bottom: 0; }
+  .ref-surface-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+  .ref-subtitle { font-size: 11px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: .04em; margin: 14px 0 4px; }
+  .ref-row { display: flex; gap: 14px; padding: 7px 0; border-bottom: 1px solid var(--border-subtle); }
+  .ref-row:last-child { border-bottom: none; }
+  .ref-btn { flex: 0 0 200px; font-size: 12.5px; font-weight: 600; color: var(--text-primary); }
+  .ref-desc { flex: 1; font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+  .ref-note { margin-top: 10px; padding: 10px 12px; background: rgba(192,83,58,.06);
+    border: 1px solid rgba(192,83,58,.15); border-radius: var(--radius-sm);
+    font-size: 12px; color: var(--text-primary); line-height: 1.5; }
 </style>
 
 <div class="settings-wrap">
@@ -215,6 +229,51 @@
         </label>
 
       </div>
+    </div>
+  </div>
+
+  <!-- ── Preview/print button reference ── -->
+  <div class="settings-section">
+    <div class="section-head">
+      <div class="section-title">Преглед и печат — какво прави всеки бутон</div>
+      <div class="section-desc">Обяснение на бутоните в екраните за преглед, печат и изтегляне на протоколи</div>
+    </div>
+    <div class="section-body">
+
+      <div class="ref-surface">
+        <div class="ref-surface-title">Преглед на запазен протокол</div>
+
+        <div class="ref-subtitle">За обикновен протокол</div>
+        <div class="ref-row"><span class="ref-btn">← Назад</span><span class="ref-desc">Затваря прегледа и се връща към списъка с протоколи.</span></div>
+        <div class="ref-row"><span class="ref-btn">✏ Редактирай</span><span class="ref-desc">Отваря протокола за редакция — промените се запазват в него.</span></div>
+        <div class="ref-row"><span class="ref-btn">Изтрий</span><span class="ref-desc">Скрива протокола от всички списъци в приложението (меко изтриване) и пита за потвърждение. Записът обаче <strong>не се премахва физически от базата данни</strong> — само се маркира като изтрит. В момента няма начин да го възстановите през приложението.</span></div>
+        <div class="ref-row"><span class="ref-btn">Запази като шаблон</span><span class="ref-desc">Записва копие на протокола <strong>в шаблоните — не се запазва в протоколите</strong>. Самият протокол остава непроменен.</span></div>
+        <div class="ref-row"><span class="ref-btn">Преглед</span><span class="ref-desc">Отваря страницата за печат и изтегляне на този протокол (вижте по-долу).</span></div>
+
+        <div class="ref-subtitle">За шаблон</div>
+        <div class="ref-row"><span class="ref-btn">✏ Редактирай</span><span class="ref-desc">Отваря шаблона за редакция — промените се запазват в самия шаблон.</span></div>
+        <div class="ref-row"><span class="ref-btn">Използвай</span><span class="ref-desc">Отваря нов протокол, попълнен по шаблона. При запазване се създава нов протокол (нов запис в базата данни) — шаблонът остава без промяна.</span></div>
+
+        <div class="ref-subtitle">Страница за печат</div>
+        <div class="ref-row"><span class="ref-btn">⤓ Изтегли</span><span class="ref-desc">Изтегля протокола като PDF файл.</span></div>
+        <div class="ref-row"><span class="ref-btn">🖨 Печат</span><span class="ref-desc">Изпраща протокола директно за печат.</span></div>
+
+        <div class="ref-note">В момента работи само форматът <strong>A5</strong>. Форматите „A5 → A4 пейзаж“ и „A4 портрет“ все още са в процес на разработка — при избор ще видите съобщение за това.</div>
+      </div>
+
+      <div class="ref-surface">
+        <div class="ref-surface-title">Преглед по време на редакция</div>
+        <div class="ref-desc" style="margin-bottom:6px;">Отваря се с бутона „Преглед →“, докато редактирате протокол, който все още не е запазен.</div>
+
+        <div class="ref-row"><span class="ref-btn">← Към редактиране</span><span class="ref-desc">Връща се към редакция, без да запазва нищо.</span></div>
+        <div class="ref-row"><span class="ref-btn">🖨 Печат</span><span class="ref-desc">В приложението на Mac <strong>първо запазва протокола в базата данни</strong> (точно както бутон „Запази протокол“), а след това го отпечатва — само не ви пренасочва към списъка. В браузър/режим за разработка не запазва нищо и просто отваря диалога за печат.</span></div>
+        <div class="ref-row"><span class="ref-btn">Запази като шаблон</span><span class="ref-desc">Записва текущата чернова <strong>в шаблоните — не се запазва в протоколите</strong>. Ако искате протоколът да съществува и като обикновен протокол, трябва отделно да натиснете „Запази протокол“. Ако редактирате вече запазен протокол, недовършените промени влизат само в шаблона — самият протокол пази последната си запазена версия, докато не го запазите отделно.</span></div>
+        <div class="ref-row"><span class="ref-btn">⤓ Изтегли (PDF)</span><span class="ref-desc"><strong>Първо запазва протокола в базата данни</strong> (точно както бутон „Запази протокол“), после изтегля PDF файла.</span></div>
+        <div class="ref-row"><span class="ref-btn">Запази протокол</span><span class="ref-desc">Запазва протокола и се връща към списъка.</span></div>
+
+        <div class="ref-note">Същите три формата като по-горе — само <strong>A5</strong> работи.</div>
+      </div>
+
     </div>
   </div>
 

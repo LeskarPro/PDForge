@@ -109,6 +109,30 @@ def split(value, arg):
     return value.split(arg)
 
 
+@register.filter
+def split_pests_other(value):
+    """Split a comma-separated free-text 'other pest' value (e.g. from
+    ProtocolColumn.pests_other or OneTimeTreatment.pests_other) into
+    trimmed, non-empty, in-order-deduped, capitalized-first-letter parts —
+    for chip display only.
+
+    Purely a display helper: never used anywhere the stored text itself is
+    rendered as typed (e.g. the actual protocol PDF row 1 grid, which reads
+    pests_other directly and must keep showing exactly what the user typed,
+    commas and all)."""
+    if not value:
+        return []
+    seen = []
+    for part in value.split(','):
+        p = part.strip()
+        if not p:
+            continue
+        p = p[0].upper() + p[1:]
+        if p not in seen:
+            seen.append(p)
+    return seen
+
+
 # ── Pest / service category → Bulgarian label ─────────────────────────────
 _CATEGORY_BG = {
     'disinsection': 'Дезинсекция',

@@ -1271,6 +1271,10 @@
           <input type="text" x-model="modal.newClient.name" placeholder="Виктория Нутс">
           <div class="pe-modal-err" x-show="modal.newClient.errors.name" x-text="(modal.newClient.errors.name||[''])[0]"></div>
         </div>
+        <div class="pe-ml-row rn-field" x-ref="newClientNotesField"><label>Бележки</label>
+          <div class="rn-editable" contenteditable="true" data-placeholder="Бележки…"></div>
+          <textarea x-model="modal.newClient.notes" class="rn-source"></textarea>
+        </div>
         <div class="pe-ml-row" style="font-size:11px;color:var(--p-textM);">
           Фирмата за обекта се добавя след това, от попъпа на самия обект (Стр. 9б).
         </div>
@@ -1360,12 +1364,40 @@
       <div class="pe-modal-body">
         <div class="pe-modal-err" x-show="modal.newSite.errors.__all__" x-text="(modal.newSite.errors.__all__||[''])[0]"></div>
         <div class="pe-ml-row"><label>Клиент *</label>
-          <select x-model="modal.newSite.clientId" @change="onNewSiteClientChange()">
-            <option value="">— изберете клиент —</option>
-            <template x-for="c in allClients" :key="c.id">
-              <option :value="String(c.id)" x-text="c.name"></option>
-            </template>
-          </select>
+          <template x-if="!modal.newSite.clientId">
+            <div class="pe-pick-row" style="margin-bottom:0;">
+              <div class="pe-search-wrap" @click.outside="modal.newSite.showClientDD=false">
+                <input type="text" placeholder="Търси клиент…"
+                  x-model="modal.newSite.clientQ"
+                  @focus="modal.newSite.showClientDD=true; modal.newSite.highlightedClientIndex=-1"
+                  @input="modal.newSite.showClientDD=true; modal.newSite.highlightedClientIndex=-1"
+                  @keydown.escape="modal.newSite.showClientDD=false"
+                  @keydown.down.prevent="modal.newSite.highlightedClientIndex = Math.min(modal.newSite.highlightedClientIndex+1, filteredClientsForNewSite.length-1); scrollClientOptIntoView($el)"
+                  @keydown.up.prevent="modal.newSite.highlightedClientIndex = Math.max(modal.newSite.highlightedClientIndex-1, 0); scrollClientOptIntoView($el)"
+                  @keydown.enter.prevent="if (modal.newSite.showClientDD && filteredClientsForNewSite[modal.newSite.highlightedClientIndex]) pickClientForNewSite(filteredClientsForNewSite[modal.newSite.highlightedClientIndex])">
+                <div class="pe-client-dd" x-show="modal.newSite.showClientDD && filteredClientsForNewSite.length > 0">
+                  <template x-for="(c, i) in filteredClientsForNewSite" :key="c.id">
+                    <div class="pe-c-opt" :class="{active: i === modal.newSite.highlightedClientIndex}"
+                         @click="pickClientForNewSite(c)" @mouseenter="modal.newSite.highlightedClientIndex = i">
+                      <div class="pe-c-firm" x-text="c.name"></div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <div class="pe-pick-row-btns">
+                <button type="button" class="pe-btn-new" @click="openNewClient()" title="Нов клиент">+ Клиент</button>
+              </div>
+            </div>
+          </template>
+          <template x-if="modal.newSite.clientId">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:13px;font-weight:600;color:var(--p-text);flex:1"
+                    x-text="(allClients.find(c => String(c.id) === String(modal.newSite.clientId)) || {}).name || '—'"></span>
+              <button type="button" class="pe-btn-clear"
+                      @click="modal.newSite.clientId=''; modal.newSite.clientQ=''; onNewSiteClientChange()"
+                      title="Промени клиента">×</button>
+            </div>
+          </template>
           <div class="pe-modal-err" x-show="modal.newSite.errors.client" x-text="(modal.newSite.errors.client||[''])[0]"></div>
         </div>
         <div class="pe-ml-row"><label>Псевдоним *</label>
@@ -1571,10 +1603,11 @@ document.addEventListener('alpine:init', () => {
     // ── modal state ──
     modal: {
       newClient: { open: false, saving: false, errors: {},
-                   name: '',
+                   name: '', notes: '',
                    contacts: [], draft: { name: '', phone: '', position: '' },
                    editingIdx: null, editDraft: { name: '', phone: '', position: '' } },
       newSite:   { open: false, saving: false, errors: {}, clientId: '',
+                   clientQ: '', showClientDD: false, highlightedClientIndex: -1,
                    pseudonym: '', name: '', address: '', area_m2: '', notes: '',
                    startMonth: '', startYear: '',
                    tagIds: [], newTag: { open: false, name: '', color: '#6b7280', description: '', saving: false, error: '' },
@@ -1666,6 +1699,16 @@ document.addEventListener('alpine:init', () => {
         (s.name||'').toLowerCase().includes(q) ||
         (s.client_name||'').toLowerCase().includes(q) ||
         (s.address||'').toLowerCase().includes(q));
+    },
+
+    // Client picker inside the "+ Обект" modal (Stage: task 3 customer
+    // feedback) — same type-to-filter-over-a-preloaded-array pattern as
+    // filteredSites above, just against allClients and name-only (Client
+    // has no firm/address of its own since the 8a rework).
+    get filteredClientsForNewSite() {
+      const q = (this.modal.newSite.clientQ || '').toLowerCase();
+      if (!q) return this.allClients;
+      return this.allClients.filter(c => (c.name||'').toLowerCase().includes(q));
     },
     get disActive()  { return this.cols.dis .pest_ids.length > 0; },
     get derActive()  { return this.cols.der .pest_ids.length > 0; },
@@ -2054,6 +2097,7 @@ document.addEventListener('alpine:init', () => {
       m.saving = true; m.errors = {};
       const fd = new FormData();
       fd.append('name', m.name);
+      fd.append('notes', m.notes);
       fd.append('as', 'json');
       let clientData;
       try {
@@ -2092,6 +2136,17 @@ document.addEventListener('alpine:init', () => {
         } catch (e) { failed.push(c); }
       }
 
+      // If "+ Клиент" was clicked from inside the "+ Обект" modal (client
+      // didn't exist yet while creating a site for them), also select the
+      // new client there so the user doesn't have to reopen that modal.
+      // Must happen AFTER the contacts loop above (not before) so its
+      // contacts fetch picks up whichever contacts actually saved instead
+      // of racing an empty list.
+      if (this.modal.newSite.open) {
+        this.modal.newSite.clientId = String(clientData.client.id);
+        this.onNewSiteClientChange();
+      }
+
       if (failed.length) {
         m.contacts = failed;
         m.editingIdx = null;
@@ -2101,8 +2156,9 @@ document.addEventListener('alpine:init', () => {
       }
 
       // Full success — clear the draft and close.
+      window.rnSetValue && window.rnSetValue(this.$refs.newClientNotesField, '');
       this.modal.newClient = { open: false, saving: false, errors: {},
-        name: '',
+        name: '', notes: '',
         contacts: [], draft: { name: '', phone: '', position: '' },
         editingIdx: null, editDraft: { name: '', phone: '', position: '' } };
     },
@@ -2116,6 +2172,9 @@ document.addEventListener('alpine:init', () => {
       this.modal.newSite.saving = false;
       this.modal.newSite.errors = {};
       this.modal.newSite.clientId = this.clientId || '';
+      this.modal.newSite.clientQ = '';
+      this.modal.newSite.showClientDD = false;
+      this.modal.newSite.highlightedClientIndex = -1;
       this.modal.newSite.contacts = [];
       this.modal.newSite.selectedContactIds = [];
       this.modal.newSite.newTag = { open: false, name: '', color: '#6b7280', description: '', saving: false, error: '' };
@@ -2125,6 +2184,12 @@ document.addEventListener('alpine:init', () => {
         this.modal.newSite.startYear = String(d.getFullYear());
       }
       await this.onNewSiteClientChange();
+    },
+    pickClientForNewSite(c) {
+      this.modal.newSite.clientId = String(c.id);
+      this.modal.newSite.clientQ = '';
+      this.modal.newSite.showClientDD = false;
+      this.onNewSiteClientChange();
     },
     async onNewSiteClientChange() {
       const cid = this.modal.newSite.clientId;
@@ -2200,6 +2265,7 @@ document.addEventListener('alpine:init', () => {
         this.pickSite();
         // Success — clear the draft and close.
         this.modal.newSite = { open: false, saving: false, errors: {}, clientId: '',
+          clientQ: '', showClientDD: false, highlightedClientIndex: -1,
           pseudonym: '', name: '', address: '', area_m2: '', notes: '',
           startMonth: '', startYear: '',
           tagIds: [], newTag: { open: false, name: '', color: '#6b7280', description: '', saving: false, error: '' },

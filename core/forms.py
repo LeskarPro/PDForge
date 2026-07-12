@@ -238,7 +238,7 @@ class OneTimeTreatmentForm(forms.ModelForm):
         fields = [
             'pseudonym', 'address',
             'date', 'time_from', 'time_to',
-            'pests', 'executed_by', 'tags',
+            'pests', 'pests_other', 'executed_by', 'tags',
             'price', 'tax_included', 'price_with_tax', 'notes',
         ]
         widgets = {
@@ -247,6 +247,7 @@ class OneTimeTreatmentForm(forms.ModelForm):
             'time_from':     forms.TimeInput(attrs={'type': 'time'}),
             'time_to':       forms.TimeInput(attrs={'type': 'time'}),
             'pests':         forms.CheckboxSelectMultiple(),
+            'pests_other':   forms.TextInput(attrs={'placeholder': 'опишете, разделени със запетая — напр. молци, бълхи'}),
             'executed_by':   forms.CheckboxSelectMultiple(),
             'tags':          forms.CheckboxSelectMultiple(),
             'price':         forms.NumberInput(attrs={'placeholder': '85.00', 'step': '0.01', 'min': '0'}),

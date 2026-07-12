@@ -225,7 +225,7 @@
     <span class="records-count" id="protocol-count">{{ page_obj.paginator.count }} протокол{{ page_obj.paginator.count|pluralize:",а" }}</span>
   </div>
 
-  {% if active_q or active_pests or active_tags %}
+  {% if active_q or active_pests or active_tags or active_pests_other %}
   <div class="active-chips">
     {% if active_q %}
     <span class="active-chip">
@@ -238,6 +238,14 @@
       <span class="active-chip">
         {{ pest.name }}
         <button type="button" onclick="removeParam('pests','{{ pest.id }}')">×</button>
+      </span>
+      {% endif %}
+    {% endfor %}
+    {% for other in all_pests_other %}
+      {% if other in active_pests_other %}
+      <span class="active-chip">
+        {{ other }}
+        <button type="button" onclick="removeParam('pests_other','{{ other }}')">×</button>
       </span>
       {% endif %}
     {% endfor %}
@@ -259,7 +267,7 @@
       <span class="filter-clear-link" onclick="clearCheckboxes()">Изчисти филтрите</span>
     </div>
 
-    {% if all_pests %}
+    {% if all_pests or all_pests_other %}
     <div class="filter-section">
       <div class="filter-label">Вредители</div>
       {% regroup all_pests by category as pest_categories %}
@@ -277,6 +285,20 @@
           {% endfor %}
         </div>
       {% endfor %}
+      {% if all_pests_other %}
+        <div class="cat-sub-label">Други</div>
+        <div class="chip-group">
+          {% for other in all_pests_other %}
+          <label class="filter-chip {% if other in active_pests_other %}selected{% endif %}">
+            <input type="checkbox" name="pests_other" value="{{ other }}"
+                   {% if other in active_pests_other %}checked{% endif %}
+                   style="display:none"
+                   onchange="this.closest('label').classList.toggle('selected', this.checked)">
+            {{ other }}
+          </label>
+          {% endfor %}
+        </div>
+      {% endif %}
     </div>
     {% endif %}
 

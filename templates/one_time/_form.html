@@ -147,8 +147,22 @@
             <span class="pest-tag {{ pest.category|service_css }}">{{ pest.name }}</span>
           </label>
         {% endfor %}
+        <label class="toggle-tag">
+          <input type="checkbox" id="ot-pests-other-toggle"
+            {% if form.pests_other.value %}checked{% endif %}
+            onchange="otTogglePestsOther(this.checked)">
+          <span class="pest-tag pest-dr">Друго</span>
+        </label>
       </div>
       {% for e in form.pests.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+      <div class="form-group" id="ot-pests-other-wrap"
+           style="margin-top:8px;{% if not form.pests_other.value %}display:none;{% endif %}">
+        <input class="form-input" type="text" name="pests_other" id="ot-pests-other-input"
+               value="{{ form.pests_other.value|default:'' }}"
+               placeholder="опишете, разделени със запетая — напр. молци, бълхи"
+               {% if not form.pests_other.value %}disabled{% endif %}>
+        {% for e in form.pests_other.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+      </div>
     </div>
 
     <!-- ── 4. Workers ── -->
@@ -341,6 +355,17 @@ function otTaxToggle() {
   }
   const net = document.getElementById('ot-price').value;
   grossField.value = net === '' ? '' : (parseFloat(net.replace(',', '.')) * (1 + OT_VAT_PERCENT / 100)).toFixed(2);
+}
+
+// "Друго" pest checkbox reveals a free-text field. Disabling (not clearing)
+// the input when unchecked means it's simply excluded from the POST — the
+// typed text survives if the user re-checks it later in the same session.
+function otTogglePestsOther(checked) {
+  const wrap = document.getElementById('ot-pests-other-wrap');
+  const input = document.getElementById('ot-pests-other-input');
+  wrap.style.display = checked ? '' : 'none';
+  input.disabled = !checked;
+  if (checked) input.focus();
 }
 
 function otOpenTagForm(btn) {

@@ -1,0 +1,16 @@
+<div id="ot-other-pests-filter"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {% if all_pests_other %}
+    <div class="cat-sub-label">Други</div>
+    <div class="chip-group">
+      {% for other in all_pests_other %}
+      <label class="filter-chip {% if other in active_pests_other %}selected{% endif %}">
+        <input type="checkbox" name="pests_other" value="{{ other }}"
+               {% if other in active_pests_other %}checked{% endif %}
+               style="display:none"
+               onchange="this.closest('label').classList.toggle('selected', this.checked)">
+        {{ other }}
+      </label>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>

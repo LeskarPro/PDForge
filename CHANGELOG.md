@@ -96,5 +96,22 @@ Folder creation
 Dates
 - Site start/end dates and firm start dates now accept any typed year, instead of being limited to a small fixed dropdown range.
 
-Protocol editor
-- The site search field was decluttered — the "+Клиент"/"+Обект" buttons moved below the search box, which now spans the full width.
+v1.5.1 — July 12, 2026 — Customer feedback: pest filters, client search, site-creation client picker, preview/print reference
+
+Pest filtering
+- Added filterable "other pest" chips to protocols and one-time treatments — free-typed pest text is split into individual, capitalized filter chips.
+- Protocol PDFs still render the raw typed text unchanged; the split only affects filtering and display.
+- Filter menus auto-refresh on create/edit/delete, no manual reload needed.
+
+Client search
+- Cleaned up legacy client search code (stale placeholder, dead JS reference).
+- One-time treatment search is now case-insensitive for Cyrillic, matching search elsewhere in the app.
+
+Site-creation client picker
+- Replaced the plain client dropdown on site creation with the same type-to-filter search used in the protocol editor.
+- Applied in both the protocol editor's "+ Site" modal and the standalone site form.
+- Both now support creating a new client inline — with notes and staged contacts — without leaving the flow.
+
+Preview/print reference (Settings)
+- Added a new Settings section documenting every preview/print button's exact behavior.
+- Calls out effects not obvious from the button name: delete is a soft-delete (record stays in the database, not recoverable from the app); "save as template" saves only to templates, not to protocols, so the protocol itself still needs a separate save; printing from the in-editor preview on the packaged Mac app silently saves the draft first, same as "Save protocol".

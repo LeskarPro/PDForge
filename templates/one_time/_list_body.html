@@ -45,8 +45,11 @@
     <div class="col-pests">
       {% for pest in treatment.pests.all %}
         <span class="pest-tag {{ pest.category|service_css }}">{{ pest.name }}</span>
+      {% endfor %}
+      {% for other in treatment.pests_other|split_pests_other %}
+        <span class="pest-tag pest-dr">{{ other }}</span>
       {% empty %}
-        <span class="pests-empty">—</span>
+        {% if not treatment.pests.all %}<span class="pests-empty">—</span>{% endif %}
       {% endfor %}
     </div>
 

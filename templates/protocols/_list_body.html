@@ -37,6 +37,9 @@
           {% for pest in column.pests.all %}
             <span class="pest-tag {{ column.service|service_css }}">{{ pest.name }}</span>
           {% endfor %}
+          {% for other in column.pests_other|split_pests_other %}
+            <span class="pest-tag {{ column.service|service_css }}">{{ other }}</span>
+          {% endfor %}
         {% endif %}
       {% empty %}
         <span style="font-size:11px;color:var(--text-muted);font-style:italic;">—</span>

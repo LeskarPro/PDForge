@@ -225,7 +225,7 @@
             d="m21 21-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0Z"/>
     </svg>
     <input id="client-search" class="search-input"
-           placeholder="Търси по фирма, ЕИК…"
+           placeholder="Търси по псевдоним…"
            oninput="filterClients(this.value)">
   </div>
   <span class="expand-link" onclick="toggleAll(true)">Разгъни всички</span>
@@ -323,12 +323,13 @@
   }
 
   /* ── Search ── */
+  // Searches by pseudonym (client.name) — that's what .client-firm holds
+  // since the 8a rework moved Firm off Client entirely.
   function filterClients(q) {
     q = q.toLowerCase();
     let visible = 0;
     document.querySelectorAll('.client-card').forEach(card => {
-      const text = (card.querySelector('.client-firm')?.textContent || '')
-                 + (card.querySelector('.client-eik')?.textContent || '');
+      const text = card.querySelector('.client-firm')?.textContent || '';
       const show = text.toLowerCase().includes(q);
       card.style.display = show ? '' : 'none';
       if (show) visible++;

@@ -171,6 +171,43 @@ def dashboard(request):
     return render(request, "dashboard.html", {"active_nav": "dashboard"})
 
 
+def _split_other_pests(text):
+    """Split a comma-separated free-text 'other pest' value into trimmed,
+    non-empty, capitalized-first-letter parts. Server-side counterpart of
+    the `split_pests_other` template filter — used for filter-menu option
+    collection and for matching the `pests_other` GET param (matching is
+    casefold-based, so the capitalization here doesn't affect it), never
+    for anything rendered onto the actual protocol PDF (which reads
+    pests_other as typed, untouched)."""
+    if not text:
+        return []
+    out = []
+    for p in text.split(','):
+        p = p.strip()
+        if p:
+            out.append(p[0].upper() + p[1:])
+    return out
+
+
+def _protocol_other_pest_options():
+    """Distinct 'other' pest values typed across non-deleted, non-template
+    protocols, case-insensitively deduped (first-seen casing wins) for the
+    filter menu — e.g. 'молци' and 'Молци' collapse into one chip."""
+    texts = (
+        ProtocolColumn.objects
+        .filter(protocol__is_preset=False, protocol__deleted_at__isnull=True)
+        .exclude(pests_other='')
+        .values_list('pests_other', flat=True)
+    )
+    seen = {}
+    for text in texts:
+        for part in _split_other_pests(text):
+            key = part.casefold()
+            if key not in seen:
+                seen[key] = part
+    return sorted(seen.values(), key=str.casefold)
+
+
 def _protocol_list_qs(request):
     """Return a filtered Protocol queryset based on GET params."""
     qs = (
@@ -208,6 +245,22 @@ def _protocol_list_qs(request):
     if tag_ids:
         qs = qs.filter(tags__pk__in=tag_ids).distinct()
 
+    other_vals = request.GET.getlist('pests_other')
+    if other_vals:
+        wanted = {v.strip().casefold() for v in other_vals if v.strip()}
+        if wanted:
+            rows = (
+                ProtocolColumn.objects
+                .filter(protocol__in=qs)
+                .exclude(pests_other='')
+                .values_list('protocol_id', 'pests_other')
+            )
+            matching_pks = {
+                pid for pid, text in rows
+                if wanted & {p.casefold() for p in _split_other_pests(text)}
+            }
+            qs = qs.filter(pk__in=matching_pks)
+
     return qs
 
 
@@ -220,15 +273,18 @@ def protocol_list(request):
                      .values('id', 'name', 'category'))
     all_tags  = list(Tag.objects.filter(deleted_at__isnull=True).order_by('order', 'name')
                      .values('id', 'name', 'color'))
+    all_pests_other = _protocol_other_pest_options()
 
     return render(request, 'protocols/list.html', {
         'active_nav': 'protokoli',
         'page_obj':   page_obj,
         'all_pests':  all_pests,
         'all_tags':   all_tags,
+        'all_pests_other': all_pests_other,
         'active_q':      request.GET.get('q', ''),
         'active_pests':  request.GET.getlist('pests'),
         'active_tags':   request.GET.getlist('tags'),
+        'active_pests_other': request.GET.getlist('pests_other'),
     })
 
 
@@ -579,6 +635,18 @@ def site_create(request, client_pk):
                    'client_contacts': client_contacts, 'selected_contact_ids': set()})
 
 
+def _site_form_all_clients():
+    """Client list for the type-to-filter client picker in the standalone
+    Обекти site-creation/edit form (Stage: task 3 customer feedback).
+    Pseudonym (name) only — Client has no firm/address of its own since the
+    8a rework. json_script (used in the template) handles the UUID id via
+    DjangoJSONEncoder, no manual str() needed here."""
+    return list(
+        Client.objects.filter(deleted_at__isnull=True)
+        .order_by('name').values('id', 'name')
+    )
+
+
 def site_create_full(request):
     """Create a site from the Обекти page (client is chosen in the form).
 
@@ -640,15 +708,19 @@ def site_create_full(request):
             return response
         if as_json:
             return JsonResponse({'ok': False, 'errors': form.errors}, status=422)
-        ctx = {'form': form, 'mode': 'create', 'ctx': 'sites', 'show_client': True}
+        ctx = {'form': form, 'mode': 'create', 'ctx': 'sites', 'show_client': True,
+               'all_clients': _site_form_all_clients()}
         chosen_client_id = request.POST.get('client')
         if chosen_client_id:
             ctx['client_contacts'] = Contact.objects.filter(
                 client_id=chosen_client_id).order_by('order', 'created_at')
             ctx['selected_contact_ids'] = set(request.POST.getlist('contacts'))
+            ctx['selected_client'] = Client.objects.filter(
+                pk=chosen_client_id, deleted_at__isnull=True).first()
         return render(request, 'clients/_site_form.html', ctx)
     return render(request, 'clients/_site_form.html',
                   {'form': SiteFormFull(initial={'start_date': _first_of_this_month()}),
+                   'all_clients': _site_form_all_clients(),
                    'mode': 'create', 'ctx': 'sites', 'show_client': True})
 
 
@@ -680,11 +752,13 @@ def site_edit(request, pk):
             return response
         return render(request, 'clients/_site_form.html',
                       {'form': form, 'site': site, 'client': client, 'mode': 'edit',
-                       'ctx': ctx, 'show_client': True, 'current_firm': site.active_firm})
+                       'ctx': ctx, 'show_client': True, 'current_firm': site.active_firm,
+                       'all_clients': _site_form_all_clients(), 'selected_client': client})
     return render(request, 'clients/_site_form.html',
                   {'form': SiteFormFull(instance=site), 'site': site,
                    'client': client, 'mode': 'edit', 'ctx': ctx,
-                   'show_client': True, 'current_firm': site.active_firm})
+                   'show_client': True, 'current_firm': site.active_firm,
+                   'all_clients': _site_form_all_clients(), 'selected_client': client})
 
 
 @require_http_methods(["DELETE"])
@@ -1210,6 +1284,42 @@ def _one_time_qs():
     )
 
 
+def _one_time_other_pest_options():
+    """Distinct 'other' pest values typed across non-deleted one-time
+    treatments — same split/casefold-dedupe rules as
+    _protocol_other_pest_options(), just against a single flat field
+    instead of one per column."""
+    texts = (
+        OneTimeTreatment.objects
+        .filter(deleted_at__isnull=True)
+        .exclude(pests_other='')
+        .values_list('pests_other', flat=True)
+    )
+    seen = {}
+    for text in texts:
+        for part in _split_other_pests(text):
+            key = part.casefold()
+            if key not in seen:
+                seen[key] = part
+    return sorted(seen.values(), key=str.casefold)
+
+
+def _oob_other_pests_filter_one_time(request):
+    """Rendered '<div id=ot-other-pests-filter ... hx-swap-oob>' with a
+    freshly recomputed 'Други' chip list — appended to the
+    create/edit/delete responses so a brand-new (or now-unused) typed
+    'other' pest value appears/disappears from the filter panel right
+    away, without needing a full page reload. Doesn't attempt to preserve
+    whatever filter checkboxes were checked on the underlying list page —
+    that state isn't visible to this request (the modal POST doesn't carry
+    the list page's query string), so this always renders unchecked."""
+    return render_to_string('one_time/_other_pests_filter.html', {
+        'all_pests_other':    _one_time_other_pest_options(),
+        'active_pests_other': [],
+        'oob': True,
+    }, request=request)
+
+
 def _save_treatment_products(request, treatment):
     treatment.products.all().delete()
     product_ids    = request.POST.getlist('product_id')
@@ -1256,20 +1366,46 @@ def one_time_list(request):
 
     qs = _one_time_qs()
     if q:
-        qs = qs.filter(
-            Q(pseudonym__icontains=q) |
-            Q(address__icontains=q) |
-            Q(contacts__name__icontains=q)
-        ).distinct()
+        # SQLite's default icontains only case-folds ASCII, so Cyrillic
+        # searches were case-sensitive without the ICU extension — match in
+        # Python with .casefold() instead, same pattern as protocol/client
+        # search. contacts__name fans out one row per contact (LEFT OUTER
+        # JOIN via the reverse FK), so a treatment with no contacts still
+        # gets a row (contacts__name=None) and isn't dropped.
+        qf = q.casefold()
+        search_fields = ('pseudonym', 'address', 'contacts__name')
+        rows = qs.values('pk', *search_fields)
+        matching_pks = {
+            row['pk'] for row in rows
+            if qf in ' '.join(str(row.get(f) or '') for f in search_fields).casefold()
+        }
+        qs = qs.filter(pk__in=matching_pks)
     if pest_ids:
         qs = qs.filter(pests__pk__in=pest_ids).distinct()
     if tag_ids:
         qs = qs.filter(tags__pk__in=tag_ids).distinct()
 
+    other_vals = request.GET.getlist('pests_other')
+    if other_vals:
+        wanted = {v.strip().casefold() for v in other_vals if v.strip()}
+        if wanted:
+            rows = (
+                OneTimeTreatment.objects
+                .filter(pk__in=qs.values('pk'))
+                .exclude(pests_other='')
+                .values_list('pk', 'pests_other')
+            )
+            matching_pks = {
+                pid for pid, text in rows
+                if wanted & {p.casefold() for p in _split_other_pests(text)}
+            }
+            qs = qs.filter(pk__in=matching_pks)
+
     all_pests = list(Pest.objects.filter(deleted_at__isnull=True).order_by('category', 'name')
                      .values('id', 'name', 'category'))
     all_tags  = list(Tag.objects.filter(deleted_at__isnull=True).order_by('order', 'name')
                      .values('id', 'name', 'color'))
+    all_pests_other = _one_time_other_pest_options()
 
     ctx = {
         'treatments':    qs,
@@ -1278,6 +1414,8 @@ def one_time_list(request):
         'active_tags':   tag_ids,
         'all_pests':     all_pests,
         'all_tags':      all_tags,
+        'all_pests_other':    all_pests_other,
+        'active_pests_other': other_vals,
         'active_nav':    'ednokratni',
     }
     if request.headers.get('HX-Request'):
@@ -1296,8 +1434,9 @@ def one_time_create(request):
             form.save_m2m()
             _save_treatment_products(request, treatment)
             _save_treatment_contacts(request, treatment)
-            response = render(request, 'one_time/_list_body.html',
-                              {'treatments': _one_time_qs()})
+            html = render_to_string('one_time/_list_body.html',
+                                    {'treatments': _one_time_qs()}, request=request)
+            response = HttpResponse(html + _oob_other_pests_filter_one_time(request))
             response['HX-Trigger'] = 'closeModal'
             return response
         # form invalid — re-render inside the modal, not the list area
@@ -1322,8 +1461,9 @@ def one_time_edit(request, pk):
             form.save_m2m()
             _save_treatment_products(request, treatment)
             _save_treatment_contacts(request, treatment)
-            response = render(request, 'one_time/_list_body.html',
-                              {'treatments': _one_time_qs()})
+            html = render_to_string('one_time/_list_body.html',
+                                    {'treatments': _one_time_qs()}, request=request)
+            response = HttpResponse(html + _oob_other_pests_filter_one_time(request))
             response['HX-Trigger'] = 'closeModal'
             return response
         # form invalid — re-render inside the modal
@@ -1347,8 +1487,9 @@ def one_time_delete(request, pk):
     treatment = get_object_or_404(OneTimeTreatment, pk=pk, deleted_at__isnull=True)
     treatment.deleted_at = timezone.now()
     treatment.save()
-    response = render(request, 'one_time/_list_body.html',
-                      {'treatments': _one_time_qs()})
+    html = render_to_string('one_time/_list_body.html',
+                            {'treatments': _one_time_qs()}, request=request)
+    response = HttpResponse(html + _oob_other_pests_filter_one_time(request))
     response['HX-Retarget'] = '#treatment-list'
     response['HX-Reswap']   = 'innerHTML'
     response['HX-Trigger']  = 'closeModal'
