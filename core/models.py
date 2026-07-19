@@ -766,7 +766,7 @@ class ProtocolColumn(TimeStampedModel):
         MECHANICAL = "mechanical", "Механична"
         PHYSICAL = "physical", "Физична"
         BIOLOGICAL = "biological", "Биологична"
-        CHEMICAL_BIOCIDE = "chemical_biocide", "Химична с биоцидни sпрепарати"
+        CHEMICAL_BIOCIDE = "chemical_biocide", "Химична с биоцидни препарати"
 
     protocol = models.ForeignKey(
         Protocol, on_delete=models.CASCADE,

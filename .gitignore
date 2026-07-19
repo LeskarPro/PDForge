@@ -23,3 +23,6 @@ media/
 _seed_build.sqlite3
 _seed_build.sqlite3-journal
 _seed_build_settings.py
+
+# Version control
+commit_msg.txt

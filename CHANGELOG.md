@@ -115,3 +115,7 @@ Site-creation client picker
 Preview/print reference (Settings)
 - Added a new Settings section documenting every preview/print button's exact behavior.
 - Calls out effects not obvious from the button name: delete is a soft-delete (record stays in the database, not recoverable from the app); "save as template" saves only to templates, not to protocols, so the protocol itself still needs a separate save; printing from the in-editor preview on the packaged Mac app silently saves the draft first, same as "Save protocol".
+
+v1.5.2 — July 19, 2026 — Bug fixes
+- Editing a saved template and clicking "Save protocol" (or Print/Download from the same editing session) silently turned it back into a regular protocol, making it disappear from Templates. Only the explicit "Save as template" action can turn a protocol into a template now. 
+- Fixed a typo in the treatment-type label on protocol row 4 ("Химична с биоцидни препарати").

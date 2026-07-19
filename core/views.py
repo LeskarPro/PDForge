@@ -2276,11 +2276,32 @@ def protocol_save_action(request):
     if action not in ('save', 'print', 'download', 'save_as_template'):
         return JsonResponse({'ok': False, 'error': 'unknown_action'}, status=400)
 
+    # Only an explicit "save_as_template" click may turn a record INTO a
+    # template. Any other action (plain Save / Print / Download) rewrites
+    # the existing record in place and must carry forward whatever
+    # is_preset/preset_name/folder it already had — otherwise editing an
+    # existing template via the normal "Запази протокола" button silently
+    # demoted it back to a regular protocol, which made it vanish from
+    # Шаблони.
     is_preset = action == 'save_as_template'
-    preset_name = (payload.get('preset_name') or '') if is_preset else ''
-    folder_id   = payload.get('folder_id') if is_preset else None
+    existing = None
+    if not is_preset:
+        existing_uuid = _safe_uuid(payload.get('client_uuid'))
+        if existing_uuid:
+            existing = Protocol.objects.filter(pk=existing_uuid).first()
 
     if is_preset:
+        preset_name = (payload.get('preset_name') or '')
+        folder_id   = payload.get('folder_id')
+    elif existing is not None:
+        is_preset    = existing.is_preset
+        preset_name  = existing.preset_name
+        folder_id    = existing.folder_id
+    else:
+        preset_name = ''
+        folder_id   = None
+
+    if action == 'save_as_template':
         # Templates must be a separate DB record from the editor draft.
         # Stripping client_uuid forces _save_or_rewrite_protocol to generate
         # a fresh UUID4, so a subsequent "Запази протокола" click on the same
