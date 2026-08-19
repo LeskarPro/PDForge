@@ -31,10 +31,9 @@
         </svg>
       </button>
       <button class="site-btn del" title="Изтрий"
-              hx-delete="{% url 'core:firm_delete' firm.pk %}"
-              hx-target="#firmi-list"
-              hx-swap="innerHTML"
-              hx-confirm="Изтрий фирма „{{ firm.name }}"?">
+              hx-get="{% url 'core:firm_delete_confirm' firm.pk %}"
+              hx-target="#modal-content"
+              hx-swap="innerHTML">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
              stroke-width="2" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round"

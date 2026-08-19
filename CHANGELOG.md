@@ -119,3 +119,16 @@ Preview/print reference (Settings)
 v1.5.2 — July 19, 2026 — Bug fixes
 - Editing a saved template and clicking "Save protocol" (or Print/Download from the same editing session) silently turned it back into a regular protocol, making it disappear from Templates. Only the explicit "Save as template" action can turn a protocol into a template now. 
 - Fixed a typo in the treatment-type label on protocol row 4 ("Химична с биоцидни препарати").
+
+v1.5.3 — August 19, 2026 — Firm data integrity, price module fixes
+
+Firm management
+- Creating or editing a firm with an EIK already used by another firm now shows a clear error naming the firm in conflict, instead of crashing.
+- Deleting a firm now opens a warning dialog: it states plainly that the action is permanent, lists every site that will lose its connection to the firm, and confirms that existing protocols are not affected. A checkbox must be checked before the delete button becomes clickable.
+
+Protocol accuracy
+- Fixed a display bug where viewing or editing an already-saved protocol showed the site's current firm/company data instead of what was actually frozen on that protocol at creation. Editing or deleting a firm no longer appears to retroactively change old protocols on screen. Printed/downloaded protocols were never affected by this — only the in-app view was showing stale-looking data.
+
+Price module
+- Added a "СД / БД" (with document / without document) switch next to the price field on both protocols and one-time treatments, for use in upcoming reporting.
+- The "with VAT" toggle moved next to the Price label for easier access (previously on the far side of the field, hard to reach).

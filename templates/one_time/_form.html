@@ -285,15 +285,21 @@
 
     <!-- ── 7. Price ── -->
     <div class="fsection">
-      <div class="fsection-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <div class="fsection-title" style="display:flex;align-items:center;gap:10px;">
         <span>Цена</span>
         <span style="display:flex;align-items:center;gap:5px;font-weight:400;text-transform:none;letter-spacing:0;">
-          <span style="font-size:11px;color:var(--text-muted);">Цена с ДДС</span>
+          <span style="font-size:11px;color:var(--text-muted);">с ДДС</span>
           <input type="checkbox" id="ot-tax-included" name="tax_included" value="1"
                  {% if form.tax_included.value %}checked{% endif %}
                  onchange="otTaxToggle()"
                  style="width:14px;height:14px;cursor:pointer;accent-color:var(--c-coral);">
         </span>
+        <div class="ot-doc-switch" onclick="otToggleDocStatus()" title="С документ / Без документ">
+          <span class="ot-doc-opt" id="ot-doc-opt-with">СД</span>
+          <span class="ot-doc-opt" id="ot-doc-opt-without">БД</span>
+        </div>
+        <input type="hidden" name="document_status" id="ot-document-status"
+               value="{{ form.document_status.value|default:'С документ' }}">
       </div>
       <div class="form-group">
         <input class="form-input" type="text" inputmode="decimal" id="ot-price" name="price"
@@ -356,6 +362,23 @@ function otTaxToggle() {
   const net = document.getElementById('ot-price').value;
   grossField.value = net === '' ? '' : (parseFloat(net.replace(',', '.')) * (1 + OT_VAT_PERCENT / 100)).toFixed(2);
 }
+
+// С документ / Без документ — short СД/БД switch next to Цена. Plain
+// hidden input (no Alpine on this form) holding the full phrase; this
+// partial gets re-swapped into the modal via htmx on every open, so this
+// stays a function declaration + a plain statement call (safe to redeclare
+// repeatedly), same pattern as every other function in this file.
+function otSyncDocSwitch() {
+  const val = document.getElementById('ot-document-status').value;
+  document.getElementById('ot-doc-opt-with').classList.toggle('on', val === 'С документ');
+  document.getElementById('ot-doc-opt-without').classList.toggle('on', val === 'Без документ');
+}
+function otToggleDocStatus() {
+  const field = document.getElementById('ot-document-status');
+  field.value = field.value === 'С документ' ? 'Без документ' : 'С документ';
+  otSyncDocSwitch();
+}
+otSyncDocSwitch();
 
 // "Друго" pest checkbox reveals a free-text field. Disabling (not clearing)
 // the input when unchecked means it's simply excluded from the POST — the

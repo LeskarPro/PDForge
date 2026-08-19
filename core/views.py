@@ -27,7 +27,7 @@ from core.models import (
     Client, Site, Firm, SiteFirm, Contact, Tag,
     OneTimeTreatment, OneTimeTreatmentProduct, OneTimeTreatmentContact,
     Product, Pest, NonChemicalMean, Worker, Company,
-    AppSettings, _first_of_this_month,
+    AppSettings, _first_of_this_month, DocumentStatus,
 )
 from core.notes_html import sanitize_notes_html
 from core.forms import (
@@ -1010,14 +1010,32 @@ def firm_edit(request, pk):
     return render(request, 'firmi/_form.html', {'form': form, 'firm': firm})
 
 
+def firm_delete_confirm(request, pk):
+    """Confirm-delete modal for a Firm — the delete itself is permanent and
+    hard (see firm_delete below), so this warns explicitly and lists every
+    site whose link to this firm will be wiped, before the delete button
+    becomes clickable (gated by a required checkbox in the template)."""
+    firm = get_object_or_404(Firm, pk=pk, deleted_at__isnull=True)
+    links = (
+        firm.site_links
+        .filter(deleted_at__isnull=True)
+        .select_related('site', 'site__client')
+        .order_by('-is_active', 'site__pseudonym')
+    )
+    return render(request, 'firmi/_confirm_delete.html', {'firm': firm, 'links': links})
+
+
 @require_http_methods(['DELETE'])
 def firm_delete(request, pk):
     """Hard-delete a Firm. CASCADE on SiteFirm.firm removes all link rows
     automatically, so deleted firms can never block site lookups or reuse
-    of the same EIK for a new firm."""
+    of the same EIK for a new firm. Protocols are unaffected — their
+    snapshot_firm_* fields are frozen text with no FK back to Firm."""
     firm = get_object_or_404(Firm, pk=pk, deleted_at__isnull=True)
     firm.delete()
-    return render(request, 'firmi/_list_body.html', {'firms': _firmi_qs()})
+    response = render(request, 'firmi/_list_body.html', {'firms': _firmi_qs()})
+    response['HX-Trigger'] = 'closeModal'
+    return response
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1723,12 +1741,29 @@ def _build_prefill_from_protocol(protocol, *, include_pk=True):
         'price':                str(protocol.price) if protocol.price else '',
         'tax_included':         protocol.tax_included,
         'price_with_tax':       str(protocol.price_with_tax) if protocol.price_with_tax else '',
+        'document_status':      protocol.document_status,
         'tag_ids':              [str(t.pk) for t in protocol.tags.all()],
         'source_template_id':  str(protocol.source_template_id) if protocol.source_template_id else None,
         'columns':              columns,
     }
     if include_pk:
         prefill['client_uuid'] = str(protocol.pk)
+        # Frozen firm/company identity — only sent when restoring THIS SAME
+        # protocol row in place (edit/view). The editor uses these to show
+        # what's actually saved/printed instead of silently re-deriving
+        # live current data from the site/company catalogs. Deliberately
+        # NOT sent when include_pk=False (create-from/use-template/
+        # save-as-preset flows) — those are building a brand-new record,
+        # which should show live current data since that's what gets frozen
+        # into it on first save anyway.
+        prefill['snapshot_firm_name']       = protocol.snapshot_firm_name or ''
+        prefill['snapshot_firm_eik']        = protocol.snapshot_firm_eik or ''
+        prefill['snapshot_firm_address']    = protocol.snapshot_firm_address or ''
+        prefill['snapshot_firm_phone']      = protocol.snapshot_firm_phone or ''
+        prefill['snapshot_company_name']    = protocol.snapshot_company_name or ''
+        prefill['snapshot_company_eik']     = protocol.snapshot_company_eik or ''
+        prefill['snapshot_company_address'] = protocol.snapshot_company_address or ''
+        prefill['snapshot_company_phone']   = protocol.snapshot_company_phone or ''
     return prefill
 
 
@@ -1832,6 +1867,11 @@ def _save_or_rewrite_protocol(payload, *, is_preset=False,
         'price':           _safe_decimal(payload.get('price')),
         'tax_included':    bool(payload.get('tax_included', False)),
         'price_with_tax':  _safe_decimal(payload.get('price_with_tax')),
+        'document_status': (
+            payload.get('document_status')
+            if payload.get('document_status') in DocumentStatus.values
+            else DocumentStatus.WITH_DOCUMENT
+        ),
         'is_preset':       bool(is_preset),
         'preset_name':     (preset_name or '')[:255],
         'folder_id':       _safe_uuid(folder_id),

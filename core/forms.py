@@ -49,6 +49,27 @@ class FirmForm(forms.ModelForm):
             'phone':   forms.TextInput(attrs={'placeholder': '02 123 4567'}),
         }
 
+    def clean_eik(self):
+        # Firm.eik has a conditional unique constraint (non-empty, non-deleted
+        # only) — Django's ModelForm validation doesn't check conditional
+        # UniqueConstraints, so without this the duplicate only surfaces as
+        # an uncaught IntegrityError at save() time. Covers both create and
+        # edit (Фирми page) since both go through this same form; excludes
+        # the instance's own row so re-saving an unchanged firm doesn't
+        # false-flag itself.
+        eik = (self.cleaned_data.get('eik') or '').strip()
+        if not eik:
+            return eik
+        existing = Firm.objects.filter(eik=eik, deleted_at__isnull=True)
+        if self.instance and self.instance.pk:
+            existing = existing.exclude(pk=self.instance.pk)
+        dupe = existing.first()
+        if dupe:
+            raise forms.ValidationError(
+                f'Вече има фирма с този ЕИК: {dupe.name}'
+            )
+        return eik
+
 
 class SiteFirmForm(forms.ModelForm):
     """Links a Firm to a Site for a date range (Stage 8a, reworked).
@@ -239,7 +260,7 @@ class OneTimeTreatmentForm(forms.ModelForm):
             'pseudonym', 'address',
             'date', 'time_from', 'time_to',
             'pests', 'pests_other', 'executed_by', 'tags',
-            'price', 'tax_included', 'price_with_tax', 'notes',
+            'price', 'tax_included', 'price_with_tax', 'document_status', 'notes',
         ]
         widgets = {
             'pseudonym':     forms.TextInput(attrs={'placeholder': 'напр. бл.41, Ап. 43'}),

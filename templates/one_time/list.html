@@ -160,6 +160,10 @@
   .check-group{display:flex;flex-wrap:wrap;gap:6px 16px}
   .check-item{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);cursor:pointer;user-select:none}
   .check-item input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--c-coral);flex-shrink:0}
+  /* С документ / Без документ — small pill switch next to Цена (mirrors the protocol editor's .pe-doc-switch) */
+  .ot-doc-switch{display:flex;border:1px solid var(--border-subtle);border-radius:20px;overflow:hidden;cursor:pointer;user-select:none;flex-shrink:0}
+  .ot-doc-opt{padding:3px 9px;font-size:10.5px;font-weight:700;letter-spacing:.03em;color:var(--text-muted);transition:all var(--t-fast)}
+  .ot-doc-opt.on{background:var(--c-coral);color:#fff}
   .modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:14px 22px 18px;border-top:1px solid var(--border-subtle);flex-shrink:0}
   #modal-content{display:flex;flex-direction:column;flex:1;min-height:0;}
   #modal-content>form{display:flex;flex-direction:column;flex:1;min-height:0;}

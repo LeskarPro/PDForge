@@ -75,6 +75,7 @@ urlpatterns = [
     path("firmi/", views.firmi_list, name="firmi_list"),
     path("firmi/list-body/", views.firmi_list_body, name="firmi_list_body"),
     path("firmi/<uuid:pk>/edit/", views.firm_edit, name="firm_edit"),
+    path("firmi/<uuid:pk>/delete-confirm/", views.firm_delete_confirm, name="firm_delete_confirm"),
     path("firmi/<uuid:pk>/delete/", views.firm_delete, name="firm_delete"),
 
     # Site contacts — M2M assignment (which client contacts link to this site)

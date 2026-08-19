@@ -144,6 +144,17 @@
   }
   .pe-mcb.on { background: var(--c-coral); border-color: var(--c-coral); color: #fff; }
 
+  /* С документ / Без документ — small pill switch next to Цена */
+  .pe-doc-switch {
+    display: flex; border: 1px solid var(--p-border); border-radius: 20px;
+    overflow: hidden; cursor: pointer; user-select: none; flex-shrink: 0;
+  }
+  .pe-doc-opt {
+    padding: 3px 9px; font-size: 10.5px; font-weight: 700;
+    letter-spacing: .03em; color: var(--p-textM); transition: all .12s;
+  }
+  .pe-doc-opt.on { background: var(--c-coral); color: #fff; }
+
   /* ── Main table ── */
   .pe-table-wrap {
     overflow-x: auto;
@@ -1126,14 +1137,26 @@
 
       <!-- Price / VAT -->
       <div class="pe-meta-row pe-meta-row-wide">
-        <label style="display:flex;align-items:center;justify-content:space-between;">
-          <span>Цена</span>
-          <span style="display:flex;align-items:center;gap:6px;font-weight:400;">
-            <span style="font-size:11px;color:var(--p-textM);">Цена с ДДС</span>
-            <input type="checkbox" x-model="taxIncluded" @change="onTaxToggle()"
-                   style="width:15px;height:15px;cursor:pointer;accent-color:var(--c-coral);">
-          </span>
-        </label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <span>Цена</span>
+            <span style="display:flex;align-items:center;gap:5px;font-weight:400;">
+              <span style="font-size:11px;color:var(--p-textM);">с ДДС</span>
+              <input type="checkbox" x-model="taxIncluded" @change="onTaxToggle()"
+                     style="width:15px;height:15px;cursor:pointer;accent-color:var(--c-coral);">
+            </span>
+          </label>
+          <!-- Deliberately OUTSIDE the label element above — a label
+               forwards any click inside it to its first form control (the
+               tax checkbox), so nesting this switch in there was toggling
+               tax every time the switch was pressed. Kept as a sibling. -->
+          <div class="pe-doc-switch"
+               @click="documentStatus = documentStatus === 'С документ' ? 'Без документ' : 'С документ'"
+               title="С документ / Без документ">
+            <span class="pe-doc-opt" :class="{on: documentStatus === 'С документ'}">СД</span>
+            <span class="pe-doc-opt" :class="{on: documentStatus === 'Без документ'}">БД</span>
+          </div>
+        </div>
         <div style="display:flex;gap:10px;">
           <div style="flex:1;">
             <input type="number" min="0" step="0.01" x-model="price"
@@ -1580,6 +1603,9 @@ document.addEventListener('alpine:init', () => {
     taxIncluded:   false,
     priceWithTax:  '',
     vatPercent:    {{ app_settings.vat_percent|default:20|stringformat:"s" }},
+    // С документ / Без документ — shown as the short СД/БД switch next to
+    // Цена; stored as the full phrase (feeds the reporting tool, Stage 12).
+    documentStatus: 'С документ',
     tagIds:    [],
     newTag: { open: false, name: '', color: '#6b7280', description: '', saving: false, error: '' },
 
@@ -2326,6 +2352,7 @@ document.addEventListener('alpine:init', () => {
         price:          this.price        === '' ? null : this.price,
         tax_included:   this.taxIncluded,
         price_with_tax: this.priceWithTax === '' ? null : this.priceWithTax,
+        document_status: this.documentStatus,
         tag_ids:   this.tagIds.slice(),
       };
     },
@@ -2405,6 +2432,11 @@ document.addEventListener('alpine:init', () => {
         });
         const data = await r.json();
         if (r.ok && data.ok) {
+          // Backend just re-froze company/firm data from current live
+          // values — pull the same live catalogs back into the display
+          // fields so the screen matches what's now actually saved.
+          this.pickCompany();
+          this.pickSite();
           this.snapshotToast = 'Данните за фирма/изпълнител са обновени.';
         } else {
           alert('Грешка при обновяване: ' + (data.error || r.status));
@@ -2440,12 +2472,37 @@ document.addEventListener('alpine:init', () => {
     _applyDraft(d) {
       // Top-level state
       if (d.client_uuid)    this.clientUuid    = String(d.client_uuid);
-      if (d.company_id)     { this.companyId    = String(d.company_id);     this.pickCompany(); }
+      if (d.company_id)     {
+        this.companyId    = String(d.company_id);
+        this.pickCompany();
+        // Existing protocol (edit/view) — d.snapshot_company_* is what's
+        // actually frozen/printed. pickCompany() just filled these fields
+        // with the company's CURRENT live data instead, which drifts from
+        // the real saved record the moment the company is edited — override
+        // back to the frozen values. Falls back to the live values above if
+        // this protocol never had a snapshot frozen (old data, edge case).
+        if (d.snapshot_company_name) {
+          this.companyName    = d.snapshot_company_name;
+          this.companyEik     = d.snapshot_company_eik || '';
+          this.companyAddress = d.snapshot_company_address || '';
+          this.companyPhone   = d.snapshot_company_phone || '';
+        }
+      }
       if (d.site_id) {
         // Site is primary (Stage 8a, reworked) — pickSite() also derives
         // the client + firm fields from it.
         this.siteId = String(d.site_id);
         this.pickSite();
+        // Same override as company above, for the site's firm — show what
+        // was actually frozen on this protocol, not the site's current
+        // active firm (pickSite() derives clientFirm/etc. live, which
+        // drifts the instant that firm is edited or unlinked).
+        if (d.snapshot_firm_name) {
+          this.clientFirm    = d.snapshot_firm_name;
+          this.clientEik     = d.snapshot_firm_eik || '';
+          this.clientAddress = d.snapshot_firm_address || '';
+          this.clientPhone   = d.snapshot_firm_phone || '';
+        }
       } else if (d.client_id) {
         // Fallback for an old draft with only a client_id and no site yet.
         const c = this.allClients.find(x => String(x.id) === String(d.client_id));
@@ -2475,6 +2532,7 @@ document.addEventListener('alpine:init', () => {
       if (d.price != null)    this.price       = d.price;
       if (d.tax_included)     this.taxIncluded = true;
       if (d.price_with_tax != null) this.priceWithTax = d.price_with_tax;
+      if (d.document_status)  this.documentStatus = d.document_status;
       if (Array.isArray(d.tag_ids)) this.tagIds = [...d.tag_ids];
 
       // Per-service columns

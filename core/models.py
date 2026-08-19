@@ -435,6 +435,15 @@ class TemplateFolder(TimeStampedModel):
         return self.get_ancestors() + [self]
 
 
+class DocumentStatus(models.TextChoices):
+    """Whether a price was invoiced/documented or not — a simple 2-value
+    flag shared by Protocol and OneTimeTreatment, feeding the reporting
+    tool (Stage 12). Stored as the full Bulgarian phrase (readable in the
+    DB/reports); the UI only ever shows the short СД/БД labels."""
+    WITH_DOCUMENT = "С документ", "С документ"
+    WITHOUT_DOCUMENT = "Без документ", "Без документ"
+
+
 def _normalize_tax_fields(instance):
     """Freeze `tax_rate_snapshot` the first time VAT is turned on for a
     record, and clear the VAT fields when it's off. Shared by Protocol and
@@ -541,6 +550,10 @@ class Protocol(TimeStampedModel):
         null=True, blank=True,
         help_text="Замразен ДДС процент към момента на въвеждане — не се "
                    "променя ако общата настройка за ДДС бъде сменена по-късно.",
+    )
+    document_status = models.CharField(
+        "Документ", max_length=20,
+        choices=DocumentStatus.choices, default=DocumentStatus.WITH_DOCUMENT,
     )
 
     # Template folder — only relevant when is_preset=True
@@ -959,6 +972,10 @@ class OneTimeTreatment(TimeStampedModel):
     tax_rate_snapshot = models.DecimalField(
         "ДДС % (за тази цена)", max_digits=5, decimal_places=2,
         null=True, blank=True,
+    )
+    document_status = models.CharField(
+        "Документ", max_length=20,
+        choices=DocumentStatus.choices, default=DocumentStatus.WITH_DOCUMENT,
     )
     notes = models.TextField("Бележки", blank=True)
 
