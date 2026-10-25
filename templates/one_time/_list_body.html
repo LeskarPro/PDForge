@@ -60,7 +60,7 @@
           <span class="tag-pill" style="{{ tag.color|tag_style }}">{{ tag.name }}</span>
         {% endfor %}
       </div>
-      {% if treatment.price %}
+      {% if treatment.price is not None %}
         <span class="price-val">{{ treatment.price }} €</span>
       {% else %}
         <span class="price-none">без цена</span>

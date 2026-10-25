@@ -73,6 +73,8 @@
     transform-origin: top center;
     border-radius: 2px; overflow: hidden;
   }
+  .pv-paper.pv-paper-a5 { min-height: 148mm; height: 148mm; }
+  .pv-paper.pv-paper-a5 .a5-panel { border-bottom: none; }
   /* On narrow screens (tablet / small laptop), scale down so the A4 paper
      fits inside the viewport.  Wide screens render at full size. */
   @media (max-width: 1200px) {
@@ -208,6 +210,7 @@
     }
 
     @page { size: A4 portrait; margin: 0; }
+    #pv-print-area .pv-paper.pv-paper-a5 { height: 148mm !important; }
   }
 </style>
 {% endblock %}
@@ -232,8 +235,8 @@
   <!-- ═══ Action bar ═══ -->
   <div class="pv-actionbar">
     <div class="pv-fmt-tabs">
-      <button class="pv-fmt" :class="{active: fmt==='a5'}"      @click="fmt='a5'">A5 (2 стр.)</button>
-      <button class="pv-fmt" :class="{active: fmt==='a5-land'}" @click="fmt='a5-land'">A5 → A4 пейзаж</button>
+      <button class="pv-fmt" :class="{active: fmt==='a5'}"      @click="fmt='a5'">A4</button>
+      <button class="pv-fmt" :class="{active: fmt==='a5-land'}" @click="fmt='a5-land'">A5</button>
       <button class="pv-fmt" :class="{active: fmt==='a4-p'}"    @click="fmt='a4-p'">A4 портрет</button>
     </div>
     <div class="pv-action-buttons">
@@ -284,18 +287,21 @@
       <div class="pv-paper-label">Лист 2 — гръб (2 копия)</div>
     </div>
 
-    <!-- Format 2: A5 → A4 landscape — future -->
+    <!-- Format 2: A5 — front and back on two A5 pages -->
     <div x-show="fmt==='a5-land'">
-      <div class="pv-future">
-        <div class="pv-future-inner">
-          <div class="pv-future-icon">⚙</div>
-          <div class="pv-future-title">A5 → A4 пейзаж</div>
-          <div class="pv-future-body">
-            Форматът е в процес на разработка и ще бъде достъпен в следващите обновления.
-          </div>
+      <div class="pv-paper pv-paper-a5">
+        <div class="a5-panel">
+          {% include "protocol/_protocol_front.html" with protocol=preview_protocol %}
         </div>
       </div>
-      <div class="pv-paper-label">A4 пейзаж — 4 стр. A5 на 1 лист (двойно копие)</div>
+      <div class="pv-paper-label">Стр. 1 — лицева страна</div>
+
+      <div class="pv-paper pv-paper-a5" style="margin-top:24px;">
+        <div class="a5-panel">
+          {% include "protocol/_protocol_back.html" with protocol=preview_protocol %}
+        </div>
+      </div>
+      <div class="pv-paper-label">Стр. 2 — гръб</div>
     </div>
 
     <!-- Format 3: A4 portrait — future -->
@@ -349,7 +355,14 @@ document.addEventListener('alpine:init', () => {
       // print layout, then clean up.  This avoids every flex/overflow
       // constraint in the page hierarchy interfering with page breaks.
       window.addEventListener('beforeprint', () => {
-        const papers = [...document.querySelectorAll('.pv-canvas .pv-paper')];
+        const papers = [...document.querySelectorAll('.pv-canvas .pv-paper')]
+          .filter(p => p.offsetParent !== null);
+        if (this.fmt === 'a5-land') {
+          const st = document.createElement('style');
+          st.id = 'pv-print-page';
+          st.textContent = '@page { size: A5 landscape; margin: 0; }';
+          document.head.appendChild(st);
+        }
         const area = document.createElement('div');
         area.id = 'pv-print-area';
         // Detect Safari (excludes Chrome/Android which also carry the WebKit UA string).
@@ -363,6 +376,8 @@ document.addEventListener('alpine:init', () => {
       window.addEventListener('afterprint', () => {
         const area = document.getElementById('pv-print-area');
         if (area) area.remove();
+        const st = document.getElementById('pv-print-page');
+        if (st) st.remove();
         document.body.classList.remove('pv-printing');
       });
     },

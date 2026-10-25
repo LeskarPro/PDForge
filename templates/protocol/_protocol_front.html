@@ -1,3 +1,4 @@
+{% load protocol_tags %}
 <div class="protocol-header-line">
   <span class="brand-block">
     {% if logo_data_uri %}<img class="logo" src="{{ logo_data_uri }}" alt="">{% endif %}
@@ -138,8 +139,8 @@
     <tr>
       <td class="col-num">5</td>
       <td>Брой и вид (убиващи, живоловни, лепливи) на използваните капани</td>
-      <td colspan="4">{% for nm in cols.disinsection.non_chemical_means.all %}{{ nm.name }} - ... бр.{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
-      <td colspan="2">{% for nm in cols.deratization.non_chemical_means.all %}{{ nm.name }} - ... бр.{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
+      <td colspan="4">{% for nm in cols.disinsection.non_chemical_means.all %}{{ nm.name }} - {{ cols.disinsection|ncm_count:nm|default:'...' }} бр.{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
+      <td colspan="2">{% for nm in cols.deratization.non_chemical_means.all %}{{ nm.name }} - {{ cols.deratization|ncm_count:nm|default:'...' }} бр.{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
       <td colspan="2"></td>
     </tr>
     <tr>

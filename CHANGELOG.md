@@ -154,3 +154,27 @@ UI polish
 - Item name no longer bold.
 - "Add new item" forms now ask for the item type before the name.
 - Solid borders on the "add new item" button and inline creation form in the protocol editor.
+
+v1.5.5 — October 25, 2026 — Empty protocols, A5 printing, template names
+
+Protocols
+- Row 5 (traps / non-chemical means): the count typed next to each item is now saved, restored when the protocol is reopened, and printed in place of "..." (e.g. "Неотровни лепливи капани - 7 бр."). Items without a count still print "... бр." for handwriting.
+- Row 4: new "Мониторинг" treatment option for Дезинсекция and Дератизация.
+- Empty protocols: a protocol can now be previewed, saved and printed without choosing a client or site. Your company details are still printed; the client and site fields stay blank for filling in on site. Such protocols are listed as "Празен протокол" and shown at the top of the list until a date is filled in.
+- Changing or removing the site inside a protocol now updates (or clears) the client firm printed on it. Editing or deleting a firm on the Firms page still never changes existing protocols.
+
+Templates
+- Editing a template now shows two separate fields: "Име на шаблона" (shown in the template list) and "Име на протокола" (pre-filled into protocols created from the template). The "Псевдоним" label is now "Име на протокола" everywhere.
+- Folders and templates are sorted alphabetically by name, regardless of upper/lower case.
+- Removed the duplicate Back / Edit / Use buttons from the template preview popup.
+
+Pricing
+- A price of 0 is now shown as "0.00 €" on protocol, one-time treatment and template cards instead of "без цена".
+- The "с ДДС" checkbox and the СД/БД and В брой/По банка switches moved to the right of the "Цена" title; totals are shown as two rows (without / with VAT). Applies to protocols and one-time treatments. These controls are locked in the read-only protocol view.
+
+Printing
+- New true A5 format: two A5 pages, front and back, for printers set to print 2 pages per sheet.
+- Format names: the previous "A5 (2 стр.)" is now "A4", the new format is "A5". Print and Download use the selected format, also in the packaged app.
+
+Sites
+- Fixed the tag list in the new/edit site form showing deleted tags (a duplicate tag and wrong order).

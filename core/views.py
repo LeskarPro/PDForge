@@ -21,7 +21,7 @@ from decimal import Decimal
 from pathlib import Path
 from core import sync_service
 
-from django.db.models import Prefetch, Max, Count, Q, Exists, OuterRef
+from django.db.models import Prefetch, Max, Count, Q, Exists, OuterRef, F
 
 from core.models import (
     Protocol, ProtocolColumn, ProtocolProduct, TemplateFolder,
@@ -251,7 +251,7 @@ def _protocol_list_qs(request):
         .filter(is_preset=False, deleted_at__isnull=True)
         .select_related('client', 'site', 'executed_by')
         .prefetch_related('tags', 'columns__pests')
-        .order_by('-date', '-created_at')
+        .order_by(F('date').desc(nulls_first=True), '-created_at')
     )
     q = (request.GET.get('q') or '').strip()
     if q:
@@ -335,6 +335,14 @@ def protocol_list_body(request):
     })
 
 
+def _name_sort_key(name):
+    return (name or '').strip().casefold()
+
+
+def _tpl_sort_key(tpl):
+    return (_name_sort_key(tpl.display_name), -tpl.created_at.timestamp())
+
+
 def template_list(request, folder_id=None):
     show_deleted = (request.GET.get('mode') == 'deleted')
 
@@ -370,8 +378,9 @@ def template_list(request, folder_id=None):
             if qf in ' '.join(str(row.get(f) or '') for f in search_fields).casefold()
         ]
         search_results = list(
-            base_qs.filter(pk__in=matching_pks).order_by('pseudonym', 'preset_name')
+            base_qs.filter(pk__in=matching_pks)
         )
+        search_results.sort(key=_tpl_sort_key)
         for tpl in search_results:
             tpl.folder_path = tpl.folder.get_breadcrumb() if tpl.folder else []
     elif show_deleted:
@@ -389,14 +398,12 @@ def template_list(request, folder_id=None):
                         distinct=True,
                     ),
                 )
-                .order_by('name')
             )
             templates_qs = (
                 Protocol.objects
                 .filter(is_preset=True, folder=current_folder)
                 .select_related('client', 'site')
                 .prefetch_related('tags', 'columns__pests')
-                .order_by('pseudonym', 'preset_name', '-created_at')
             )
         else:
             # Archive root: only top-level deleted items.
@@ -411,28 +418,27 @@ def template_list(request, folder_id=None):
                         distinct=True,
                     ),
                 )
-                .order_by('name')
             )
             templates_qs = (
                 Protocol.objects
                 .filter(is_preset=True, folder__isnull=True, deleted_at__isnull=False)
                 .select_related('client', 'site')
                 .prefetch_related('tags', 'columns__pests')
-                .order_by('pseudonym', 'preset_name', '-created_at')
             )
     else:
         subfolders = (
             TemplateFolder.objects
             .filter(parent=current_folder, deleted_at__isnull=True)
-            .order_by('name')
         )
         templates_qs = (
             Protocol.objects
             .filter(is_preset=True, folder=current_folder, deleted_at__isnull=True)
             .select_related('client', 'site')
             .prefetch_related('tags', 'columns__pests')
-            .order_by('pseudonym', 'preset_name', '-created_at')
         )
+
+    subfolders   = sorted(subfolders,   key=lambda f: _name_sort_key(f.name))
+    templates_qs = sorted(templates_qs, key=_tpl_sort_key)
 
     # Badge count for the toggle button (total deleted items across the whole bin)
     deleted_count = (
@@ -470,12 +476,13 @@ def _logo_data_uri(logo_path: str) -> str:
     return f"data:{mime};base64,{encoded}"
 
 
-def _render_protocol_pdf_bytes(protocol, base_url):
+def _render_protocol_pdf_bytes(protocol, base_url, fmt="a5"):
     logo_path = ""
     if protocol.company_id and protocol.company.logo:
         logo_path = protocol.company.logo.path
+    template = "protocol/protocol_a5.html" if fmt == "a5-land" else "protocol/protocol.html"
     html = render_to_string(
-        "protocol/protocol.html",
+        template,
         {"protocol": protocol, "logo_data_uri": _logo_data_uri(logo_path)},
     )
     return HTML(string=html, base_url=base_url).write_pdf()
@@ -483,9 +490,11 @@ def _render_protocol_pdf_bytes(protocol, base_url):
 
 def protocol_pdf(request, pk):
     protocol = get_object_or_404(Protocol, pk=pk)
-    pdf_bytes = _render_protocol_pdf_bytes(protocol, request.build_absolute_uri("/"))
+    fmt = request.GET.get("fmt") or "a5"
+    pdf_bytes = _render_protocol_pdf_bytes(protocol, request.build_absolute_uri("/"), fmt)
+    suffix = "-A5" if fmt == "a5-land" else ""
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="protocol-{protocol.pk}.pdf"'
+    response["Content-Disposition"] = f'attachment; filename="protocol-{protocol.pk}{suffix}.pdf"'
     return response
 
 
@@ -1880,6 +1889,7 @@ def _build_prefill_from_protocol(protocol, *, include_pk=True):
             'surface_description': col.surface_description or '',
             'treatment_methods':  list(col.treatment_methods or []),
             'ncm_ids':            [str(m.pk) for m in col.non_chemical_means.all()],
+            'ncm_counts':         dict(col.ncm_counts or {}),
             'total_used':         col.total_used or '',
             'safety_other':       col.safety_other or '',
             'recommendations':    col.recommendations or '',
@@ -1917,6 +1927,7 @@ def _build_prefill_from_protocol(protocol, *, include_pk=True):
         'client_signatory':     protocol.client_signatory or '',
         'is_long_term_contract': protocol.is_long_term_contract,
         'pseudonym':            protocol.pseudonym or '',
+        'preset_name':          protocol.preset_name or '',
         'notes':                protocol.notes or '',
         'tax_included':         protocol.tax_included,
         'document_status':      protocol.document_status,
@@ -2011,6 +2022,17 @@ def _safe_decimal(value):
         return None
 
 
+def _clean_ncm_counts(raw, ncm_ids):
+    if not isinstance(raw, dict):
+        return {}
+    selected = {str(m) for m in ncm_ids if m}
+    return {
+        str(k): str(v).strip()
+        for k, v in raw.items()
+        if str(k) in selected and str(v or '').strip()
+    }
+
+
 @transaction.atomic
 def _save_or_rewrite_protocol(payload, *, is_preset=False,
                               preset_name='', folder_id=None):
@@ -2025,9 +2047,8 @@ def _save_or_rewrite_protocol(payload, *, is_preset=False,
     client_id  = _safe_uuid(payload.get('client_id'))
     site_id    = _safe_uuid(payload.get('site_id'))
     company_id = _safe_uuid(payload.get('company_id'))
-    if not (client_id and site_id):
-        # Client + site are required for any save.
-        raise ValueError('client_id and site_id are required')
+    if site_id and not client_id:
+        client_id = Site.objects.filter(pk=site_id).values_list('client_id', flat=True).first()
 
     defaults = {
         'client_id':  client_id,
@@ -2073,9 +2094,29 @@ def _save_or_rewrite_protocol(payload, *, is_preset=False,
         # opt-in refresh path.
     }
 
+    previous = (
+        Protocol.objects.filter(pk=client_uuid)
+        .values('site_id', 'company_id').first()
+    )
     protocol, created = Protocol.objects.update_or_create(
         pk=client_uuid, defaults=defaults,
     )
+
+    snapshot_fields = []
+    if previous is not None and previous['site_id'] != protocol.site_id:
+        firm = protocol.site.active_firm if protocol.site_id else None
+        protocol.snapshot_firm_name    = firm.name if firm else ''
+        protocol.snapshot_firm_eik     = firm.eik if firm else ''
+        protocol.snapshot_firm_address = firm.address if firm else ''
+        protocol.snapshot_firm_phone   = firm.phone if firm else ''
+        snapshot_fields += ['snapshot_firm_name', 'snapshot_firm_eik',
+                            'snapshot_firm_address', 'snapshot_firm_phone']
+    if previous is not None and previous['company_id'] != protocol.company_id:
+        protocol.refresh_company_snapshot()
+        snapshot_fields += ['snapshot_company_name', 'snapshot_company_eik',
+                            'snapshot_company_address', 'snapshot_company_phone']
+    if snapshot_fields:
+        protocol.save(update_fields=snapshot_fields)
 
     # Tags M2M
     tag_ids = [_safe_uuid(t) for t in (payload.get('tag_ids') or [])]
@@ -2097,6 +2138,7 @@ def _save_or_rewrite_protocol(payload, *, is_preset=False,
         col.treatment_methods   = [
             m for m in (col_data.get('treatment_methods') or [])
             if m in dict(ProtocolColumn.TreatmentMethod.choices)
+            and not (svc == 'disinfection' and m == ProtocolColumn.TreatmentMethod.MONITORING)
         ]
         col.total_used          = col_data.get('total_used') or ''
         col.safety_other        = col_data.get('safety_other') or ''
@@ -2109,6 +2151,8 @@ def _save_or_rewrite_protocol(payload, *, is_preset=False,
         col.pests.set([p for p in pest_ids if p])
         ncm_ids = [_safe_uuid(m) for m in (col_data.get('ncm_ids') or [])]
         col.non_chemical_means.set([m for m in ncm_ids if m])
+        col.ncm_counts = _clean_ncm_counts(col_data.get('ncm_counts'), ncm_ids)
+        col.save(update_fields=['ncm_counts'])
 
         # Products — snapshots are frozen at insert, so rewrite from scratch.
         col.protocol_products.all().delete()
@@ -2251,6 +2295,7 @@ def _build_preview_protocol(payload):
             treatment_methods=treatment_methods,
             treatment_methods_display=treatment_display,
             non_chemical_means=SimpleNamespace(all=lambda qs=ncm_qs: qs),
+            ncm_counts=_clean_ncm_counts(c.get('ncm_counts'), ncm_ids),
             protocol_products=SimpleNamespace(all=lambda qs=prod_objs: qs),
             total_used=c.get('total_used') or '',
             safety_other=c.get('safety_other') or '',
@@ -2418,6 +2463,7 @@ def protocol_view(request, pk):
         'protocol_pk':    str(protocol.pk),
         'protocol':       protocol,
         'embed':          request.GET.get('embed') == '1',
+        'hide_view_header': request.GET.get('embed') == '1' and protocol.is_preset,
         'bootstrap_json': json.dumps(bootstrap, ensure_ascii=False, default=str),
     })
 
@@ -2584,6 +2630,8 @@ def protocol_save_action(request):
         is_preset    = existing.is_preset
         preset_name  = existing.preset_name
         folder_id    = existing.folder_id
+        if is_preset:
+            preset_name = (payload.get('preset_name') or '').strip() or existing.preset_name
     else:
         preset_name = ''
         folder_id   = None
@@ -2626,7 +2674,8 @@ def protocol_save_action(request):
         'save_as_template':  template_redirect,
         'print':             reverse('core:protocol_print', kwargs={'pk': pid})
                              + '?fmt=' + (payload.get('format') or 'a5'),
-        'download':          reverse('core:protocol_pdf',   kwargs={'pk': pid}),
+        'download':          reverse('core:protocol_pdf',   kwargs={'pk': pid})
+                             + '?fmt=' + (payload.get('format') or 'a5'),
     }
     return JsonResponse({
         'ok': True,
@@ -3319,10 +3368,12 @@ def _restore_folder_tree(folder, move_to_root=False):
 
 def _folders_json():
     return json.dumps(
-        list(TemplateFolder.objects
-             .filter(deleted_at__isnull=True)
-             .order_by('parent_id', 'name')
-             .values('id', 'name', 'parent_id')),
+        sorted(
+            TemplateFolder.objects
+            .filter(deleted_at__isnull=True)
+            .values('id', 'name', 'parent_id'),
+            key=lambda f: _name_sort_key(f['name']),
+        ),
         ensure_ascii=False, default=str,
     )
 

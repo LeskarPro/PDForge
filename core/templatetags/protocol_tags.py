@@ -32,3 +32,9 @@ def dedup_snapshots(col, field_name):
         "{}. {}",
         ((i, text) for i, text in enumerate(seen, start=1)),
     )
+
+
+@register.filter
+def ncm_count(col, ncm):
+    counts = getattr(col, "ncm_counts", None) or {}
+    return counts.get(str(getattr(ncm, "pk", ncm)), "")

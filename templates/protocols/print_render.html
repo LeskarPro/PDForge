@@ -37,7 +37,7 @@
      existing 147mm × 2 = 294mm geometry. */
 
   @page {
-    size: A4 portrait;
+    size: {% if fmt == 'a5-land' %}A5 landscape{% else %}A4 portrait{% endif %};
     margin: 0;
   }
 
@@ -87,11 +87,16 @@
 {% endblock %}
 
 {% block content %}
+{% if fmt == 'a5-land' %}
+<div class="a5-panel">{% include "protocol/_protocol_front.html" %}</div>
+<div class="a5-panel page-break-before">{% include "protocol/_protocol_back.html" %}</div>
+{% else %}
 <div class="a5-panel">{% include "protocol/_protocol_front.html" %}</div>
 <div class="a5-panel">{% include "protocol/_protocol_front.html" %}</div>
 
 <div class="a5-panel page-break-before">{% include "protocol/_protocol_back.html" %}</div>
 <div class="a5-panel">{% include "protocol/_protocol_back.html" %}</div>
+{% endif %}
 
 <script>
   // Trigger the browser print dialog as soon as the DOM is fully painted.

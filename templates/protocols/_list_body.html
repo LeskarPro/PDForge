@@ -53,7 +53,7 @@
         {% endfor %}
       </div>
       <div>
-        {% if protocol.price %}
+        {% if protocol.price is not None %}
           <span class="price-val">{{ protocol.price }} €</span>
         {% else %}
           <span class="price-none">без цена</span>

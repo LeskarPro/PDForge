@@ -5,8 +5,8 @@
   <title>{% block title %}Протокол{% endblock %}</title>
   <style>
     @page {
-      size: A4 portrait;
-      margin: 1mm 0;
+      size: {% block page_size %}A4 portrait{% endblock %};
+      margin: {% block page_margin %}1mm 0{% endblock %};
     }
 
     * { box-sizing: border-box; }

@@ -559,10 +559,12 @@ class Protocol(TimeStampedModel):
     # Basic info: client, site, date and time of the work
     client = models.ForeignKey(
         Client, on_delete=models.PROTECT,
+        null=True, blank=True,
         related_name="protocols", verbose_name="Клиент",
     )
     site = models.ForeignKey(
         Site, on_delete=models.PROTECT,
+        null=True, blank=True,
         related_name="protocols", verbose_name="Обект",
     )
 
@@ -694,7 +696,7 @@ class Protocol(TimeStampedModel):
         Otherwise pseudonym, falling back to client name as a last resort."""
         if self.is_preset and self.preset_name:
             return self.preset_name
-        return self.pseudonym or (self.client.name if self.client_id else "—")
+        return self.pseudonym or (self.client.name if self.client_id else "Празен протокол")
 
     def __str__(self) -> str:
         if self.is_preset:
@@ -760,6 +762,7 @@ class Protocol(TimeStampedModel):
                     surface_description="",
                     treatment_methods_display="",
                     non_chemical_means=SimpleNamespace(all=lambda: []),
+                    ncm_counts={},
                     protocol_products=SimpleNamespace(all=lambda: []),
                     total_used="",
                     recommendations="",
@@ -880,6 +883,7 @@ class ProtocolColumn(TimeStampedModel):
         PHYSICAL = "physical", "Физична"
         BIOLOGICAL = "biological", "Биологична"
         CHEMICAL_BIOCIDE = "chemical_biocide", "Химична с биоцидни препарати"
+        MONITORING = "monitoring", "Мониторинг"
 
     protocol = models.ForeignKey(
         Protocol, on_delete=models.CASCADE,
@@ -914,6 +918,10 @@ class ProtocolColumn(TimeStampedModel):
     non_chemical_means = models.ManyToManyField(
         NonChemicalMean, blank=True,
         related_name="protocol_columns", verbose_name="Нехимични средства",
+    )
+    ncm_counts = models.JSONField(
+        "Брой нехимични средства", default=dict, blank=True,
+        help_text="{non_chemical_mean_id: брой} — отпечатва се на ред 5.",
     )
 
     # Rows 6–10, 12.x come from products (M2M through ProtocolProduct, defined below)
@@ -1188,8 +1196,8 @@ class AppSettings(models.Model):
         DARK   = 'dark',   'Dark'
 
     class ProtocolFormat(models.TextChoices):
-        A5      = 'a5',      'A5 (2 стр.)'
-        A5_LAND = 'a5-land', 'A5 → A4 пейзаж'
+        A5      = 'a5',      'A4'
+        A5_LAND = 'a5-land', 'A5'
         A4_P    = 'a4-p',    'A4 портрет'
 
     theme = models.CharField(

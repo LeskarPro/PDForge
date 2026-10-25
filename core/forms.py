@@ -108,6 +108,13 @@ class SiteForm(forms.ModelForm):
             'tags':    forms.CheckboxSelectMultiple(),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        tags = Tag.objects.filter(deleted_at__isnull=True)
+        if self.instance.pk:
+            tags = tags | Tag.objects.filter(pk__in=self.instance.tags.values('pk'))
+        self.fields['tags'].queryset = tags.distinct().order_by('order', 'name')
+
     def clean_start_date(self):
         return self.cleaned_data.get('start_date') or _first_of_this_month()
 

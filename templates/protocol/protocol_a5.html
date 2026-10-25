@@ -1,0 +1,16 @@
+{% extends "protocol/base.html" %}
+
+{% block title %}Протокол{% endblock %}
+{% block page_size %}A5 landscape{% endblock %}
+{% block page_margin %}0{% endblock %}
+
+{% block extra_head %}
+<style>
+  .a5-panel { border-bottom: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="a5-panel">{% include "protocol/_protocol_front.html" %}</div>
+<div class="a5-panel page-break-before">{% include "protocol/_protocol_back.html" %}</div>
+{% endblock %}

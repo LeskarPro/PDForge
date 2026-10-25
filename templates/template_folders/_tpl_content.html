@@ -60,7 +60,7 @@
             {% endfor %}
           </div>
           <div>
-            {% if tpl.price %}
+            {% if tpl.price is not None %}
               <span class="price-val">{{ tpl.price }} €</span>
             {% else %}
               <span class="price-none">без цена</span>
@@ -233,7 +233,7 @@
               {% endfor %}
             </div>
             <div>
-              {% if tpl.price %}
+              {% if tpl.price is not None %}
                 <span class="price-val">{{ tpl.price }} €</span>
               {% else %}
                 <span class="price-none">без цена</span>

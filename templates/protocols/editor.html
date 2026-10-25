@@ -213,10 +213,16 @@
        font:inherit;font-size:12.5px;background:var(--p-bg);color:var(--p-text)}
   .pe-li-nif-lbl{font-size:10.5px;color:var(--p-textM);display:block;margin-bottom:3px}
 
-  .pe-li-totals{display:flex;justify-content:flex-end;gap:28px;padding-top:10px;border-top:1px solid var(--p-border)}
-  .pe-li-totals-block{text-align:right}
-  .pe-li-totals-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--p-textM);margin-bottom:2px}
-  .pe-li-totals-val{font-size:17px;font-weight:800;color:var(--p-text)}
+  .pe-li-price-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .pe-li-price-controls{display:flex;align-items:center;gap:8px}
+  .pe-meta-row .pe-li-tax{display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;flex-shrink:0;
+       white-space:nowrap;font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--p-textM)}
+  .pe-meta-row .pe-li-tax input{width:15px;height:15px;padding:0;margin:0;flex-shrink:0;
+       box-shadow:none;cursor:pointer;accent-color:var(--c-coral)}
+  .pe-li-totals{display:flex;flex-direction:column;align-items:flex-end;gap:6px;padding-top:10px;border-top:1px solid var(--p-border)}
+  .pe-li-totals-block{display:flex;align-items:center;justify-content:flex-end;gap:14px}
+  .pe-li-totals-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--p-textM)}
+  .pe-li-totals-val{font-size:17px;font-weight:800;color:var(--p-text);min-width:110px;text-align:right}
   .pe-li-totals-val.net{font-weight:400;color:var(--p-textM)}
   .pe-li-totals-val.blank{opacity:.4;font-weight:600}
 
@@ -358,7 +364,6 @@
   /* ── Pseudonym bar (top) ── */
   .pe-pseudonym-bar {
     display: grid; grid-template-columns: max-content 1fr;
-    grid-template-rows: auto auto;
     column-gap: 12px; row-gap: 2px;
     background: var(--p-bg); color: var(--p-text);
     border: 1px solid var(--border-subtle);
@@ -385,6 +390,8 @@
   .pe-pseudonym-bar .pe-hint {
     grid-column: 2; font-size: 10.5px; color: var(--p-textM); font-style: italic;
   }
+  .pe-pseudonym-bar .pe-hint + label,
+  .pe-pseudonym-bar .pe-hint + label + input { margin-top: 10px; }
 
   /* ── Metadata card (bottom) — notes, price, tags ── */
   .pe-meta-card {
@@ -547,7 +554,9 @@
   .pe-root.pe-view-mode .pe-c-opt,
   .pe-root.pe-view-mode .pe-contract-opt,
   .pe-root.pe-view-mode .pe-mpill,
-  .pe-root.pe-view-mode .pe-tag-chip {
+  .pe-root.pe-view-mode .pe-tag-chip,
+  .pe-root.pe-view-mode .pe-li-tax,
+  .pe-root.pe-view-mode .pe-doc-switch {
     pointer-events: none !important;
     cursor: default !important;
   }
@@ -719,7 +728,7 @@
 
   {% csrf_token %}
 
-  {% if editor_mode == 'view' %}
+  {% if editor_mode == 'view' and not hide_view_header %}
   <!-- ═══ View-mode sticky header — pseudonym + action buttons. Shown both
        standalone (direct page visit) and embedded (the protocols list's
        iframe popup) — there's no separate parent-modal chrome providing
@@ -767,10 +776,20 @@
 
   <!-- ═══ Pseudonym (display name) — sits above the 3-col header ═══ -->
   <div class="pe-pseudonym-bar">
-    <label for="pe-pseudonym-input">Псевдоним</label>
+    {% if is_template %}
+    <label for="pe-preset-name-input">Име на шаблона</label>
+    <input id="pe-preset-name-input" type="text" x-model="presetName"
+           placeholder="напр. „Виктория Нутс — стандарт"">
+    <span class="pe-hint">Показва се в списъка с шаблони.</span>
+    {% endif %}
+    <label for="pe-pseudonym-input">Име на протокола</label>
     <input id="pe-pseudonym-input" type="text" x-model="pseudonym"
            placeholder="напр. „Виктория Нутс — стандартна обработка"  (по избор)">
+    {% if is_template %}
+    <span class="pe-hint">Попълва се автоматично в протоколите, създадени от този шаблон.</span>
+    {% else %}
     <span class="pe-hint">Кратко име за списъка с протоколи. Ако е празно, се ползва името на клиента.</span>
+    {% endif %}
   </div>
 
   <!-- ═══ Header panels ═══ -->
@@ -942,7 +961,7 @@
           <template x-for="svc in ['dis','der','dinf']" :key="'r4-'+svc">
             <td :colspan="svc==='dis'?4:2" :class="['pe-c-'+svc, {off: !isActive(svc)}]">
               <div class="pe-mpills">
-                <template x-for="m in methods" :key="svc+'-m-'+m.value">
+                <template x-for="m in methods.filter(m => svc !== 'dinf' || m.value !== 'monitoring')" :key="svc+'-m-'+m.value">
                   <button type="button" class="pe-mpill"
                           :class="{on: cols[svc].treatment_methods.includes(m.value)}"
                           @click="toggleMethod(svc, m.value)" :disabled="!isActive(svc)"
@@ -1202,19 +1221,13 @@
 
       <!-- Price module — line items (Stage 4) -->
       <div class="pe-meta-row pe-meta-row-wide">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
-            <span>Цена</span>
-            <span style="display:flex;align-items:center;gap:5px;font-weight:400;">
-              <span style="font-size:11px;color:var(--p-textM);">с ДДС</span>
-              <input type="checkbox" x-model="taxIncluded"
-                     style="width:15px;height:15px;cursor:pointer;accent-color:var(--c-coral);">
-            </span>
+        <div class="pe-li-price-head">
+          <label>Цена</label>
+          <div class="pe-li-price-controls">
+          <label class="pe-li-tax">
+            <input type="checkbox" x-model="taxIncluded">
+            <span>с ДДС</span>
           </label>
-          <!-- Deliberately OUTSIDE the label element above — a label
-               forwards any click inside it to its first form control (the
-               tax checkbox), so nesting a switch in there toggles tax
-               every time the switch is pressed. Kept as a sibling. -->
           <div class="pe-doc-switch"
                @click="documentStatus = documentStatus === 'С документ' ? 'Без документ' : 'С документ'"
                title="С документ / Без документ">
@@ -1226,6 +1239,7 @@
                title="В брой / По банка">
             <span class="pe-doc-opt" :class="{on: paymentType === 'В брой'}">В брой</span>
             <span class="pe-doc-opt" :class="{on: paymentType === 'По банка'}">По банка</span>
+          </div>
           </div>
         </div>
 
@@ -1775,6 +1789,7 @@ document.addEventListener('alpine:init', () => {
 
     // ── metadata (not printed on the protocol body, but persisted) ──
     pseudonym: '',
+    presetName: '',
     notes:     '',
     // price / price_with_tax are no longer editor-owned — Stage 4 (price
     // module): the backend computes and stores them from `lineItems`
@@ -1935,7 +1950,7 @@ document.addEventListener('alpine:init', () => {
     isActive(svc)    { return svc === 'dis' ? this.disActive
                               : svc === 'der' ? this.derActive
                               : this.dinfActive; },
-    get canPreview() { return !!(this.clientId && this.siteId && this.companyId); },
+    get canPreview() { return !!this.companyId; },
 
     // Row 11b text — auto-computed from selected deratization products'
     // `bait_descriptor` field, mirroring Protocol.deratization_bait_text in
@@ -2604,6 +2619,10 @@ document.addEventListener('alpine:init', () => {
           surface_description: c.surface_description || '',
           treatment_methods: c.treatment_methods,
           ncm_ids: c.ncm.map(m => m.id),
+          ncm_counts: Object.fromEntries(
+            c.ncm.filter(m => String(m.count || '').trim())
+                 .map(m => [String(m.id), String(m.count).trim()])
+          ),
           total_used: c.total_used || '',
           safety_other: c.safety_other || '',
           recommendations: c.recommendations || '',
@@ -2631,6 +2650,7 @@ document.addEventListener('alpine:init', () => {
         },
         // Metadata strip — not printed on the protocol body
         pseudonym: this.pseudonym || '',
+        {% if is_template %}preset_name: this.presetName || '',{% endif %}
         notes:     this.notes     || '',
         tax_included:   this.taxIncluded,
         document_status: this.documentStatus,
@@ -2814,6 +2834,7 @@ document.addEventListener('alpine:init', () => {
 
       // Metadata strip
       if (d.pseudonym)        this.pseudonym   = d.pseudonym;
+      if (d.preset_name)      this.presetName  = d.preset_name;
       if (d.notes) {
         this.notes = d.notes;
         // The notes contenteditable is loaded asynchronously from prefill
@@ -2862,7 +2883,7 @@ document.addEventListener('alpine:init', () => {
         col.ncm = (c.ncm_ids || [])
           .map(id => ncmCat.find(m => String(m.id) === String(id)))
           .filter(Boolean)
-          .map(m => ({ id: m.id, name: m.name, count: '' }));
+          .map(m => ({ id: m.id, name: m.name, count: (c.ncm_counts || {})[String(m.id)] || '' }));
 
         // Re-hydrate products by full catalog lookup (we need snapshot fields
         // for the auto-fill rows 6-10 and 12.x to populate)

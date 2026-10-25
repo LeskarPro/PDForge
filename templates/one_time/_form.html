@@ -285,15 +285,15 @@
 
     <!-- ── 7. Price module (line items — Stage 5) ── -->
     <div class="fsection">
-      <div class="fsection-title" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="fsection-title li-price-head">
         <span>Цена</span>
-        <span style="display:flex;align-items:center;gap:5px;font-weight:400;text-transform:none;letter-spacing:0;">
-          <span style="font-size:11px;color:var(--text-muted);">с ДДС</span>
+        <div class="li-price-controls">
+        <label class="li-tax">
           <input type="checkbox" id="ot-tax-included" name="tax_included" value="1"
                  {% if form.tax_included.value %}checked{% endif %}
-                 onchange="liRenderTotals()"
-                 style="width:14px;height:14px;cursor:pointer;accent-color:var(--c-coral);">
-        </span>
+                 onchange="liRenderTotals()">
+          <span>с ДДС</span>
+        </label>
         <div class="ot-doc-switch" onclick="otToggleDocStatus()" title="С документ / Без документ">
           <span class="ot-doc-opt" id="ot-doc-opt-with">СД</span>
           <span class="ot-doc-opt" id="ot-doc-opt-without">БД</span>
@@ -306,6 +306,7 @@
         </div>
         <input type="hidden" name="payment_type" id="ot-payment-type"
                value="{{ form.payment_type.value|default:'В брой' }}">
+        </div>
       </div>
 
       <table class="li-table">

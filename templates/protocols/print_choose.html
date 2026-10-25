@@ -7,11 +7,11 @@
 {% block topbar_actions %}
   <a class="pv-topbar-btn pv-topbar-btn-secondary" href="{% url 'core:protocol_view' protocol.pk %}" style="text-decoration:none;flex-shrink:0;">← Назад</a>
   <div class="pv-fmt-tabs">
-    <button id="pc-tab-a5"      class="pv-fmt active" onclick="pcFmt('a5')">A5 (2 стр.)</button>
-    <button id="pc-tab-a5-land" class="pv-fmt"        onclick="pcFmt('a5-land')">A5 → A4 пейзаж</button>
+    <button id="pc-tab-a5"      class="pv-fmt active" onclick="pcFmt('a5')">A4</button>
+    <button id="pc-tab-a5-land" class="pv-fmt"        onclick="pcFmt('a5-land')">A5</button>
     <button id="pc-tab-a4-p"    class="pv-fmt"        onclick="pcFmt('a4-p')">A4 портрет</button>
   </div>
-  <a class="pv-topbar-btn pv-topbar-btn-secondary" href="{% url 'core:protocol_pdf' protocol.pk %}" style="text-decoration:none;flex-shrink:0;">⤓ Изтегли</a>
+  <a id="pc-download" class="pv-topbar-btn pv-topbar-btn-secondary" href="{% url 'core:protocol_pdf' protocol.pk %}?fmt=a5" style="text-decoration:none;flex-shrink:0;">⤓ Изтегли</a>
   <button class="pv-topbar-btn pv-topbar-btn-primary" onclick="pcDoPrint()" style="flex-shrink:0;">🖨 Печат</button>
 {% endblock %}
 
@@ -72,6 +72,8 @@
     transform-origin: top center;
     border-radius: 2px; overflow: hidden;
   }
+  .pv-paper.pv-paper-a5 { min-height: 148mm; height: 148mm; }
+  .pv-paper.pv-paper-a5 .a5-panel { border-bottom: none; }
   @media (max-width: 1200px) {
     .pv-paper { transform: scale(.85); margin-bottom: -18mm; }
   }
@@ -185,18 +187,21 @@
       <div class="pv-paper-label">Лист 2 — гръб (2 копия)</div>
     </div>
 
-    <!-- Format 2: A5 → A4 landscape — future -->
+    <!-- Format 2: A5 — front and back on two A5 pages -->
     <div id="pv-a5-land" style="display:none;">
-      <div class="pv-future">
-        <div class="pv-future-inner">
-          <div class="pv-future-icon">⚙</div>
-          <div class="pv-future-title">A5 → A4 пейзаж</div>
-          <div class="pv-future-body">
-            Форматът е в процес на разработка и ще бъде достъпен в следващите обновления.
-          </div>
+      <div class="pv-paper pv-paper-a5">
+        <div class="a5-panel">
+          {% include "protocol/_protocol_front.html" with protocol=protocol %}
         </div>
       </div>
-      <div class="pv-paper-label">A4 пейзаж — 4 стр. A5 на 1 лист (двойно копие)</div>
+      <div class="pv-paper-label">Стр. 1 — лицева страна</div>
+
+      <div class="pv-paper pv-paper-a5" style="margin-top:24px;">
+        <div class="a5-panel">
+          {% include "protocol/_protocol_back.html" with protocol=protocol %}
+        </div>
+      </div>
+      <div class="pv-paper-label">Стр. 2 — гръб</div>
     </div>
 
     <!-- Format 3: A4 portrait — future -->
@@ -222,6 +227,7 @@
 <script>
 (function () {
   var _pcFmt = 'a5';
+  var _pdfBase = '{% url "core:protocol_pdf" protocol.pk %}';
   var _fmtPdfUrl = {
     'a5':      '{% url "core:protocol_print" protocol.pk %}?fmt=a5',
     'a5-land': '{% url "core:protocol_print" protocol.pk %}?fmt=a5-land',
@@ -236,12 +242,14 @@
       if (panel) panel.style.display = (f === fmt) ? 'block' : 'none';
       if (tab)   tab.classList.toggle('active', f === fmt);
     });
+    var dl = document.getElementById('pc-download');
+    if (dl) dl.href = _pdfBase + '?fmt=' + fmt;
   };
 
   window.pcDoPrint = async function () {
     if (window.pywebview && window.pywebview.api && window.pywebview.api.print_pdf) {
       try {
-        await window.pywebview.api.print_pdf('{% url "core:protocol_pdf" protocol.pk %}');
+        await window.pywebview.api.print_pdf(_pdfBase + '?fmt=' + _pcFmt);
       } catch (e) {
         console.error('pywebview print_pdf failed:', e);
         window.location.href = _fmtPdfUrl[_pcFmt];

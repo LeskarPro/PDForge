@@ -294,7 +294,7 @@
            oninput="document.getElementById('tpl-item-count').style.display = this.value.trim() ? 'none' : ''">
   </div>
   <span class="item-count" id="tpl-item-count" {% if search_query %}style="display:none"{% endif %}>
-    {% with sf=subfolders.count tc=templates.count %}
+    {% with sf=subfolders|length tc=templates|length %}
       {% if sf %}{{ sf }} папк{{ sf|pluralize:"а,и" }}{% endif %}
       {% if sf and tc %}, {% endif %}
       {% if tc %}{{ tc }} шаблон{{ tc|pluralize:",а" }}{% endif %}

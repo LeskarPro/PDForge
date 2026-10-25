@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.5.5 — Price controls v1</title>
+<style>
+  :root {
+    --c-peach:#fec196; --c-coral:#ffa686; --c-clay:#d6a184; --c-mauve:#aa767c; --c-plum:#63474d;
+    --content-bg:#f6efe9; --text-primary:#3d2b2f; --text-muted:#9a7a80;
+    --border-subtle:rgba(170,118,124,0.15); --radius-md:6px;
+  }
+  body { margin:0; background:var(--content-bg); color:var(--text-primary);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
+  .mk-wrap { max-width:1100px; margin:0 auto; padding:24px 16px 60px; }
+  .mk-h { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--c-plum); margin:28px 0 8px; }
+  .mk-h small { font-weight:400; text-transform:none; letter-spacing:0; color:var(--text-muted); margin-left:8px; }
+
+  .pe-root {
+    --p-bg:#ffffff; --p-surface:#eef0f5; --p-border:#a8aebd; --p-borderL:#c8cdd6;
+    --p-text:#0d1117; --p-textM:#3a4154; --p-textD:#0d1117;
+    color:var(--p-text);
+  }
+  .pe-meta-card { background:var(--p-bg); color:var(--p-text); border:1px solid var(--border-subtle);
+    border-radius:var(--radius-md); padding:14px 16px; box-shadow:0 1px 6px rgba(99,71,77,.06); }
+  .pe-meta-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; margin-bottom:2px; }
+  .pe-meta-hint { font-size:10.5px; color:var(--p-textM); font-style:italic; margin-bottom:12px; }
+  .pe-meta-row { display:flex; flex-direction:column; gap:4px; }
+  .pe-meta-row label { font-size:11px; font-weight:700; color:var(--p-textD); text-transform:uppercase; letter-spacing:.05em; }
+
+  .pe-doc-switch { display:flex; border:1px solid var(--p-border); border-radius:20px;
+    overflow:hidden; cursor:pointer; user-select:none; flex-shrink:0; }
+  .pe-doc-opt { padding:3px 9px; font-size:10.5px; font-weight:700; letter-spacing:.03em;
+    color:var(--p-textM); transition:all .12s; }
+  .pe-doc-opt.on { background:var(--c-coral); color:#fff; }
+
+  .pe-li-table{border:1px solid var(--p-border);border-radius:6px;overflow:hidden;margin:10px 0}
+  .pe-li-row{display:grid;grid-template-columns:1fr 85px 70px 95px 95px 28px;gap:4px;align-items:center;
+       padding:8px 10px;border-bottom:1px solid var(--p-borderL);font-size:12.5px;background:var(--p-bg)}
+  .pe-li-row:last-child{border-bottom:none}
+  .pe-li-row.pe-li-head{background:var(--p-surface);font-size:10px;font-weight:700;text-transform:uppercase;
+       letter-spacing:.05em;color:var(--p-textM);padding-top:7px;padding-bottom:7px}
+  .pe-li-cell{min-width:0;display:flex;align-items:center;padding-right:8px;border-right:1px solid var(--p-borderL)}
+  .pe-li-cell:last-child{border-right:none;padding-right:0}
+  .pe-li-cell.pe-li-cell-num{justify-content:flex-end}
+  .pe-li-item-name{font-size:13.5px;font-weight:400;color:var(--p-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pe-li-badge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;
+       padding:2px 7px;border-radius:8px;flex-shrink:0;display:inline-block}
+  .pe-li-badge.product{background:rgba(45,122,74,.12);color:#1a6b3a}
+  .pe-li-badge.service{background:rgba(58,65,84,.1);color:var(--p-textM)}
+  .pe-li-num{width:100%;box-sizing:border-box;padding:5px 7px;border:1px solid var(--p-border);border-radius:4px;
+       font:inherit;font-size:12.5px;text-align:right;color:var(--p-text);background:var(--p-bg)}
+  .pe-li-num:focus{border-color:var(--c-coral);outline:none}
+  .pe-li-total{text-align:right;font-weight:700;color:var(--p-text);font-size:12.5px;width:100%}
+  .pe-li-del{width:22px;height:22px;border-radius:5px;border:none;background:transparent;color:var(--p-textM);cursor:pointer}
+  .pe-li-add-row{display:flex;gap:8px;margin-bottom:10px}
+  .pe-li-add-input{flex:1;box-sizing:border-box;padding:8px 10px;border:1px dashed var(--p-border);border-radius:6px;
+       font:inherit;font-size:12.5px;color:var(--p-textM);background:var(--p-surface)}
+  .pe-li-new-btn{flex-shrink:0;padding:0 14px;border:1px solid var(--c-clay);border-radius:6px;
+       background:var(--p-surface);color:#b05030;font-weight:600;font-size:12.5px;cursor:pointer;white-space:nowrap}
+
+  /* current totals (unchanged, for the "before" reference) */
+  .pe-li-totals{display:flex;justify-content:flex-end;gap:28px;padding-top:10px;border-top:1px solid var(--p-border)}
+  .pe-li-totals-block{text-align:right}
+  .pe-li-totals-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--p-textM);margin-bottom:2px}
+  .pe-li-totals-val{font-size:17px;font-weight:800;color:var(--p-text)}
+  .pe-li-totals-val.net{font-weight:400;color:var(--p-textM)}
+  .pe-li-totals-val.blank{opacity:.4;font-weight:600}
+
+  /* ── NEW: stacked totals with VAT checkbox + switches below ── */
+  .pe-li-sum{display:flex;justify-content:flex-end;padding-top:10px;border-top:1px solid var(--p-border)}
+  .pe-li-sum-box{display:grid;grid-template-columns:auto auto auto;column-gap:14px;row-gap:6px;align-items:center}
+  .pe-li-sum-tax{display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;color:var(--p-textM);
+       justify-self:end;user-select:none}
+  .pe-li-sum-tax input{width:15px;height:15px;margin:0;cursor:pointer;accent-color:var(--c-coral)}
+  .pe-li-sum-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--p-textM);text-align:right}
+  .pe-li-sum-val{font-size:17px;font-weight:800;color:var(--p-text);text-align:right;min-width:110px}
+  .pe-li-sum-val.net{font-weight:400;color:var(--p-textM)}
+  .pe-li-sum-val.blank{opacity:.4;font-weight:600}
+  .pe-li-sum-switches{grid-column:1 / -1;display:flex;justify-content:flex-end;gap:8px;
+       padding-top:8px;margin-top:2px;border-top:1px dashed var(--p-borderL)}
+</style>
+</head>
+<body>
+<div class="mk-wrap pe-root">
+
+  <div class="mk-h">Ново — v1 <small>контролите са преместени до общата сума; всичко е кликаемо</small></div>
+  <div class="pe-meta-card">
+    <div class="pe-meta-title">Допълнителна информация</div>
+    <div class="pe-meta-hint">Тези полета не се отпечатват върху протокола, но се пазят в базата данни за справки и филтри.</div>
+
+    <div class="pe-meta-row">
+      <label>Цена</label>
+
+      <div class="pe-li-table">
+        <div class="pe-li-row pe-li-head">
+          <div class="pe-li-cell">Артикул</div>
+          <div class="pe-li-cell">Тип</div>
+          <div class="pe-li-cell pe-li-cell-num">Кол.</div>
+          <div class="pe-li-cell pe-li-cell-num">Цена/бр.</div>
+          <div class="pe-li-cell pe-li-cell-num">Общо</div>
+          <div class="pe-li-cell"></div>
+        </div>
+        <div class="pe-li-row">
+          <div class="pe-li-cell"><span class="pe-li-item-name">Дезинсекция — обработка</span></div>
+          <div class="pe-li-cell"><span class="pe-li-badge service">Услуга</span></div>
+          <div class="pe-li-cell pe-li-cell-num"><input class="pe-li-num" data-q value="1"></div>
+          <div class="pe-li-cell pe-li-cell-num"><input class="pe-li-num" data-p value="60.00"></div>
+          <div class="pe-li-cell pe-li-cell-num"><div class="pe-li-total" data-t></div></div>
+          <div class="pe-li-cell"><button class="pe-li-del">✕</button></div>
+        </div>
+        <div class="pe-li-row">
+          <div class="pe-li-cell"><span class="pe-li-item-name">Дератизационна кутия</span></div>
+          <div class="pe-li-cell"><span class="pe-li-badge product">Продукт</span></div>
+          <div class="pe-li-cell pe-li-cell-num"><input class="pe-li-num" data-q value="4"></div>
+          <div class="pe-li-cell pe-li-cell-num"><input class="pe-li-num" data-p value="3.50"></div>
+          <div class="pe-li-cell pe-li-cell-num"><div class="pe-li-total" data-t></div></div>
+          <div class="pe-li-cell"><button class="pe-li-del">✕</button></div>
+        </div>
+      </div>
+
+      <div class="pe-li-add-row">
+        <input class="pe-li-add-input" placeholder="+ Добави артикул от каталога…">
+        <button class="pe-li-new-btn">+ Нов елемент</button>
+      </div>
+
+      <div class="pe-li-sum">
+        <div class="pe-li-sum-box">
+          <span></span>
+          <div class="pe-li-sum-lbl">Сума без ДДС</div>
+          <div class="pe-li-sum-val net" id="netVal"></div>
+
+          <label class="pe-li-sum-tax"><input type="checkbox" id="taxCb" checked> с ДДС</label>
+          <div class="pe-li-sum-lbl">Сума с ДДС</div>
+          <div class="pe-li-sum-val" id="grossVal"></div>
+
+          <div class="pe-li-sum-switches">
+            <div class="pe-doc-switch" data-switch>
+              <span class="pe-doc-opt on">СД</span><span class="pe-doc-opt">БД</span>
+            </div>
+            <div class="pe-doc-switch" data-switch>
+              <span class="pe-doc-opt on">В брой</span><span class="pe-doc-opt">По банка</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mk-h">Сега <small>за сравнение — текущото оформление</small></div>
+  <div class="pe-meta-card">
+    <div class="pe-meta-row">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+        <label style="display:flex;align-items:center;gap:10px;">
+          <span>Цена</span>
+          <span style="display:flex;align-items:center;gap:5px;font-weight:400;text-transform:none;letter-spacing:0;">
+            <span style="font-size:11px;color:var(--p-textM);">с ДДС</span>
+            <input type="checkbox" checked style="width:15px;height:15px;accent-color:var(--c-coral);">
+          </span>
+        </label>
+        <div class="pe-doc-switch"><span class="pe-doc-opt on">СД</span><span class="pe-doc-opt">БД</span></div>
+        <div class="pe-doc-switch"><span class="pe-doc-opt on">В брой</span><span class="pe-doc-opt">По банка</span></div>
+      </div>
+      <div class="pe-li-table">
+        <div class="pe-li-row pe-li-head">
+          <div class="pe-li-cell">Артикул</div><div class="pe-li-cell">Тип</div>
+          <div class="pe-li-cell pe-li-cell-num">Кол.</div><div class="pe-li-cell pe-li-cell-num">Цена/бр.</div>
+          <div class="pe-li-cell pe-li-cell-num">Общо</div><div class="pe-li-cell"></div>
+        </div>
+        <div class="pe-li-row">
+          <div class="pe-li-cell"><span class="pe-li-item-name">Дезинсекция — обработка</span></div>
+          <div class="pe-li-cell"><span class="pe-li-badge service">Услуга</span></div>
+          <div class="pe-li-cell pe-li-cell-num"><input class="pe-li-num" value="1"></div>
+          <div class="pe-li-cell pe-li-cell-num"><input class="pe-li-num" value="60.00"></div>
+          <div class="pe-li-cell pe-li-cell-num"><div class="pe-li-total">60.00 лв</div></div>
+          <div class="pe-li-cell"><button class="pe-li-del">✕</button></div>
+        </div>
+      </div>
+      <div class="pe-li-totals">
+        <div class="pe-li-totals-block"><div class="pe-li-totals-lbl">Сума без ДДС</div><div class="pe-li-totals-val net">60.00 лв</div></div>
+        <div class="pe-li-totals-block"><div class="pe-li-totals-lbl">Сума с ДДС</div><div class="pe-li-totals-val">72.00 лв</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const VAT = 20;
+  const num = v => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; };
+  function recalc() {
+    let net = 0;
+    document.querySelectorAll('.mk-wrap .pe-meta-card:first-of-type .pe-li-row:not(.pe-li-head)').forEach(r => {
+      const q = num(r.querySelector('[data-q]').value), p = num(r.querySelector('[data-p]').value);
+      const t = (q !== null && p !== null) ? q * p : null;
+      r.querySelector('[data-t]').textContent = t === null ? '—' : t.toFixed(2) + ' лв';
+      if (t !== null) net += t;
+    });
+    const tax = document.getElementById('taxCb').checked;
+    document.getElementById('netVal').textContent = net.toFixed(2) + ' лв';
+    const g = document.getElementById('grossVal');
+    g.textContent = tax ? (net * (1 + VAT / 100)).toFixed(2) + ' лв' : '—';
+    g.classList.toggle('blank', !tax);
+  }
+  document.querySelectorAll('[data-q],[data-p]').forEach(i => i.addEventListener('input', recalc));
+  document.getElementById('taxCb').addEventListener('change', recalc);
+  document.querySelectorAll('[data-switch]').forEach(sw => sw.addEventListener('click', () => {
+    sw.querySelectorAll('.pe-doc-opt').forEach(o => o.classList.toggle('on'));
+  }));
+  recalc();
+</script>
+</body>
+</html>
