@@ -155,6 +155,71 @@
   }
   .pe-doc-opt.on { background: var(--c-coral); color: #fff; }
 
+  /* ── Line items (price module) ── */
+  .pe-li-table{border:1px solid var(--p-border);border-radius:6px;overflow:hidden;margin:10px 0}
+  .pe-li-row{display:grid;grid-template-columns:1fr 85px 70px 95px 95px 28px;gap:4px;align-items:center;
+       padding:8px 10px;border-bottom:1px solid var(--p-borderL);font-size:12.5px;background:var(--p-bg)}
+  .pe-li-row:last-child{border-bottom:none}
+  .pe-li-row.pe-li-head{background:var(--p-surface);font-size:10px;font-weight:700;text-transform:uppercase;
+       letter-spacing:.05em;color:var(--p-textM);padding-top:7px;padding-bottom:7px}
+  /* Thin dividers between every column — wrapped on a .pe-li-cell so the
+     border sits between columns instead of doubling up on inputs (which
+     already have their own border on all four sides). */
+  .pe-li-cell{min-width:0;display:flex;align-items:center;padding-right:8px;
+       border-right:1px solid var(--p-borderL)}
+  .pe-li-cell:last-child{border-right:none;padding-right:0}
+  .pe-li-cell.pe-li-cell-num{justify-content:flex-end}
+  .pe-li-item{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .pe-li-item-name{font-size:13.5px;font-weight:400;color:var(--p-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pe-li-type{display:flex;align-items:center}
+  .pe-li-badge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;
+       padding:2px 7px;border-radius:8px;flex-shrink:0;display:inline-block}
+  .pe-li-badge.product{background:rgba(45,122,74,.12);color:#1a6b3a}
+  .pe-li-badge.service{background:rgba(58,65,84,.1);color:var(--p-textM)}
+  .pe-li-num{width:100%;padding:5px 7px;border:1px solid var(--p-border);border-radius:4px;
+       font-size:12.5px;text-align:right;font:inherit;color:var(--p-text);background:var(--p-bg)}
+  .pe-li-num:focus{border-color:var(--c-coral);outline:none}
+  .pe-li-total{text-align:right;font-weight:700;color:var(--p-text);font-size:12.5px;width:100%}
+  .pe-li-total.blank{color:var(--p-textM);font-weight:400}
+  .pe-li-del{width:22px;height:22px;border-radius:5px;border:none;background:transparent;
+       color:var(--p-textM);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .pe-li-del:hover{background:rgba(192,80,60,.1);color:#c0503c}
+  .pe-li-empty{padding:16px;text-align:center;font-size:12px;color:var(--p-textM);font-style:italic;background:var(--p-bg)}
+
+  .pe-li-add-row{display:flex;gap:8px;margin-bottom:10px}
+  .pe-li-add-wrap{position:relative;flex:1}
+  .pe-li-add-input{width:100%;padding:8px 10px;border:1px dashed var(--p-border);border-radius:6px;
+       font-size:12.5px;color:var(--p-textM);background:var(--p-surface);font:inherit}
+  .pe-li-add-input:focus{outline:none;border-color:var(--c-coral);border-style:solid;color:var(--p-text)}
+  .pe-li-dd{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--p-bg);
+       border:1px solid var(--p-border);border-radius:6px;box-shadow:0 6px 18px rgba(13,17,23,.12);
+       max-height:230px;overflow-y:auto;z-index:10}
+  .pe-li-dd-opt{padding:8px 10px;border-bottom:1px solid var(--p-borderL);cursor:pointer;
+       display:flex;align-items:center;justify-content:space-between;font-size:12.5px}
+  .pe-li-dd-opt:last-child{border-bottom:none}
+  .pe-li-dd-opt:hover{background:var(--p-surface)}
+  .pe-li-dd-empty{padding:10px;font-size:12px;color:var(--p-textM);font-style:italic}
+  .pe-li-new-btn{flex-shrink:0;padding:0 14px;border:1px solid var(--c-clay);border-radius:6px;
+       background:var(--p-surface);color:#b05030;font-weight:600;font-size:12.5px;cursor:pointer;white-space:nowrap}
+  .pe-li-new-btn:hover{background:var(--p-bg);border-style:solid}
+
+  .pe-li-new-form{border:1px solid var(--c-clay);border-radius:6px;padding:12px;margin-bottom:10px;background:var(--p-surface)}
+  .pe-li-nif-type{display:flex;gap:6px;margin-bottom:8px}
+  .pe-li-nif-type-opt{flex:1;text-align:center;padding:7px;font-size:12px;border-radius:6px;cursor:pointer;
+       border:1px solid var(--p-border);background:var(--p-bg);color:var(--p-textM)}
+  .pe-li-nif-type-opt.on{background:var(--c-coral);color:#fff;border-color:var(--c-coral);font-weight:600}
+  .pe-li-nif-actions{display:flex;justify-content:flex-end;gap:6px}
+  .pe-li-nif-input{width:100%;padding:7px 9px;border:1px solid var(--p-border);border-radius:6px;
+       font:inherit;font-size:12.5px;background:var(--p-bg);color:var(--p-text)}
+  .pe-li-nif-lbl{font-size:10.5px;color:var(--p-textM);display:block;margin-bottom:3px}
+
+  .pe-li-totals{display:flex;justify-content:flex-end;gap:28px;padding-top:10px;border-top:1px solid var(--p-border)}
+  .pe-li-totals-block{text-align:right}
+  .pe-li-totals-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--p-textM);margin-bottom:2px}
+  .pe-li-totals-val{font-size:17px;font-weight:800;color:var(--p-text)}
+  .pe-li-totals-val.net{font-weight:400;color:var(--p-textM)}
+  .pe-li-totals-val.blank{opacity:.4;font-weight:600}
+
   /* ── Main table ── */
   .pe-table-wrap {
     overflow-x: auto;
@@ -1135,38 +1200,150 @@
         <textarea x-model="notes" class="rn-source"></textarea>
       </div>
 
-      <!-- Price / VAT -->
+      <!-- Price module — line items (Stage 4) -->
       <div class="pe-meta-row pe-meta-row-wide">
-        <div style="display:flex;align-items:center;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
           <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
             <span>Цена</span>
             <span style="display:flex;align-items:center;gap:5px;font-weight:400;">
               <span style="font-size:11px;color:var(--p-textM);">с ДДС</span>
-              <input type="checkbox" x-model="taxIncluded" @change="onTaxToggle()"
+              <input type="checkbox" x-model="taxIncluded"
                      style="width:15px;height:15px;cursor:pointer;accent-color:var(--c-coral);">
             </span>
           </label>
           <!-- Deliberately OUTSIDE the label element above — a label
                forwards any click inside it to its first form control (the
-               tax checkbox), so nesting this switch in there was toggling
-               tax every time the switch was pressed. Kept as a sibling. -->
+               tax checkbox), so nesting a switch in there toggles tax
+               every time the switch is pressed. Kept as a sibling. -->
           <div class="pe-doc-switch"
                @click="documentStatus = documentStatus === 'С документ' ? 'Без документ' : 'С документ'"
                title="С документ / Без документ">
             <span class="pe-doc-opt" :class="{on: documentStatus === 'С документ'}">СД</span>
             <span class="pe-doc-opt" :class="{on: documentStatus === 'Без документ'}">БД</span>
           </div>
-        </div>
-        <div style="display:flex;gap:10px;">
-          <div style="flex:1;">
-            <input type="number" min="0" step="0.01" x-model="price"
-                   @input="onNetPriceInput()"
-                   placeholder="Цена без ДДС (€)">
+          <div class="pe-doc-switch"
+               @click="paymentType = paymentType === 'В брой' ? 'По банка' : 'В брой'"
+               title="В брой / По банка">
+            <span class="pe-doc-opt" :class="{on: paymentType === 'В брой'}">В брой</span>
+            <span class="pe-doc-opt" :class="{on: paymentType === 'По банка'}">По банка</span>
           </div>
-          <div style="flex:1;">
-            <input type="number" min="0" step="0.01" x-model="priceWithTax"
-                   @input="onGrossPriceInput()"
-                   placeholder="Цена с ДДС (€)">
+        </div>
+
+        <div class="pe-li-table">
+          <div class="pe-li-row pe-li-head">
+            <div class="pe-li-cell">Артикул</div>
+            <div class="pe-li-cell">Тип</div>
+            <div class="pe-li-cell pe-li-cell-num">Кол.</div>
+            <div class="pe-li-cell pe-li-cell-num">Цена/бр.</div>
+            <div class="pe-li-cell pe-li-cell-num">Общо</div>
+            <div class="pe-li-cell"></div>
+          </div>
+          <template x-for="(li, idx) in lineItems" :key="idx">
+            <div class="pe-li-row">
+              <div class="pe-li-cell">
+                <div class="pe-li-item">
+                  <span class="pe-li-item-name" x-text="li.name"></span>
+                </div>
+              </div>
+              <div class="pe-li-cell">
+                <div class="pe-li-type">
+                  <span class="pe-li-badge" :class="li.item_type"
+                        x-text="li.item_type === 'product' ? 'Продукт' : 'Услуга'"></span>
+                </div>
+              </div>
+              <div class="pe-li-cell pe-li-cell-num">
+                <input class="pe-li-num" type="text" inputmode="decimal" x-model="li.quantity"
+                       @blur="liNormalizeSeparator(li, 'quantity')">
+              </div>
+              <div class="pe-li-cell pe-li-cell-num">
+                <input class="pe-li-num" type="text" inputmode="decimal" x-model="li.price"
+                       placeholder="0.00" @blur="liNormalizeSeparator(li, 'price')">
+              </div>
+              <div class="pe-li-cell pe-li-cell-num">
+                <div class="pe-li-total" :class="{blank: liLineTotal(li) === null}"
+                     x-text="liLineTotal(li) === null ? '—' : liLineTotal(li).toFixed(2) + ' лв'"></div>
+              </div>
+              <div class="pe-li-cell">
+                <button type="button" class="pe-li-del" title="Премахни" @click="liRemove(idx)">✕</button>
+              </div>
+            </div>
+          </template>
+          <div class="pe-li-empty" x-show="lineItems.length === 0">Няма добавени артикули.</div>
+        </div>
+
+        <div class="pe-li-add-row">
+          <div class="pe-li-add-wrap" @click.outside="liShowDD=false">
+            <input class="pe-li-add-input" type="text" x-model="liAddQ"
+                   placeholder="+ Добави артикул от каталога…" @focus="liShowDD=true">
+            <div class="pe-li-dd" x-show="liShowDD" x-cloak>
+              <template x-for="c in liAvailCatalog()" :key="c.id">
+                <div class="pe-li-dd-opt" @click="liAddFromCatalog(c.id)">
+                  <span style="display:flex;align-items:center;gap:6px;">
+                    <span class="pe-li-badge" :class="c.item_type"
+                          x-text="c.item_type === 'product' ? 'Продукт' : 'Услуга'"></span>
+                    <span x-text="c.name"></span>
+                  </span>
+                  <span style="color:var(--p-textM);font-size:11.5px;"
+                        x-text="c.default_price != null ? c.default_price + ' лв' : '—'"></span>
+                </div>
+              </template>
+              <div class="pe-li-dd-empty" x-show="liAvailCatalog().length === 0">Няма намерени артикули.</div>
+            </div>
+          </div>
+          <button type="button" class="pe-li-new-btn" @click="liOpenNewForm()">+ Нов елемент</button>
+        </div>
+
+        <!-- Inline "create new catalog item" form — POSTs to the real
+             Ценообразуване catalog (price_catalog_create_inline), then
+             adds the freshly created item as a line — same
+             create-and-attach pattern as "+ Нов" tag creation above. -->
+        <div class="pe-li-new-form" x-show="liNewForm.open" x-cloak>
+          <div class="pe-li-nif-type">
+            <div class="pe-li-nif-type-opt" :class="{on: liNewForm.itemType==='product'}"
+                 @click="liNewForm.itemType='product'">Продукт</div>
+            <div class="pe-li-nif-type-opt" :class="{on: liNewForm.itemType==='service'}"
+                 @click="liNewForm.itemType='service'">Услуга</div>
+          </div>
+          <input type="text" class="pe-li-nif-input" x-model="liNewForm.name"
+                 placeholder="напр. Извънредно посещение" style="margin-bottom:8px;">
+          <div x-show="liNewForm.itemType==='product'" style="margin-bottom:8px;">
+            <label class="pe-li-nif-lbl">Свързан нехим. продукт <span style="font-weight:400;">(по избор)</span></label>
+            <select class="pe-li-nif-input" x-model="liNewForm.ncmId">
+              <option value="">— без връзка —</option>
+              <template x-for="svc in ['disinsection','deratization','disinfection']" :key="svc">
+                <template x-for="m in (allNCM[svc]||[])" :key="m.id">
+                  <option :value="m.id" x-text="m.name"></option>
+                </template>
+              </template>
+            </select>
+          </div>
+          <div style="margin-bottom:8px;">
+            <label class="pe-li-nif-lbl">Цена по подразбиране <span style="font-weight:400;">(по избор)</span></label>
+            <input type="text" inputmode="decimal" class="pe-li-nif-input" x-model="liNewForm.defaultPrice"
+                   placeholder="напр. 3.50"
+                   @blur="if ((liNewForm.defaultPrice||'').includes(',')) liNewForm.defaultPrice = liNewForm.defaultPrice.replace(',', '.')">
+          </div>
+          <div x-show="liNewForm.error" x-text="liNewForm.error" class="pe-modal-err" style="margin-bottom:6px;"></div>
+          <div class="pe-li-nif-actions">
+            <button type="button" class="pe-btn pe-btn-secondary" style="font-size:12px;padding:5px 10px;"
+                    @click="liCloseNewForm()">Откажи</button>
+            <button type="button" class="pe-btn pe-btn-primary" style="font-size:12px;padding:5px 10px;"
+                    @click="liCreateAndAdd()" :disabled="liNewForm.saving">
+              <span x-show="!liNewForm.saving">Създай и добави</span>
+              <span x-show="liNewForm.saving">…</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="pe-li-totals">
+          <div class="pe-li-totals-block">
+            <div class="pe-li-totals-lbl">Сума без ДДС</div>
+            <div class="pe-li-totals-val net" x-text="liNetTotal.toFixed(2) + ' лв'"></div>
+          </div>
+          <div class="pe-li-totals-block">
+            <div class="pe-li-totals-lbl">Сума с ДДС</div>
+            <div class="pe-li-totals-val" :class="{blank: !taxIncluded}"
+                 x-text="taxIncluded ? liGrossTotal.toFixed(2) + ' лв' : '—'"></div>
           </div>
         </div>
       </div>
@@ -1599,13 +1776,28 @@ document.addEventListener('alpine:init', () => {
     // ── metadata (not printed on the protocol body, but persisted) ──
     pseudonym: '',
     notes:     '',
-    price:         '',   // net price, always the canonical value
+    // price / price_with_tax are no longer editor-owned — Stage 4 (price
+    // module): the backend computes and stores them from `lineItems`
+    // below on every save. taxIncluded stays user-controlled (whether VAT
+    // applies at all); vatPercent is only used for the LIVE on-screen
+    // gross-total preview (liGrossTotal getter) — the actual frozen rate
+    // used for the saved figure is decided server-side (tax_rate_snapshot).
     taxIncluded:   false,
-    priceWithTax:  '',
     vatPercent:    {{ app_settings.vat_percent|default:20|stringformat:"s" }},
     // С документ / Без документ — shown as the short СД/БД switch next to
     // Цена; stored as the full phrase (feeds the reporting tool, Stage 12).
     documentStatus: 'С документ',
+    // В брой / По банка — same shared-flag pattern, shown in full (not
+    // abbreviated) per design decision.
+    paymentType: 'В брой',
+    // Price module (Stage 4) — line items: [{catalog_item_id, name,
+    // item_type, has_ncm_link, quantity, price}]. quantity/price are kept
+    // as STRINGS (not native numbers) throughout, matching this app's
+    // established comma-or-dot decimal-input convention.
+    allPriceCatalog: [],
+    lineItems: [],
+    liAddQ: '', liShowDD: false,
+    liNewForm: { open: false, name: '', itemType: 'service', ncmId: '', defaultPrice: '', saving: false, error: '' },
     tagIds:    [],
     newTag: { open: false, name: '', color: '#6b7280', description: '', saving: false, error: '' },
 
@@ -1676,6 +1868,7 @@ document.addEventListener('alpine:init', () => {
       this.methods     = data.treatment_methods || [];
       this.folders     = data.folders     || [];
       this.allTags     = data.tags        || [];
+      this.allPriceCatalog = data.price_catalog || [];
 
       const d = data.defaults || {};
       // date1 = "Подготвено от → Дата" (Protocol.prepared_date) — defaults to
@@ -1964,10 +2157,37 @@ document.addEventListener('alpine:init', () => {
       if (m) {
         this.cols[svcShort].ncm.push({ id: m.id, name: m.name, count: '' });
         this.cols[svcShort].ncm_sel = '';
+        this._liAutoAddForNCM(m.id);
       }
     },
     rmNCM(svcShort, id) {
       this.cols[svcShort].ncm = this.cols[svcShort].ncm.filter(m => String(m.id) !== String(id));
+      // Deliberately NOT removing the corresponding line item here — the
+      // user may already have filled in a real quantity/price on it, and
+      // silently discarding that on an unrelated checkbox toggle would be
+      // a surprise. They can delete the line themselves if they want to.
+    },
+    // Price module (Stage 4) — if this NCM has a linked catalog item and
+    // it's not already a line, auto-add it at qty=0 with its default
+    // price (may be blank). One line per distinct NCM even if it's ticked
+    // on more than one service column — mirrors the migration's dedup.
+    _liAutoAddForNCM(ncmId) {
+      const catalogItem = this.allPriceCatalog.find(
+        c => c.non_chemical_mean_id && String(c.non_chemical_mean_id) === String(ncmId)
+      );
+      if (!catalogItem) return;
+      const already = this.lineItems.some(
+        li => li.catalog_item_id && String(li.catalog_item_id) === String(catalogItem.id)
+      );
+      if (already) return;
+      this.lineItems.push({
+        catalog_item_id: catalogItem.id,
+        name: catalogItem.name,
+        item_type: catalogItem.item_type,
+        has_ncm_link: true,
+        quantity: '0',
+        price: catalogItem.default_price != null ? String(catalogItem.default_price) : '',
+      });
     },
 
     // ─────────────────────────────────────────────────────────────────
@@ -1993,29 +2213,92 @@ document.addEventListener('alpine:init', () => {
     },
 
     // ─────────────────────────────────────────────────────────────────
-    // PRICE / VAT (metadata strip) — `price` (net) is always the
-    // canonical value. `priceWithTax` is only meaningful when
-    // `taxIncluded` is on. Editing the net field only recalculates the
-    // gross field while VAT is already on; editing the gross field always
-    // turns VAT on and recalculates the net field.
+    // PRICE MODULE (metadata strip) — line items replace the old flat
+    // price field. `price`/`price_with_tax` are computed SERVER-SIDE from
+    // `lineItems` on every save (see _save_or_rewrite_protocol); these
+    // getters are only for the live on-screen total while editing.
     // ─────────────────────────────────────────────────────────────────
-    onNetPriceInput() {
-      if (!this.taxIncluded) return;
-      this.priceWithTax = this.price === ''
-        ? ''
-        : (parseFloat(this.price) * (1 + this.vatPercent / 100)).toFixed(2);
+    _liNum(v) {
+      if (v === '' || v === null || v === undefined) return null;
+      const n = parseFloat(String(v).replace(',', '.'));
+      return isNaN(n) ? null : n;
     },
-    onGrossPriceInput() {
-      this.taxIncluded = true;
-      this.price = this.priceWithTax === ''
-        ? ''
-        : (parseFloat(this.priceWithTax) / (1 + this.vatPercent / 100)).toFixed(2);
+    liNormalizeSeparator(li, field) {
+      if (typeof li[field] === 'string' && li[field].includes(',')) {
+        li[field] = li[field].replace(',', '.');
+      }
     },
-    onTaxToggle() {
-      if (!this.taxIncluded) {
-        this.priceWithTax = '';
-      } else if (this.price !== '') {
-        this.priceWithTax = (parseFloat(this.price) * (1 + this.vatPercent / 100)).toFixed(2);
+    liLineTotal(li) {
+      const p = this._liNum(li.price);
+      if (p === null) return null;
+      const q = this._liNum(li.quantity) || 0;
+      return q * p;
+    },
+    get liNetTotal() {
+      return this.lineItems.reduce((sum, li) => {
+        const t = this.liLineTotal(li);
+        return t === null ? sum : sum + t;
+      }, 0);
+    },
+    get liGrossTotal() {
+      return this.liNetTotal * (1 + this.vatPercent / 100);
+    },
+    liRemove(idx) {
+      this.lineItems.splice(idx, 1);
+    },
+    liAvailCatalog() {
+      const q = (this.liAddQ || '').trim().toLowerCase();
+      const added = this.lineItems.map(li => String(li.catalog_item_id)).filter(Boolean);
+      return this.allPriceCatalog.filter(c =>
+        !added.includes(String(c.id)) &&
+        (!q || c.name.toLowerCase().includes(q))
+      );
+    },
+    liAddFromCatalog(catalogId) {
+      const c = this.allPriceCatalog.find(x => String(x.id) === String(catalogId));
+      if (!c) return;
+      this.lineItems.push({
+        catalog_item_id: c.id,
+        name: c.name,
+        item_type: c.item_type,
+        has_ncm_link: !!c.non_chemical_mean_id,
+        quantity: '1',
+        price: c.default_price != null ? String(c.default_price) : '',
+      });
+      this.liAddQ = '';
+      this.liShowDD = false;
+    },
+    liOpenNewForm() {
+      this.liShowDD = false;
+      this.liNewForm = { open: true, name: '', itemType: 'service', ncmId: '', defaultPrice: '', saving: false, error: '' };
+    },
+    liCloseNewForm() {
+      this.liNewForm = { open: false, name: '', itemType: 'service', ncmId: '', defaultPrice: '', saving: false, error: '' };
+    },
+    async liCreateAndAdd() {
+      const f = this.liNewForm;
+      if (!f.name.trim()) { f.error = 'Въведете наименование'; return; }
+      f.saving = true; f.error = '';
+      const fd = new FormData();
+      fd.append('name', f.name.trim());
+      fd.append('item_type', f.itemType);
+      if (f.itemType === 'product' && f.ncmId) fd.append('non_chemical_mean', f.ncmId);
+      if (f.defaultPrice) fd.append('default_price', f.defaultPrice);
+      try {
+        const r = await fetch('{% url "core:price_catalog_create_inline" %}', {
+          method: 'POST', body: fd,
+          headers: { 'X-CSRFToken': this._csrf() },
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          f.error = Object.values(data.errors || {}).flat().join(', ') || 'Грешка при създаване';
+          f.saving = false; return;
+        }
+        this.allPriceCatalog.push(data);
+        this.liAddFromCatalog(data.id);
+        this.liCloseNewForm();
+      } catch (e) {
+        f.error = String(e); f.saving = false;
       }
     },
 
@@ -2349,10 +2632,20 @@ document.addEventListener('alpine:init', () => {
         // Metadata strip — not printed on the protocol body
         pseudonym: this.pseudonym || '',
         notes:     this.notes     || '',
-        price:          this.price        === '' ? null : this.price,
         tax_included:   this.taxIncluded,
-        price_with_tax: this.priceWithTax === '' ? null : this.priceWithTax,
         document_status: this.documentStatus,
+        payment_type: this.paymentType,
+        // Price module — price/price_with_tax are computed server-side
+        // from these on save, not sent directly.
+        line_items: this.lineItems.map((li, i) => ({
+          catalog_item_id: li.catalog_item_id || null,
+          name:            li.name || '',
+          item_type:       li.item_type || 'service',
+          has_ncm_link:    !!li.has_ncm_link,
+          quantity:        li.quantity === '' ? '0' : li.quantity,
+          price:           li.price === '' ? null : li.price,
+          order:           i,
+        })),
         tag_ids:   this.tagIds.slice(),
       };
     },
@@ -2529,10 +2822,19 @@ document.addEventListener('alpine:init', () => {
         // explicitly here so edit/view modes always show the saved notes.
         window.rnSetValue && window.rnSetValue(this.$refs.protocolNotesField, d.notes);
       }
-      if (d.price != null)    this.price       = d.price;
       if (d.tax_included)     this.taxIncluded = true;
-      if (d.price_with_tax != null) this.priceWithTax = d.price_with_tax;
       if (d.document_status)  this.documentStatus = d.document_status;
+      if (d.payment_type)     this.paymentType = d.payment_type;
+      if (Array.isArray(d.line_items)) {
+        this.lineItems = d.line_items.map(li => ({
+          catalog_item_id: li.catalog_item_id || null,
+          name:            li.name || '',
+          item_type:       li.item_type || 'service',
+          has_ncm_link:    !!li.has_ncm_link,
+          quantity:        li.quantity != null ? String(li.quantity) : '0',
+          price:           li.price   != null ? String(li.price)    : '',
+        }));
+      }
       if (Array.isArray(d.tag_ids)) this.tagIds = [...d.tag_ids];
 
       // Per-service columns

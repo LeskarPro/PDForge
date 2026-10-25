@@ -8,11 +8,11 @@ def site_context(request):
     settings = AppSettings.get()
     return {
         "site_company": company,
-        "site_app_version": "1.5.3",
+        "site_app_version": "1.5.4",
         "app_settings": settings,
         "sync_status": sync_service.get_status(settings),
         "catalog_nav_items": [
             "preparati", "rabotnici", "lichni_danni",
-           "vrediteli", "nehim",
+           "vrediteli", "nehim", "cenoobrazuvane",
         ]
     }

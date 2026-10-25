@@ -146,6 +146,14 @@ urlpatterns = [
     path("nonchemical/<uuid:pk>/edit/", views.nonchemical_edit, name="nonchemical_edit"),
     path("nonchemical/<uuid:pk>/delete/", views.nonchemical_delete, name="nonchemical_delete"),
 
+    # Ценообразуване (Price module, Stage 3)
+    path("price-catalog/", views.price_catalog_list, name="price_catalog_list"),
+    path("price-catalog/list-body/", views.price_catalog_list_body, name="price_catalog_list_body"),
+    path("price-catalog/create/", views.price_catalog_create, name="price_catalog_create"),
+    path("price-catalog/create-inline/", views.price_catalog_create_inline, name="price_catalog_create_inline"),
+    path("price-catalog/<uuid:pk>/edit/", views.price_catalog_edit, name="price_catalog_edit"),
+    path("price-catalog/<uuid:pk>/delete/", views.price_catalog_delete, name="price_catalog_delete"),
+
     # Еднократни обработки
     path("one-time/", views.one_time_list, name="one_time_list"),
     path("one-time/create/", views.one_time_create, name="one_time_create"),

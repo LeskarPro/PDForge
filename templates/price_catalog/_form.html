@@ -1,0 +1,65 @@
+<form method="post"
+      hx-post="{% if item %}{% url 'core:price_catalog_edit' item.pk %}{% else %}{% url 'core:price_catalog_create' %}{% endif %}"
+      hx-target="#modal-content" hx-swap="innerHTML">
+  {% csrf_token %}
+  <div class="modal-title">{% if item %}Редактирай артикул{% else %}Нов артикул за ценообразуване{% endif %}</div>
+
+  <div class="form-section-label">Информация</div>
+  <div class="form-inner">
+    <div class="form-row cols1">
+      <div class="form-group">
+        <label class="form-label">Тип <span class="req">*</span></label>
+        {{ form.item_type }}
+        {% if form.item_type.errors %}<span class="form-error">{{ form.item_type.errors.0 }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="form-row cols1">
+      <div class="form-group">
+        <label class="form-label">Наименование <span class="req">*</span></label>
+        {{ form.name }}
+        {% if form.name.errors %}<span class="form-error">{{ form.name.errors.0 }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="form-row cols1" id="pc-ncm-row">
+      <div class="form-group">
+        <label class="form-label">Свързан нехим. продукт <span style="color:var(--text-muted);font-weight:400;">(по избор)</span></label>
+        {{ form.non_chemical_mean }}
+        {% if form.non_chemical_mean.errors %}<span class="form-error">{{ form.non_chemical_mean.errors.0 }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="form-row cols1">
+      <div class="form-group">
+        <label class="form-label">Цена по подразбиране <span style="color:var(--text-muted);font-weight:400;">(по избор)</span></label>
+        <input class="form-input" type="text" inputmode="decimal" id="id_default_price" name="default_price"
+               value="{{ form.default_price.value|default_if_none:''|stringformat:'s' }}"
+               placeholder="напр. 3.50">
+        {% if form.default_price.errors %}<span class="form-error">{{ form.default_price.errors.0 }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn-cancel" onclick="closeModal()">Отказ</button>
+    <button type="submit" class="btn-save">Запази</button>
+  </div>
+</form>
+<script>
+  document.addEventListener('htmx:afterRequest', e => {
+    if (e.detail.xhr.status === 204) document.body.dispatchEvent(new Event('priceCatalogChanged'));
+  });
+  document.querySelectorAll('#modal-content input, #modal-content select, #modal-content textarea')
+    .forEach(el => el.classList.add('form-input'));
+
+  (function() {
+    const typeSelect = document.getElementById('id_item_type');
+    const ncmRow = document.getElementById('pc-ncm-row');
+    function syncNcmVisibility() {
+      if (!typeSelect || !ncmRow) return;
+      ncmRow.style.display = typeSelect.value === 'service' ? 'none' : '';
+    }
+    if (typeSelect) {
+      typeSelect.addEventListener('change', syncNcmVisibility);
+      syncNcmVisibility();
+    }
+  })();
+</script>

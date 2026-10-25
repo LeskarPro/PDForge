@@ -17,6 +17,7 @@ import json
 import os
 import uuid as uuid_mod
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from core import sync_service
 
@@ -28,12 +29,13 @@ from core.models import (
     OneTimeTreatment, OneTimeTreatmentProduct, OneTimeTreatmentContact,
     Product, Pest, NonChemicalMean, Worker, Company,
     AppSettings, _first_of_this_month, DocumentStatus,
+    PriceCatalogItem, ProtocolLineItem, OneTimeTreatmentLineItem, PaymentType,
 )
 from core.notes_html import sanitize_notes_html
 from core.forms import (
     ClientForm, FirmForm, SiteFirmForm, SiteForm, SiteFormFull, ContactForm, TagForm,
     OneTimeTreatmentForm, ProductForm, CompanyForm, WorkerForm,
-    PestForm, NonChemicalMeanForm,
+    PestForm, NonChemicalMeanForm, PriceCatalogItemForm,
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -168,7 +170,41 @@ def _all_sites_qs(status=None):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def dashboard(request):
-    return render(request, "dashboard.html", {"active_nav": "dashboard"})
+    # TEMPORARY (Stage 6, price module) — helps Kiril find every protocol/
+    # template/one-time treatment that still carries the migration's
+    # catch-all "Други" line item, so he can go through and itemize each
+    # one properly. Self-clearing: a record drops off this list the moment
+    # its "Други" line is renamed/removed and resaved — no extra
+    # bookkeeping. Safe to delete this whole block (and the matching
+    # section in dashboard.html) once the cleanup is done; it's not part
+    # of the planned Stage 12a Табло design.
+    other_protocols = (
+        Protocol.objects
+        .filter(deleted_at__isnull=True, is_preset=False, line_items__snapshot_name='Други')
+        .distinct()
+        .select_related('client', 'site')
+        .order_by('-date', '-created_at')
+    )
+    other_templates = (
+        Protocol.objects
+        .filter(deleted_at__isnull=True, is_preset=True, line_items__snapshot_name='Други')
+        .distinct()
+        .order_by('preset_name')
+    )
+    other_treatments = (
+        OneTimeTreatment.objects
+        .filter(deleted_at__isnull=True, line_items__snapshot_name='Други')
+        .distinct()
+        .order_by('-date', '-created_at')
+    )
+    other_total = other_protocols.count() + other_templates.count() + other_treatments.count()
+    return render(request, "dashboard.html", {
+        "active_nav": "dashboard",
+        "other_protocols":  other_protocols,
+        "other_templates":  other_templates,
+        "other_treatments": other_treatments,
+        "other_total":      other_total,
+    })
 
 
 def _split_other_pests(text):
@@ -1359,6 +1395,87 @@ def _save_treatment_products(request, treatment):
         )
 
 
+def _parse_line_items_from_querydict(data):
+    """Shared by _save_treatment_line_items() and _form_ctx()'s error
+    re-render, so a failed OneTimeTreatmentForm validation doesn't silently
+    wipe out already-typed line items (products/contacts have this same
+    limitation today — deliberately not fixing those here too, out of
+    scope for the price module, but not worth reproducing for money data)."""
+    catalog_ids = data.getlist('li_catalog_item_id')
+    names       = data.getlist('li_name')
+    item_types  = data.getlist('li_item_type')
+    ncm_flags   = data.getlist('li_has_ncm_link')
+    quantities  = data.getlist('li_quantity')
+    prices      = data.getlist('li_price')
+    out = []
+    for i, name in enumerate(names):
+        out.append({
+            'catalog_item_id': catalog_ids[i] if i < len(catalog_ids) else '',
+            'name':            name,
+            'item_type':       item_types[i] if i < len(item_types) else 'service',
+            'has_ncm_link':    (ncm_flags[i] if i < len(ncm_flags) else '') == '1',
+            'quantity':        quantities[i] if i < len(quantities) else '0',
+            'price':           prices[i] if i < len(prices) else '',
+        })
+    return out
+
+
+def _save_treatment_line_items(request, treatment):
+    """Snapshots are frozen at insert (same rewrite-from-scratch pattern as
+    _save_treatment_products). `price` is then computed from these lines
+    and written back onto the treatment row — same rule as Protocol
+    (Stage 4): None when there are no lines at all, else the sum of
+    qty*price across lines that actually have a price."""
+    treatment.line_items.all().delete()
+    rows = _parse_line_items_from_querydict(request.POST)
+    net_total = None
+    if rows:
+        net_total = Decimal('0')
+        for i, row in enumerate(rows):
+            catalog_id = _safe_uuid(row['catalog_item_id'])
+            catalog_item = (
+                PriceCatalogItem.objects.filter(pk=catalog_id).first()
+                if catalog_id else None
+            )
+            quantity = _safe_decimal(row['quantity'])
+            if quantity is None:
+                quantity = Decimal('0')
+            price = _safe_decimal(row['price'])
+            name = (
+                row['name']
+                or (catalog_item.name if catalog_item else '')
+            )[:255]
+            item_type = (
+                row['item_type']
+                or (catalog_item.item_type if catalog_item else PriceCatalogItem.ItemType.SERVICE)
+            )
+            OneTimeTreatmentLineItem.objects.create(
+                treatment=treatment,
+                catalog_item=catalog_item,
+                quantity=quantity,
+                price=price,
+                order=i,
+                snapshot_name=name,
+                snapshot_item_type=item_type,
+                snapshot_has_ncm_link=row['has_ncm_link'],
+            )
+            if price is not None:
+                net_total += quantity * price
+
+    treatment.price = net_total
+    if treatment.tax_included and net_total is not None:
+        # tax_rate_snapshot was already frozen (or re-confirmed) by the
+        # form's own .save() call just before this runs — see Protocol's
+        # identical rule in _save_or_rewrite_protocol.
+        vat_percent = treatment.tax_rate_snapshot
+        if vat_percent is None:
+            vat_percent = AppSettings.get().vat_percent
+        treatment.price_with_tax = (net_total * (1 + vat_percent / 100)).quantize(Decimal('0.01'))
+    else:
+        treatment.price_with_tax = None
+    treatment.save()
+
+
 def _save_treatment_contacts(request, treatment):
     treatment.contacts.all().delete()
     names     = request.POST.getlist('contact_name')
@@ -1452,6 +1569,7 @@ def one_time_create(request):
             form.save_m2m()
             _save_treatment_products(request, treatment)
             _save_treatment_contacts(request, treatment)
+            _save_treatment_line_items(request, treatment)
             html = render_to_string('one_time/_list_body.html',
                                     {'treatments': _one_time_qs()}, request=request)
             response = HttpResponse(html + _oob_other_pests_filter_one_time(request))
@@ -1479,6 +1597,7 @@ def one_time_edit(request, pk):
             form.save_m2m()
             _save_treatment_products(request, treatment)
             _save_treatment_contacts(request, treatment)
+            _save_treatment_line_items(request, treatment)
             html = render_to_string('one_time/_list_body.html',
                                     {'treatments': _one_time_qs()}, request=request)
             response = HttpResponse(html + _oob_other_pests_filter_one_time(request))
@@ -1517,6 +1636,7 @@ def one_time_delete(request, pk):
 def _form_ctx(request, form, mode, treatment=None):
     existing_products = []
     existing_contacts = []
+    existing_line_items = []
     if form.is_bound:
         selected_pest_ids   = set(form.data.getlist('pests'))
         selected_worker_ids = set(form.data.getlist('executed_by'))
@@ -1525,18 +1645,44 @@ def _form_ctx(request, form, mode, treatment=None):
         # value="..." on <input type="date"> without going through the date
         # filter (which silently returns '' when given a string, not a date).
         date_str = form.data.get('date', '')
+        # Unlike products/contacts, line items ARE re-hydrated on a
+        # validation-error re-render — see _parse_line_items_from_querydict.
+        existing_line_items = _parse_line_items_from_querydict(form.data)
     elif treatment and treatment.pk:
         selected_pest_ids   = set(str(pk) for pk in treatment.pests.values_list('id', flat=True))
         selected_worker_ids = set(str(pk) for pk in treatment.executed_by.values_list('id', flat=True))
         selected_tag_ids    = set(str(pk) for pk in treatment.tags.values_list('id', flat=True))
         existing_products   = list(treatment.products.select_related('product').order_by('order'))
         existing_contacts   = list(treatment.contacts.order_by('order'))
+        existing_line_items = [
+            {
+                'catalog_item_id': str(li.catalog_item_id) if li.catalog_item_id else '',
+                'name':            li.snapshot_name,
+                'item_type':       li.snapshot_item_type,
+                'has_ncm_link':    li.snapshot_has_ncm_link,
+                'quantity':        str(li.quantity),
+                'price':           str(li.price) if li.price is not None else '',
+            }
+            for li in treatment.line_items.all().order_by('order')
+        ]
         date_str = treatment.date.isoformat() if treatment.date else timezone.localdate().isoformat()
     else:
         selected_pest_ids   = set()
         selected_worker_ids = set()
         selected_tag_ids    = set()
         date_str = timezone.localdate().isoformat()
+    price_catalog = list(
+        PriceCatalogItem.objects
+        .filter(deleted_at__isnull=True)
+        .order_by('item_type', 'name')
+        .values('id', 'name', 'item_type', 'non_chemical_mean_id', 'default_price')
+    )
+    all_ncm = list(
+        NonChemicalMean.objects
+        .filter(deleted_at__isnull=True)
+        .order_by('category', 'name')
+        .values('id', 'name')
+    )
     return {
         'form':               form,
         'mode':               mode,
@@ -1545,9 +1691,14 @@ def _form_ctx(request, form, mode, treatment=None):
         'all_products':       Product.objects.filter(deleted_at__isnull=True).order_by('category', 'name'),
         'existing_products':  existing_products,
         'existing_contacts':  existing_contacts,
+        'existing_line_items': existing_line_items,
         'selected_pest_ids':  selected_pest_ids,
         'selected_worker_ids': selected_worker_ids,
         'selected_tag_ids':   selected_tag_ids,
+        # Price module (Stage 5) — json_script (used in the template)
+        # handles UUID/Decimal via DjangoJSONEncoder, no manual str() needed.
+        'price_catalog':      price_catalog,
+        'all_ncm':             all_ncm,
     }
 
 
@@ -1667,6 +1818,17 @@ def _build_editor_bootstrap():
         for v, l in ProtocolColumn.TreatmentMethod.choices
     ]
 
+    # Price module (Stage 4) — the full catalog, for the add-item dropdown
+    # and the NCM-selection auto-add hook (see addNCM() in editor.html).
+    # json_script (used in the template) handles UUID/Decimal via
+    # DjangoJSONEncoder, no manual str() needed here.
+    price_catalog = list(
+        PriceCatalogItem.objects
+        .filter(deleted_at__isnull=True)
+        .order_by('item_type', 'name')
+        .values('id', 'name', 'item_type', 'non_chemical_mean_id', 'default_price')
+    )
+
     default_company  = next((c['id'] for c in companies if c['is_default']), None)
     default_prepared = next((w['id'] for w in workers if w['is_default_supervisor']), None)
     default_executed = next((w['id'] for w in workers if w['is_default_executor']), None)
@@ -1682,6 +1844,7 @@ def _build_editor_bootstrap():
         'treatment_methods': methods,
         'folders':           _stringify_uuids(folders),
         'tags':              _stringify_uuids(tags),
+        'price_catalog':     price_catalog,
         'defaults': {
             'company_id':     str(default_company) if default_company else None,
             'prepared_by_id': str(default_prepared) if default_prepared else None,
@@ -1724,6 +1887,23 @@ def _build_prefill_from_protocol(protocol, *, include_pk=True):
             'products':           products_data,
         }
 
+    # Price module (Stage 4) — line items are always sent (edit AND
+    # create-from/use-template flows) since they're not part of the frozen
+    # firm/company identity snapshot; a template's line items are a normal
+    # starting point the user is expected to edit, same as everything else
+    # that gets copied when a protocol is created from a template.
+    line_items = [
+        {
+            'catalog_item_id': str(li.catalog_item_id) if li.catalog_item_id else None,
+            'name':            li.snapshot_name,
+            'item_type':       li.snapshot_item_type,
+            'has_ncm_link':    li.snapshot_has_ncm_link,
+            'quantity':        str(li.quantity),
+            'price':           str(li.price) if li.price is not None else None,
+        }
+        for li in protocol.line_items.all().order_by('order')
+    ]
+
     prefill = {
         'company_id':           str(protocol.company_id) if protocol.company_id else None,
         'client_id':            str(protocol.client_id)  if protocol.client_id  else None,
@@ -1738,10 +1918,10 @@ def _build_prefill_from_protocol(protocol, *, include_pk=True):
         'is_long_term_contract': protocol.is_long_term_contract,
         'pseudonym':            protocol.pseudonym or '',
         'notes':                protocol.notes or '',
-        'price':                str(protocol.price) if protocol.price else '',
         'tax_included':         protocol.tax_included,
-        'price_with_tax':       str(protocol.price_with_tax) if protocol.price_with_tax else '',
         'document_status':      protocol.document_status,
+        'payment_type':         protocol.payment_type,
+        'line_items':           line_items,
         'tag_ids':              [str(t.pk) for t in protocol.tags.all()],
         'source_template_id':  str(protocol.source_template_id) if protocol.source_template_id else None,
         'columns':              columns,
@@ -1819,12 +1999,14 @@ def _safe_time(value):
 
 
 def _safe_decimal(value):
-    """Parse a price-like value into Decimal, or return None if blank/invalid."""
+    """Parse a price-like value into Decimal, or return None if blank/invalid.
+    Accepts a comma as the decimal separator (Bulgarian locale) — the editor
+    normalizes this on blur client-side, but the server must not depend on
+    that alone (e.g. a save triggered without ever blurring the field)."""
     if value in (None, '', 0):
         return None if value in (None, '') else 0
     try:
-        from decimal import Decimal
-        return Decimal(str(value))
+        return Decimal(str(value).replace(',', '.'))
     except (ValueError, TypeError, ArithmeticError):
         return None
 
@@ -1864,13 +2046,19 @@ def _save_or_rewrite_protocol(payload, *, is_preset=False,
         # whitelist-sanitize the rich-HTML notes here, same rules as
         # ClientForm.clean_notes() etc.
         'notes':           sanitize_notes_html(payload.get('notes') or ''),
-        'price':           _safe_decimal(payload.get('price')),
+        # price / price_with_tax are NOT set here — Stage 4 (price module):
+        # they're now computed from line_items below, after the protocol
+        # row (and thus its pk) exists. tax_included stays user-controlled.
         'tax_included':    bool(payload.get('tax_included', False)),
-        'price_with_tax':  _safe_decimal(payload.get('price_with_tax')),
         'document_status': (
             payload.get('document_status')
             if payload.get('document_status') in DocumentStatus.values
             else DocumentStatus.WITH_DOCUMENT
+        ),
+        'payment_type': (
+            payload.get('payment_type')
+            if payload.get('payment_type') in PaymentType.values
+            else PaymentType.CASH
         ),
         'is_preset':       bool(is_preset),
         'preset_name':     (preset_name or '')[:255],
@@ -1935,6 +2123,65 @@ def _save_or_rewrite_protocol(payload, *, is_preset=False,
             ProtocolProduct.objects.create(
                 column=col, product=product, order=i,
             )
+
+    # Line items (Stage 4 — Price module) — snapshots are frozen at insert
+    # (same rewrite-from-scratch pattern as ProtocolProduct above). `price`
+    # is then computed from these lines and written back onto the protocol
+    # row: None when there are no lines at all (nothing entered yet), else
+    # the sum of qty*price across lines that actually have a price (a blank
+    # line contributes nothing to the sum, same as the editor's live total).
+    protocol.line_items.all().delete()
+    line_items_payload = payload.get('line_items') or []
+    net_total = None
+    if line_items_payload:
+        net_total = Decimal('0')
+        for i, li in enumerate(line_items_payload):
+            catalog_id = _safe_uuid(li.get('catalog_item_id'))
+            catalog_item = (
+                PriceCatalogItem.objects.filter(pk=catalog_id).first()
+                if catalog_id else None
+            )
+            quantity = _safe_decimal(li.get('quantity'))
+            if quantity is None:
+                quantity = Decimal('0')
+            price = _safe_decimal(li.get('price'))
+            name = (
+                li.get('name')
+                or (catalog_item.name if catalog_item else '')
+            )[:255]
+            item_type = (
+                li.get('item_type')
+                or (catalog_item.item_type if catalog_item else PriceCatalogItem.ItemType.SERVICE)
+            )
+            ProtocolLineItem.objects.create(
+                protocol=protocol,
+                catalog_item=catalog_item,
+                quantity=quantity,
+                price=price,
+                order=i,
+                snapshot_name=name,
+                snapshot_item_type=item_type,
+                snapshot_has_ncm_link=bool(li.get('has_ncm_link')),
+            )
+            if price is not None:
+                net_total += quantity * price
+
+    protocol.price = net_total
+    if protocol.tax_included and net_total is not None:
+        # tax_rate_snapshot was already frozen (or re-confirmed) by the
+        # update_or_create() save above, via _normalize_tax_fields() — use
+        # THAT frozen rate, not the live AppSettings value, so re-saving an
+        # old protocol never silently re-prices it at today's VAT rate.
+        vat_percent = protocol.tax_rate_snapshot
+        if vat_percent is None:  # defensive — should never happen once tax_included is True
+            vat_percent = AppSettings.get().vat_percent
+        protocol.price_with_tax = (net_total * (1 + vat_percent / 100)).quantize(Decimal('0.01'))
+    else:
+        protocol.price_with_tax = None
+    # Protocol.save() re-runs _normalize_tax_fields() (freezes/clears
+    # tax_rate_snapshot) — safe to call again here, same as every other
+    # save() call in this codebase.
+    protocol.save()
 
     return protocol, created
 
@@ -2802,6 +3049,87 @@ def nonchemical_delete(request, pk):
     mean.deleted_at = timezone.now()
     mean.save(update_fields=['deleted_at'])
     return render(request, 'nonchemical/_list_body.html', {'means': _nonchemical_qs()})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Ценообразуване — price catalog (Price module, Stage 3)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _price_catalog_qs():
+    return (
+        PriceCatalogItem.objects
+        .filter(deleted_at__isnull=True)
+        .select_related('non_chemical_mean')
+        .order_by('item_type', 'name')
+    )
+
+
+def price_catalog_list(request):
+    return render(request, 'price_catalog/list.html', {
+        'active_nav': 'cenoobrazuvane',
+        'items': _price_catalog_qs(),
+    })
+
+
+def price_catalog_list_body(request):
+    return render(request, 'price_catalog/_list_body.html', {'items': _price_catalog_qs()})
+
+
+def price_catalog_create(request):
+    if request.method == 'POST':
+        form = PriceCatalogItemForm(request.POST)
+        if form.is_valid():
+            form.save()
+            r = HttpResponse(status=204)
+            r['HX-Trigger'] = 'priceCatalogChanged'
+            return r
+    else:
+        form = PriceCatalogItemForm()
+    return render(request, 'price_catalog/_form.html', {'form': form, 'item': None})
+
+
+def price_catalog_edit(request, pk):
+    item = get_object_or_404(PriceCatalogItem, pk=pk, deleted_at__isnull=True)
+    if request.method == 'POST':
+        form = PriceCatalogItemForm(request.POST, instance=item)
+        if form.is_valid():
+            form.save()
+            r = HttpResponse(status=204)
+            r['HX-Trigger'] = 'priceCatalogChanged'
+            return r
+    else:
+        form = PriceCatalogItemForm(instance=item)
+    return render(request, 'price_catalog/_form.html', {'form': form, 'item': item})
+
+
+def price_catalog_create_inline(request):
+    """Lightweight JSON endpoint for inline catalog-item creation from the
+    protocol/one-time-treatment editors' '+ Нов елемент' form — same
+    pattern as tag_create_inline()."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    form = PriceCatalogItemForm(request.POST)
+    if form.is_valid():
+        item = form.save()
+        return JsonResponse({
+            'id': str(item.pk),
+            'name': item.name,
+            'item_type': item.item_type,
+            'non_chemical_mean_id': str(item.non_chemical_mean_id) if item.non_chemical_mean_id else None,
+            'default_price': str(item.default_price) if item.default_price is not None else None,
+        })
+    return JsonResponse({'errors': form.errors}, status=400)
+
+
+@require_http_methods(['DELETE'])
+def price_catalog_delete(request, pk):
+    """A genuine hard delete (per design decision) — not a soft delete like
+    most other reference-data rows. Line items referencing this item keep
+    their frozen snapshot_name/snapshot_item_type and just lose the FK
+    (SET_NULL), so no historical protocol/treatment display breaks."""
+    item = get_object_or_404(PriceCatalogItem, pk=pk)
+    item.delete()
+    return render(request, 'price_catalog/_list_body.html', {'items': _price_catalog_qs()})
 
 
 # ─────────────────────────────────────────────────────────────────────────────

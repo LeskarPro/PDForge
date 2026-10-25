@@ -189,6 +189,47 @@
   .btn-rm:hover{color:#b03030}
   .btn-rm svg{width:13px;height:13px}
 
+  /* Line items (price module, Stage 5) */
+  .li-table{width:100%;border-collapse:collapse;margin-top:4px}
+  .li-table th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);padding:0 8px 6px 0;border-bottom:1px solid var(--border-subtle);text-align:left}
+  .li-table td{padding:6px 8px 6px 0;border-bottom:1px solid var(--border-subtle);vertical-align:middle}
+  .li-table tr:last-child td{border-bottom:none}
+  .li-name-cell{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .li-name-text{font-weight:600;color:var(--text-primary);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+  .li-badge{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:1px 6px;border-radius:8px;display:inline-block;width:fit-content}
+  .li-badge.product{background:rgba(45,122,74,.12);color:#1a6b3a}
+  .li-badge.service{background:rgba(58,65,84,.1);color:var(--text-muted)}
+  .li-num{width:80px;padding:6px 8px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);font:inherit;font-size:13px;text-align:right;color:var(--text-primary);background:#fff;outline:none;transition:border-color var(--t-fast)}
+  .li-num:focus{border-color:var(--c-clay)}
+  .li-total{text-align:right;font-weight:700;color:var(--text-primary);font-size:13px;white-space:nowrap}
+  .li-total.blank{color:var(--text-muted);font-weight:400}
+  .li-empty-note{font-size:12.5px;color:var(--text-muted);font-style:italic;padding:8px 0}
+
+  .li-add-row{display:flex;gap:8px;margin-top:10px}
+  .li-add-wrap{position:relative;flex:1}
+  .li-add-input{width:100%;padding:8px 10px;border:1px dashed var(--border-subtle);border-radius:var(--radius-sm);font-size:13px;color:var(--text-muted);background:var(--content-bg);font:inherit}
+  .li-add-input:focus{outline:none;border-color:var(--c-clay);border-style:solid;color:var(--text-primary)}
+  .li-dd{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);box-shadow:0 6px 18px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;z-index:10}
+  .li-dd-opt{padding:8px 10px;border-bottom:1px solid var(--border-subtle);cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-size:13px}
+  .li-dd-opt:last-child{border-bottom:none}
+  .li-dd-opt:hover{background:var(--content-bg)}
+  .li-dd-empty{padding:10px;font-size:12.5px;color:var(--text-muted);font-style:italic}
+  .li-new-btn{flex-shrink:0;padding:0 14px;border:1px dashed rgba(170,118,124,.35);border-radius:var(--radius-sm);background:transparent;color:var(--text-muted);font-weight:500;font-size:12.5px;cursor:pointer;white-space:nowrap;transition:color var(--t-fast),border-color var(--t-fast)}
+  .li-new-btn:hover{color:var(--text-primary);border-color:var(--c-clay)}
+
+  .li-new-form{border:1px dashed rgba(170,118,124,.35);border-radius:var(--radius-sm);padding:12px;margin-top:10px;background:var(--content-bg)}
+  .li-nif-type{display:flex;gap:6px;margin-bottom:8px}
+  .li-nif-type-opt{flex:1;text-align:center;padding:7px;font-size:12.5px;border-radius:var(--radius-sm);cursor:pointer;border:1px solid var(--border-subtle);background:#fff;color:var(--text-muted)}
+  .li-nif-type-opt.on{background:var(--c-coral);color:#fff;border-color:var(--c-coral);font-weight:600}
+  .li-nif-actions{display:flex;justify-content:flex-end;gap:6px}
+
+  .li-totals{display:flex;justify-content:flex-end;gap:24px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border-subtle)}
+  .li-totals-block{text-align:right}
+  .li-totals-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:2px}
+  .li-totals-val{font-size:16px;font-weight:800;color:var(--text-primary)}
+  .li-totals-val.net{font-weight:400;color:var(--text-muted)}
+  .li-totals-val.blank{opacity:.4;font-weight:600}
+
   /* Contacts inline (mirrors templates/clients/list.html's contacts-modal styles) */
   .contact-row{display:flex;align-items:center;gap:8px;padding:8px 0;
     border-bottom:1px solid var(--border-subtle)}

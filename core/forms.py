@@ -1,7 +1,8 @@
 from django import forms
+from decimal import Decimal, InvalidOperation
 from core.models import (
     Client, Site, Firm, SiteFirm, Contact, Tag, OneTimeTreatment, Product, Pest,
-    NonChemicalMean, Worker, Company, _first_of_this_month,
+    NonChemicalMean, Worker, Company, PriceCatalogItem, _first_of_this_month,
 )
 from core.notes_html import sanitize_notes_html
 
@@ -192,6 +193,62 @@ class NonChemicalMeanForm(forms.ModelForm):
         return sanitize_notes_html(self.cleaned_data.get('notes', ''))
 
 
+class PriceCatalogItemForm(forms.ModelForm):
+    """Ценообразуване — the billable-item catalog (Stage 3 of the price
+    module). item_type stays a plain <select>; the NCM-link field is only
+    meaningful for 'product' — cleared server-side when type is 'service'
+    (the JS in _form.html hides the field client-side, but the form doesn't
+    trust that alone)."""
+
+    class Meta:
+        model = PriceCatalogItem
+        fields = ['name', 'item_type', 'non_chemical_mean', 'default_price']
+        widgets = {
+            'name': forms.TextInput(attrs={'placeholder': 'напр. Извънредно посещение'}),
+            'default_price': forms.TextInput(attrs={
+                'placeholder': 'напр. 3.50 (по избор)', 'inputmode': 'decimal',
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        # Same comma/dot normalization as OneTimeTreatmentForm — Django's
+        # own DecimalField validation runs before clean_default_price()
+        # and rejects a comma outright, so normalize before the form binds.
+        data = args[0] if args else kwargs.get('data')
+        if data:
+            data = data.copy()
+            if data.get('default_price'):
+                data['default_price'] = str(data['default_price']).replace(',', '.')
+            if args:
+                args = (data,) + args[1:]
+            else:
+                kwargs['data'] = data
+        super().__init__(*args, **kwargs)
+        self.fields['non_chemical_mean'].required = False
+        self.fields['non_chemical_mean'].queryset = (
+            NonChemicalMean.objects.filter(deleted_at__isnull=True).order_by('category', 'name')
+        )
+        self.fields['default_price'].required = False
+
+    def clean_default_price(self):
+        raw = (self.data.get('default_price') or '').strip()
+        if not raw:
+            return None
+        raw = raw.replace(',', '.')
+        try:
+            return Decimal(raw)
+        except InvalidOperation:
+            raise forms.ValidationError("Въведете валидна цена (напр. 3.50 или 3,50).")
+
+    def clean(self):
+        cleaned = super().clean()
+        # A service item is never linked to a non-chemical product —
+        # product is the only type this relationship makes sense for.
+        if cleaned.get('item_type') == PriceCatalogItem.ItemType.SERVICE:
+            cleaned['non_chemical_mean'] = None
+        return cleaned
+
+
 class WorkerForm(forms.ModelForm):
     class Meta:
         model = Worker
@@ -260,7 +317,7 @@ class OneTimeTreatmentForm(forms.ModelForm):
             'pseudonym', 'address',
             'date', 'time_from', 'time_to',
             'pests', 'pests_other', 'executed_by', 'tags',
-            'price', 'tax_included', 'price_with_tax', 'document_status', 'notes',
+            'tax_included', 'document_status', 'payment_type', 'notes',
         ]
         widgets = {
             'pseudonym':     forms.TextInput(attrs={'placeholder': 'напр. бл.41, Ап. 43'}),
@@ -271,29 +328,17 @@ class OneTimeTreatmentForm(forms.ModelForm):
             'pests_other':   forms.TextInput(attrs={'placeholder': 'опишете, разделени със запетая — напр. молци, бълхи'}),
             'executed_by':   forms.CheckboxSelectMultiple(),
             'tags':          forms.CheckboxSelectMultiple(),
-            'price':         forms.NumberInput(attrs={'placeholder': '85.00', 'step': '0.01', 'min': '0'}),
             'tax_included':  forms.CheckboxInput(),
-            'price_with_tax': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
             'notes':         forms.Textarea(attrs={'rows': 3, 'placeholder': 'Бележки…'}),
         }
+        # price / price_with_tax are NOT form fields anymore (Stage 5 —
+        # price module): they're computed from the line-items table by
+        # _save_treatment_line_items() after this form saves, same as
+        # Protocol (Stage 4). payment_type follows document_status's
+        # existing pattern — a real Meta field, but rendered by hand as a
+        # hidden input + pill switch in the template, not the default widget.
 
     def __init__(self, *args, **kwargs):
-        # Bulgarian locale renders decimals with a comma (e.g. "38,50").
-        # Django's built-in DecimalField validation runs BEFORE
-        # clean_price()/clean_price_with_tax() and rejects comma input
-        # outright ("Enter a number"), which made those methods'
-        # comma-handling unreachable dead code — normalize here instead,
-        # before the form is even bound.
-        data = args[0] if args else kwargs.get('data')
-        if data:
-            data = data.copy()
-            for key in ('price', 'price_with_tax'):
-                if data.get(key):
-                    data[key] = str(data[key]).replace(',', '.')
-            if args:
-                args = (data,) + args[1:]
-            else:
-                kwargs['data'] = data
         super().__init__(*args, **kwargs)
         self.fields['pests'].queryset = (
             Pest.objects.filter(deleted_at__isnull=True).order_by('category', 'name')
@@ -306,33 +351,6 @@ class OneTimeTreatmentForm(forms.ModelForm):
         )
         if self.instance.pk:
             self.fields['service_types'].initial = self.instance.service_types or []
-
-    def clean_price(self):
-        """Accept both dot and comma as decimal separator (Bulgarian locale renders
-        Decimal values with a comma, so the submitted value may be e.g. '38,50')."""
-        from decimal import Decimal, InvalidOperation
-        raw = self.data.get('price', '').strip()
-        if not raw:
-            return None
-        raw = raw.replace(',', '.')
-        try:
-            return Decimal(raw)
-        except InvalidOperation:
-            raise forms.ValidationError("Въведете валидна цена (напр. 85.00 или 85,00).")
-
-    def clean_price_with_tax(self):
-        """Same comma/dot handling as clean_price() — this field is normally
-        computed client-side, but must survive a server-side validation
-        round-trip on error the same way."""
-        from decimal import Decimal, InvalidOperation
-        raw = self.data.get('price_with_tax', '').strip()
-        if not raw:
-            return None
-        raw = raw.replace(',', '.')
-        try:
-            return Decimal(raw)
-        except InvalidOperation:
-            raise forms.ValidationError("Въведете валидна цена (напр. 85.00 или 85,00).")
 
     def clean_notes(self):
         # Stage 10e-3 — see ClientForm.clean_notes().

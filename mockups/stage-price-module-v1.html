@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<title>Price module — V1 (line items + СД/БД + В брой/По банка)</title>
+<style>
+  :root{
+    --p-bg:        #ffffff;
+    --p-surface:   #f6f4ef;
+    --p-border:    #a8aebd;
+    --p-borderL:   #c8cdd6;
+    --p-text:      #0d1117;
+    --p-textM:     #3a4154;
+    --p-textD:     #0d1117;
+    --c-coral:     #ffa686;
+    --c-clay:      #d6a184;
+    --ok-green:    #2d7a4a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Segoe UI",sans-serif;background:#e4e6ec;
+       display:flex;justify-content:center;padding:40px 16px;min-height:100vh;color:var(--p-text)}
+  .page-label{position:fixed;top:14px;left:18px;font-size:12px;color:#fff;background:#3a4154;
+       padding:4px 10px;border-radius:8px;font-weight:600;letter-spacing:.03em;z-index:50}
+  .wrap{width:720px}
+
+  .source-note{background:#fff;border:1px solid var(--p-border);border-radius:8px;
+       padding:12px 16px;margin-bottom:18px;font-size:12.5px;color:var(--p-textM);line-height:1.6}
+  .source-note b{color:var(--p-text)}
+  .source-note .tag{display:inline-block;background:rgba(255,166,134,.18);color:#b05030;
+       border-radius:10px;padding:1px 8px;font-size:10.5px;font-weight:700;margin-left:6px}
+
+  .card{background:var(--p-bg);border:1px solid var(--p-border);border-radius:6px;
+       padding:16px 18px 18px;box-shadow:0 2px 10px rgba(13,17,23,.05)}
+
+  /* ── Мирроred from the real editor's .pe-meta-* classes ── */
+  .pe-meta-hint{font-size:10.5px;color:var(--p-textM);font-style:italic;margin-bottom:12px}
+  .pe-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px}
+  .pe-meta-row{display:flex;flex-direction:column;gap:4px}
+  .pe-meta-row-wide{grid-column:1/-1}
+  .pe-meta-row label{font-size:11px;font-weight:700;color:var(--p-textD);
+       text-transform:uppercase;letter-spacing:.05em}
+  .pe-meta-row input,.pe-meta-row textarea{background:var(--p-bg);border:1px solid var(--p-border);
+       border-radius:4px;color:var(--p-text);padding:6px 10px;font-size:13px;width:100%;font:inherit}
+  .pe-meta-row textarea{resize:vertical;min-height:44px}
+  .pe-meta-empty{font-size:11px;color:var(--p-textM);font-style:italic}
+  .faded{opacity:.55}
+
+  /* ── Header controls row: label + tax + СД/БД + В брой/По банка ── */
+  .price-hdr{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin-bottom:12px}
+  .price-hdr-title{font-size:11px;font-weight:700;color:var(--p-textD);
+       text-transform:uppercase;letter-spacing:.05em}
+  .hdr-ctl{display:flex;align-items:center;gap:5px;font-weight:400}
+  .hdr-ctl-lbl{font-size:11px;color:var(--p-textM)}
+  .hdr-ctl input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--c-coral)}
+
+  /* Both switches now share the exact same rounding — was a full pill for
+     СД/БД and a smaller rectangle for В брой/По банка, standardized to the
+     rectangle since the longer cash/bank labels don't read well as a pill. */
+  .pill-switch{display:flex;border:1px solid var(--p-border);border-radius:6px;overflow:hidden;
+       cursor:pointer;user-select:none;flex-shrink:0}
+  .pill-opt{padding:3px 9px;font-size:10.5px;font-weight:700;letter-spacing:.03em;
+       color:var(--p-textM);transition:all .12s}
+  .pill-opt.on{background:var(--c-coral);color:#fff}
+
+  /* ── Line items table ── */
+  .li-table{border:1px solid var(--p-border);border-radius:6px;overflow:hidden;margin-bottom:10px}
+  .li-row{display:grid;grid-template-columns:1fr 78px 100px 100px 28px;gap:8px;align-items:center;
+       padding:8px 10px;border-bottom:1px solid var(--p-borderL);font-size:12.5px;background:#fff}
+  .li-row:last-child{border-bottom:none}
+  .li-row.li-head{background:var(--p-surface);font-size:10px;font-weight:700;text-transform:uppercase;
+       letter-spacing:.05em;color:var(--p-textM);padding-top:7px;padding-bottom:7px}
+  .li-row.attention{background:#fff7e8}
+  .li-item{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .li-item-name{font-weight:600;color:var(--p-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .li-item-meta{display:flex;align-items:center;gap:5px}
+  .li-badge{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;
+       padding:1px 6px;border-radius:8px;flex-shrink:0}
+  .li-badge.product{background:rgba(45,122,74,.12);color:var(--ok-green)}
+  .li-badge.service{background:rgba(58,65,84,.1);color:var(--p-textM)}
+  .li-link-icon{color:var(--p-textM)}
+  .li-num-input{width:100%;padding:5px 7px;border:1px solid var(--p-border);border-radius:4px;
+       font-size:12.5px;text-align:right;font:inherit;color:var(--p-text)}
+  .li-num-input:focus{border-color:var(--c-coral);outline:none;box-shadow:0 0 0 3px rgba(255,166,134,.2)}
+  .li-num-input::placeholder{color:var(--p-borderL)}
+  .li-total{text-align:right;font-weight:700;color:var(--p-text);font-size:12.5px}
+  .li-total.blank{color:var(--p-textM);font-weight:400}
+  .li-del{width:22px;height:22px;border-radius:5px;border:none;background:transparent;
+       color:var(--p-textM);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .li-del:hover{background:rgba(192,80,60,.1);color:#c0503c}
+
+  /* ── Add-item row: catalog search + a separate "+ Нов елемент" button
+     next to it, no longer nested inside the dropdown ── */
+  .li-add-row{display:flex;gap:8px;margin-bottom:16px}
+  .li-add-wrap{position:relative;flex:1}
+  .li-add-input{width:100%;padding:8px 10px;border:1px dashed var(--p-border);border-radius:6px;
+       font-size:12.5px;color:var(--p-textM);background:var(--p-surface);font:inherit}
+  .li-add-input:focus{outline:none;border-color:var(--c-coral);border-style:solid;color:var(--p-text)}
+  .li-dd{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;
+       border:1px solid var(--p-border);border-radius:6px;box-shadow:0 6px 18px rgba(13,17,23,.12);
+       max-height:230px;overflow-y:auto;z-index:10}
+  .li-dd-opt{padding:8px 10px;border-bottom:1px solid var(--p-borderL);cursor:pointer;
+       display:flex;align-items:center;justify-content:space-between;font-size:12.5px}
+  .li-dd-opt:last-child{border-bottom:none}
+  .li-dd-opt:hover{background:var(--p-surface)}
+  .li-dd-opt-name{display:flex;align-items:center;gap:6px}
+  .li-dd-opt-price{color:var(--p-textM);font-size:11.5px}
+  .li-new-btn{flex-shrink:0;padding:0 14px;border:1px dashed var(--c-clay);border-radius:6px;
+       background:var(--p-surface);color:#b05030;font-weight:600;font-size:12.5px;cursor:pointer;
+       white-space:nowrap}
+  .li-new-btn:hover{background:#fff;border-style:solid}
+
+  /* ── Inline "new catalog item" form ── */
+  .new-item-form{border:1px dashed var(--c-clay);border-radius:6px;padding:12px;margin-bottom:16px;
+       background:var(--p-surface)}
+  .nif-row{display:flex;gap:8px;margin-bottom:8px}
+  .nif-row .pe-meta-row{flex:1;gap:3px}
+  .nif-type-toggle{display:flex;gap:6px;margin-bottom:8px}
+  .nif-type-opt{flex:1;text-align:center;padding:7px;font-size:12px;border-radius:6px;cursor:pointer;
+       border:1px solid var(--p-border);background:#fff;color:var(--p-textM)}
+  .nif-type-opt.on{background:var(--c-coral);color:#fff;border-color:var(--c-coral);font-weight:600}
+  .nif-ncm-row{display:none}
+  .nif-ncm-row.show{display:flex}
+  .nif-actions{display:flex;justify-content:flex-end;gap:6px}
+  .btn-cancel{padding:6px 14px;font-size:12px;color:var(--p-textM);border:1px solid var(--p-border);
+       border-radius:4px;background:#fff;cursor:pointer}
+  .btn-save{padding:6px 14px;font-size:12px;font-weight:600;background:var(--c-coral);color:#fff;
+       border-radius:4px;border:none;cursor:pointer}
+
+  /* ── Bottom totals — with-tax is no longer a special red; it's just the
+     same black text, and goes blank + a little transparent when VAT is off
+     instead of quietly mirroring the net total ── */
+  .li-totals{display:flex;justify-content:flex-end;gap:28px;padding-top:12px;
+       border-top:1px solid var(--p-border)}
+  .li-totals-block{text-align:right}
+  .li-totals-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+       color:var(--p-textM);margin-bottom:2px}
+  .li-totals-val{font-size:17px;font-weight:800;color:var(--p-text);transition:opacity .12s}
+  .li-totals-val.blank{opacity:.4;font-weight:600}
+
+  .legend{margin-top:18px;background:#fff;border:1px solid var(--p-border);border-radius:8px;
+       padding:12px 16px;font-size:12px;color:var(--p-textM);line-height:1.8}
+  .legend b{color:var(--p-text)}
+</style>
+</head>
+<body>
+<div class="page-label">Price module — v1 mockup (rev. 2)</div>
+<div class="wrap">
+
+  <div class="source-note">
+    Данни от реален протокол: <b>Виктория Нутс — Производство</b> (15.06.2026, склад/обект „Фабрика ВикторияНутс“, стара цена 210.00 €).<span class="tag">РЕАЛНИ ДАННИ</span><br>
+    ДДС е включен нарочно за този мокъп (за да се види как изглежда сумата с ДДС) — самият реален протокол в момента е без ДДС. Изключете „с ДДС“ горе, за да видите другото състояние.
+  </div>
+
+  <div class="card">
+    <div class="pe-meta-grid">
+
+      <!-- Notes row — shown abbreviated, unchanged, just for layout context -->
+      <div class="pe-meta-row pe-meta-row-wide faded">
+        <label>Бележки</label>
+        <textarea disabled placeholder="Вътрешни бележки за този протокол…"></textarea>
+      </div>
+
+      <!-- ═══ THE REDESIGNED PRICE MODULE ═══ -->
+      <div class="pe-meta-row pe-meta-row-wide">
+
+        <div class="price-hdr">
+          <span class="price-hdr-title">Цена</span>
+          <label class="hdr-ctl">
+            <span class="hdr-ctl-lbl">с ДДС</span>
+            <input type="checkbox" id="li-tax-toggle" checked onchange="liRecalc()">
+          </label>
+          <div class="pill-switch" id="li-doc-switch" onclick="liToggle2(this)" title="С документ / Без документ">
+            <span class="pill-opt on">СД</span>
+            <span class="pill-opt">БД</span>
+          </div>
+          <div class="pill-switch" id="li-pay-switch" onclick="liToggle2(this)" title="В брой / По банка">
+            <span class="pill-opt on">В брой</span>
+            <span class="pill-opt">По банка</span>
+          </div>
+        </div>
+
+        <div class="li-table" id="li-table">
+          <div class="li-row li-head">
+            <div>Артикул</div>
+            <div style="text-align:right">Кол.</div>
+            <div style="text-align:right">Цена/бр.</div>
+            <div style="text-align:right">Общо</div>
+            <div></div>
+          </div>
+
+          <!-- 1. Migrated flat price → "Други" (service, no link, frozen historical amount) -->
+          <div class="li-row">
+            <div class="li-item">
+              <span class="li-item-name">Други</span>
+              <span class="li-item-meta"><span class="li-badge service">Услуга</span></span>
+            </div>
+            <input class="li-num-input li-qty" type="text" inputmode="decimal" value="1" oninput="liRecalc()">
+            <input class="li-num-input li-price" type="text" inputmode="decimal" value="210.00" oninput="liRecalc()">
+            <div class="li-total">210.00 €</div>
+            <button class="li-del" title="Премахни" onclick="liRemoveRow(this)">✕</button>
+          </div>
+
+          <!-- 2. NCM-linked product item, already edited by the user -->
+          <div class="li-row">
+            <div class="li-item">
+              <span class="li-item-name">Неотровни лепливи дератизационни капани</span>
+              <span class="li-item-meta">
+                <span class="li-badge product">Продукт</span>
+                <span class="li-link-icon" title="Свързан нехим. продукт">🔗</span>
+              </span>
+            </div>
+            <input class="li-num-input li-qty" type="text" inputmode="decimal" value="8" oninput="liRecalc()">
+            <input class="li-num-input li-price" type="text" inputmode="decimal" value="3,50" oninput="liRecalc()">
+            <div class="li-total">28.00 €</div>
+            <button class="li-del" title="Премахни" onclick="liRemoveRow(this)">✕</button>
+          </div>
+
+          <!-- 3. NCM-linked product item, also edited — price typed with a dot
+               here on purpose, to show both delimiters work side by side -->
+          <div class="li-row">
+            <div class="li-item">
+              <span class="li-item-name">Лаплива плоскост за инсектицидна лампа</span>
+              <span class="li-item-meta">
+                <span class="li-badge product">Продукт</span>
+                <span class="li-link-icon" title="Свързан нехим. продукт">🔗</span>
+              </span>
+            </div>
+            <input class="li-num-input li-qty" type="text" inputmode="decimal" value="4" oninput="liRecalc()">
+            <input class="li-num-input li-price" type="text" inputmode="decimal" value="2.20" oninput="liRecalc()">
+            <div class="li-total">8.80 €</div>
+            <button class="li-del" title="Премахни" onclick="liRemoveRow(this)">✕</button>
+          </div>
+
+          <!-- 4. NCM-linked product item, STILL unedited since migration —
+               no label calling it out anymore; blank price (not 0.00) is
+               what actually signals "not filled in yet" now -->
+          <div class="li-row attention">
+            <div class="li-item">
+              <span class="li-item-name">Леплива феромонова примамка срещу плодов молец</span>
+              <span class="li-item-meta">
+                <span class="li-badge product">Продукт</span>
+                <span class="li-link-icon" title="Свързан нехим. продукт">🔗</span>
+              </span>
+            </div>
+            <input class="li-num-input li-qty" type="text" inputmode="decimal" value="0" oninput="liRecalc()">
+            <input class="li-num-input li-price" type="text" inputmode="decimal" value="" placeholder="0.00" oninput="liRecalc()">
+            <div class="li-total blank">—</div>
+            <button class="li-del" title="Премахни" onclick="liRemoveRow(this)">✕</button>
+          </div>
+
+          <!-- 5. Freshly added service item, no catalog default price -->
+          <div class="li-row">
+            <div class="li-item">
+              <span class="li-item-name">Извънредно посещение</span>
+              <span class="li-item-meta"><span class="li-badge service">Услуга</span></span>
+            </div>
+            <input class="li-num-input li-qty" type="text" inputmode="decimal" value="1" oninput="liRecalc()">
+            <input class="li-num-input li-price" type="text" inputmode="decimal" value="45.00" oninput="liRecalc()">
+            <div class="li-total">45.00 €</div>
+            <button class="li-del" title="Премахни" onclick="liRemoveRow(this)">✕</button>
+          </div>
+        </div>
+
+        <!-- Add-item row: catalog search + a separate, always-visible
+             "+ Нов елемент" button next to it -->
+        <div class="li-add-row">
+          <div class="li-add-wrap">
+            <input class="li-add-input" id="li-add-input" placeholder="+ Добави артикул от каталога…" onfocus="liShowDD()">
+            <div class="li-dd" id="li-dd" style="display:none">
+              <div class="li-dd-opt" onclick="liAddCatalogRow('Лепливи инсектицидни капани за хлебарки','product',2.00)">
+                <span class="li-dd-opt-name"><span class="li-badge product">Продукт</span> Лепливи инсектицидни капани за хлебарки</span>
+                <span class="li-dd-opt-price">2.00 €</span>
+              </div>
+              <div class="li-dd-opt" onclick="liAddCatalogRow('Профилактичен преглед','service',null)">
+                <span class="li-dd-opt-name"><span class="li-badge service">Услуга</span> Профилактичен преглед</span>
+                <span class="li-dd-opt-price">—</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="li-new-btn" onclick="liOpenNewItemForm()">+ Нов елемент</button>
+        </div>
+
+        <!-- Inline "create new catalog item" form — shown when "+ Нов елемент" is picked -->
+        <div class="new-item-form" id="li-new-form" style="display:none">
+          <div class="nif-row">
+            <div class="pe-meta-row">
+              <label>Наименование</label>
+              <input id="nif-name-input" placeholder="напр. Извънредно посещение">
+            </div>
+          </div>
+          <div class="nif-type-toggle" id="nif-type-toggle">
+            <div class="nif-type-opt on" onclick="nifSetType(this,'product')">Продукт</div>
+            <div class="nif-type-opt" onclick="nifSetType(this,'service')">Услуга</div>
+          </div>
+          <div class="nif-row nif-ncm-row show" id="nif-ncm-row">
+            <div class="pe-meta-row">
+              <label>Свързан нехим. продукт <span style="font-weight:400;color:var(--p-textM)">(по избор)</span></label>
+              <input placeholder="Търси нехим. продукт…">
+            </div>
+          </div>
+          <div class="nif-row" id="nif-price-row">
+            <div class="pe-meta-row">
+              <label>Цена по подразбиране <span style="font-weight:400;color:var(--p-textM)">(по избор — оставете празно ако няма)</span></label>
+              <input type="text" inputmode="decimal" id="nif-default-price" placeholder="напр. 3.50">
+            </div>
+          </div>
+          <div class="nif-actions">
+            <button class="btn-cancel" onclick="liCloseNewItemForm()">Откажи</button>
+            <button class="btn-save" onclick="liCreateAndAdd()">Създай и добави</button>
+          </div>
+        </div>
+
+        <!-- Bottom aggregate totals — replaces the old single editable price -->
+        <div class="li-totals">
+          <div class="li-totals-block">
+            <div class="li-totals-lbl">Обща сума без ДДС</div>
+            <div class="li-totals-val" id="li-total-net">291.80 €</div>
+          </div>
+          <div class="li-totals-block">
+            <div class="li-totals-lbl">Обща сума с ДДС</div>
+            <div class="li-totals-val" id="li-total-gross">350.16 €</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tags row — shown abbreviated, unchanged, just for layout context -->
+      <div class="pe-meta-row pe-meta-row-wide faded">
+        <label>Етикети</label>
+        <div class="pe-meta-empty">Складове, Дългосрочен договор…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <b>Промени от предната версия:</b><br>
+    Цената при услуга (и всяка празна цена изобщо) вече остава празна, вместо да пада на 0.00 — редът за „Леплива феромонова примамка…“ по-долу показва точно това състояние (количество 0, цена празна, общо „—“), без изричен надпис че идва от миграцията.<br>
+    Числата приемат точка и запетая еднакво — ред 2 по-горе е въведен с запетая (3,50), ред 3 с точка (2.20), и двете смятат правилно.<br>
+    „+ Нов елемент“ вече е самостоятелен бутон до полето за търсене, не е част от падащия списък.<br>
+    СД/БД и В брой/По банка вече имат едно и също заобляне на ъглите.<br>
+    Сумата с ДДС вече е черна като другата (без червено); когато „с ДДС“ е изключен, полето остава празно и леко прозрачно, вместо мълчаливо да показва същото число като сумата без ДДС.
+  </div>
+
+</div>
+
+<script>
+const VAT = 0.20;
+
+// Accepts either "," or "." as the decimal separator (BG keyboards default
+// to comma; typed dots must keep working too) — returns null for blank/
+// invalid so callers can tell "not filled in" apart from a real zero.
+function liNum(raw) {
+  const v = (raw || '').toString().trim().replace(',', '.');
+  if (v === '') return null;
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
+function liRecalc() {
+  const rows = document.querySelectorAll('#li-table .li-row:not(.li-head)');
+  let net = 0;
+  rows.forEach(row => {
+    const qtyEl = row.querySelector('.li-qty');
+    const priceEl = row.querySelector('.li-price');
+    if (!qtyEl || !priceEl) return;
+    const qty = liNum(qtyEl.value) || 0;
+    const price = liNum(priceEl.value);
+    const totalEl = row.querySelector('.li-total');
+    if (price === null) {
+      totalEl.textContent = '—';
+      totalEl.classList.add('blank');
+      return;
+    }
+    totalEl.classList.remove('blank');
+    const lineTotal = qty * price;
+    totalEl.textContent = lineTotal.toFixed(2) + ' €';
+    net += lineTotal;
+  });
+
+  const taxOn = document.getElementById('li-tax-toggle').checked;
+  document.getElementById('li-total-net').textContent = net.toFixed(2) + ' €';
+  const grossEl = document.getElementById('li-total-gross');
+  if (taxOn) {
+    grossEl.textContent = (net * (1 + VAT)).toFixed(2) + ' €';
+    grossEl.classList.remove('blank');
+  } else {
+    grossEl.textContent = '—';
+    grossEl.classList.add('blank');
+  }
+}
+
+function liRemoveRow(btn) {
+  btn.closest('.li-row').remove();
+  liRecalc();
+}
+
+// СД/БД and В брой/По банка — simple two-option pill switches, click flips
+// whichever side isn't currently active.
+function liToggle2(el) {
+  const opts = el.querySelectorAll('.pill-opt');
+  opts[0].classList.toggle('on');
+  opts[1].classList.toggle('on');
+}
+
+function liShowDD() {
+  document.getElementById('li-dd').style.display = 'block';
+}
+document.addEventListener('click', (e) => {
+  const wrap = document.querySelector('.li-add-wrap');
+  if (wrap && !wrap.contains(e.target)) document.getElementById('li-dd').style.display = 'none';
+});
+
+function liAddCatalogRow(name, type, defaultPrice) {
+  document.getElementById('li-dd').style.display = 'none';
+  document.getElementById('li-add-input').value = '';
+  liAppendRow(name, type, defaultPrice, 1);
+}
+
+function liOpenNewItemForm() {
+  document.getElementById('li-dd').style.display = 'none';
+  document.getElementById('li-new-form').style.display = 'block';
+  document.getElementById('nif-name-input').focus();
+}
+function liCloseNewItemForm() {
+  document.getElementById('li-new-form').style.display = 'none';
+  document.getElementById('nif-name-input').value = '';
+  document.getElementById('nif-default-price').value = '';
+}
+function nifSetType(el, type) {
+  document.querySelectorAll('#nif-type-toggle .nif-type-opt').forEach(o => o.classList.remove('on'));
+  el.classList.add('on');
+  // NCM link + default price only make sense for a product-type item.
+  document.getElementById('nif-ncm-row').classList.toggle('show', type === 'product');
+  document.getElementById('nif-price-row').style.display = type === 'product' ? '' : 'none';
+}
+function liCreateAndAdd() {
+  const name = document.getElementById('nif-name-input').value.trim() || 'Нов елемент';
+  const isProduct = document.querySelector('#nif-type-toggle .nif-type-opt.on').textContent.trim() === 'Продукт';
+  const price = liNum(document.getElementById('nif-default-price').value); // null if left blank — stays blank
+  liAppendRow(name, isProduct ? 'product' : 'service', price, 1);
+  liCloseNewItemForm();
+}
+
+function liAppendRow(name, type, price, qty) {
+  const table = document.getElementById('li-table');
+  const row = document.createElement('div');
+  row.className = 'li-row';
+  const badge = type === 'product'
+    ? '<span class="li-badge product">Продукт</span>'
+    : '<span class="li-badge service">Услуга</span>';
+  const priceVal = price != null ? price.toFixed(2) : '';
+  row.innerHTML = `
+    <div class="li-item">
+      <span class="li-item-name"></span>
+      <span class="li-item-meta">${badge}</span>
+    </div>
+    <input class="li-num-input li-qty" type="text" inputmode="decimal" value="${qty}" oninput="liRecalc()">
+    <input class="li-num-input li-price" type="text" inputmode="decimal" value="${priceVal}" placeholder="0.00" oninput="liRecalc()">
+    <div class="li-total">0.00 €</div>
+    <button class="li-del" title="Премахни" onclick="liRemoveRow(this)">✕</button>`;
+  row.querySelector('.li-item-name').textContent = name;
+  table.appendChild(row);
+  liRecalc();
+}
+</script>
+</body>
+</html>

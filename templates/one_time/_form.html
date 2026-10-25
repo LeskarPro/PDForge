@@ -283,15 +283,15 @@
       </div>
     </div>
 
-    <!-- ── 7. Price ── -->
+    <!-- ── 7. Price module (line items — Stage 5) ── -->
     <div class="fsection">
-      <div class="fsection-title" style="display:flex;align-items:center;gap:10px;">
+      <div class="fsection-title" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <span>Цена</span>
         <span style="display:flex;align-items:center;gap:5px;font-weight:400;text-transform:none;letter-spacing:0;">
           <span style="font-size:11px;color:var(--text-muted);">с ДДС</span>
           <input type="checkbox" id="ot-tax-included" name="tax_included" value="1"
                  {% if form.tax_included.value %}checked{% endif %}
-                 onchange="otTaxToggle()"
+                 onchange="liRenderTotals()"
                  style="width:14px;height:14px;cursor:pointer;accent-color:var(--c-coral);">
         </span>
         <div class="ot-doc-switch" onclick="otToggleDocStatus()" title="С документ / Без документ">
@@ -300,20 +300,108 @@
         </div>
         <input type="hidden" name="document_status" id="ot-document-status"
                value="{{ form.document_status.value|default:'С документ' }}">
+        <div class="ot-doc-switch" onclick="otTogglePaymentType()" title="В брой / По банка">
+          <span class="ot-doc-opt" id="ot-pay-opt-cash">В брой</span>
+          <span class="ot-doc-opt" id="ot-pay-opt-bank">По банка</span>
+        </div>
+        <input type="hidden" name="payment_type" id="ot-payment-type"
+               value="{{ form.payment_type.value|default:'В брой' }}">
       </div>
-      <div class="form-group">
-        <input class="form-input" type="text" inputmode="decimal" id="ot-price" name="price"
-               value="{{ form.price.value|default_if_none:''|stringformat:'s' }}"
-               placeholder="Цена без ДДС (85.00)"
-               oninput="otNetPriceInput()" style="margin-bottom:6px;">
-        {% for e in form.price.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
-        <input class="form-input" type="text" inputmode="decimal" id="ot-price-with-tax" name="price_with_tax"
-               value="{{ form.price_with_tax.value|default_if_none:''|stringformat:'s' }}"
-               placeholder="Цена с ДДС"
-               oninput="otGrossPriceInput()">
-        {% for e in form.price_with_tax.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+
+      <table class="li-table">
+        <thead>
+          <tr>
+            <th>Артикул</th>
+            <th style="text-align:right">Кол.</th>
+            <th style="text-align:right">Цена/бр.</th>
+            <th style="text-align:right">Общо</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="li-rows">
+          {% for item in existing_line_items %}
+          <tr class="li-row">
+            <td>
+              <div class="li-name-cell">
+                <span class="li-name-text">{{ item.name }}</span>
+                <span class="li-badge {{ item.item_type }}">{% if item.item_type == 'product' %}Продукт{% else %}Услуга{% endif %}</span>
+              </div>
+              <input type="hidden" name="li_catalog_item_id" value="{{ item.catalog_item_id }}">
+              <input type="hidden" name="li_name" value="{{ item.name }}">
+              <input type="hidden" name="li_item_type" value="{{ item.item_type }}">
+              <input type="hidden" name="li_has_ncm_link" value="{% if item.has_ncm_link %}1{% endif %}">
+            </td>
+            <td><input type="text" inputmode="decimal" class="li-num li-qty" name="li_quantity"
+                       value="{{ item.quantity }}" oninput="liRecalcRow(this)" onblur="liNormalizeSeparator(this)"></td>
+            <td><input type="text" inputmode="decimal" class="li-num li-price" name="li_price"
+                       value="{{ item.price }}" placeholder="0.00" oninput="liRecalcRow(this)" onblur="liNormalizeSeparator(this)"></td>
+            <td class="li-total">—</td>
+            <td style="text-align:center">
+              <button type="button" class="btn-rm" onclick="liRemoveRow(this)" title="Премахни">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="li-empty-note" id="li-empty-note" style="{% if existing_line_items %}display:none{% endif %}">
+        Няма добавени артикули.
+      </div>
+
+      <div class="li-add-row">
+        <div class="li-add-wrap" id="li-add-wrap">
+          <input type="text" class="li-add-input" id="li-add-q"
+                 placeholder="+ Добави артикул от каталога…" oninput="liFilterDD()" onfocus="liShowDD()">
+          <div class="li-dd" id="li-dd" style="display:none"></div>
+        </div>
+        <button type="button" class="li-new-btn" onclick="liOpenNewForm()">+ Нов елемент</button>
+      </div>
+
+      <!-- Inline "create new catalog item" form — POSTs to the real
+           Ценообразуване catalog (price_catalog_create_inline), then adds
+           the freshly created item as a line — mirrors the "+ Нов етикет"
+           create-and-attach flow above. -->
+      <div class="li-new-form" id="li-new-form" style="display:none">
+        <div class="li-nif-type" id="li-nif-type">
+          <div class="li-nif-type-opt on" data-type="product" onclick="liNifSetType(this)">Продукт</div>
+          <div class="li-nif-type-opt" data-type="service" onclick="liNifSetType(this)">Услуга</div>
+        </div>
+        <input type="text" class="form-input" id="li-nif-name" placeholder="напр. Извънредно посещение" style="margin-bottom:8px;margin-top:8px;">
+        <div class="form-group" id="li-nif-ncm-row">
+          <label class="form-label" style="text-transform:none;letter-spacing:0;font-weight:400;">Свързан нехим. продукт <span style="color:var(--text-muted);">(по избор)</span></label>
+          <select class="form-input" id="li-nif-ncm">
+            <option value="">— без връзка —</option>
+            {% for m in all_ncm %}
+              <option value="{{ m.id }}">{{ m.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="text-transform:none;letter-spacing:0;font-weight:400;">Цена по подразбиране <span style="color:var(--text-muted);">(по избор)</span></label>
+          <input type="text" inputmode="decimal" class="form-input" id="li-nif-price" placeholder="напр. 3.50" onblur="liNormalizeSeparator(this)">
+        </div>
+        <div class="li-nif-err" id="li-nif-err" style="display:none;color:#c0392b;font-size:11.5px;margin-bottom:6px;"></div>
+        <div class="li-nif-actions">
+          <button type="button" class="btn-cancel" onclick="liCloseNewForm()">Откажи</button>
+          <button type="button" class="btn-save" id="li-nif-save" onclick="liCreateAndAdd()">Създай и добави</button>
+        </div>
+      </div>
+
+      <div class="li-totals">
+        <div class="li-totals-block">
+          <div class="li-totals-lbl">Сума без ДДС</div>
+          <div class="li-totals-val net" id="li-total-net">0.00 лв</div>
+        </div>
+        <div class="li-totals-block">
+          <div class="li-totals-lbl">Сума с ДДС</div>
+          <div class="li-totals-val blank" id="li-total-gross">—</div>
+        </div>
       </div>
     </div>
+    {{ price_catalog|json_script:"li-price-catalog-data" }}
 
     <!-- ── 8. Notes ── -->
     <div class="fsection">
@@ -339,29 +427,197 @@
 <script>
 const OT_VAT_PERCENT = {{ app_settings.vat_percent|default:20|stringformat:"s" }};
 
-function otNetPriceInput() {
-  const taxOn = document.getElementById('ot-tax-included').checked;
-  if (!taxOn) return;
-  const net = document.getElementById('ot-price').value;
-  const grossField = document.getElementById('ot-price-with-tax');
-  grossField.value = net === '' ? '' : (parseFloat(net.replace(',', '.')) * (1 + OT_VAT_PERCENT / 100)).toFixed(2);
+// ── Price module (Stage 5) — line items replace the old flat price
+// fields. price/price_with_tax are computed SERVER-SIDE from these rows
+// on save (see _save_treatment_line_items); everything here is just the
+// live on-screen total while editing. Rows are plain DOM <tr>s (no shadow
+// JS array), same convention as the Products table above.
+const LI_PRICE_CATALOG = JSON.parse(document.getElementById('li-price-catalog-data').textContent);
+
+function liNum(v) {
+  if (v === '' || v === null || v === undefined) return null;
+  const n = parseFloat(String(v).replace(',', '.'));
+  return isNaN(n) ? null : n;
 }
-function otGrossPriceInput() {
-  document.getElementById('ot-tax-included').checked = true;
-  const gross = document.getElementById('ot-price-with-tax').value;
-  const netField = document.getElementById('ot-price');
-  netField.value = gross === '' ? '' : (parseFloat(gross.replace(',', '.')) / (1 + OT_VAT_PERCENT / 100)).toFixed(2);
+function liNormalizeSeparator(el) {
+  if (el.value.includes(',')) el.value = el.value.replace(',', '.');
 }
-function otTaxToggle() {
+function liEsc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s || '');
+  return d.innerHTML;
+}
+function liRecalcRow(el) {
+  const row = el.closest('.li-row');
+  const qty = liNum(row.querySelector('.li-qty').value);
+  const price = liNum(row.querySelector('.li-price').value);
+  const totalEl = row.querySelector('.li-total');
+  if (price === null) {
+    totalEl.textContent = '—';
+    totalEl.classList.add('blank');
+  } else {
+    totalEl.classList.remove('blank');
+    totalEl.textContent = ((qty || 0) * price).toFixed(2) + ' лв';
+  }
+  liRenderTotals();
+}
+function liRenderTotals() {
+  let net = 0;
+  document.querySelectorAll('#li-rows .li-row').forEach(row => {
+    const qty = liNum(row.querySelector('.li-qty').value) || 0;
+    const price = liNum(row.querySelector('.li-price').value);
+    if (price !== null) net += qty * price;
+  });
+  document.getElementById('li-total-net').textContent = net.toFixed(2) + ' лв';
   const taxOn = document.getElementById('ot-tax-included').checked;
-  const grossField = document.getElementById('ot-price-with-tax');
-  if (!taxOn) {
-    grossField.value = '';
+  const grossEl = document.getElementById('li-total-gross');
+  if (taxOn) {
+    grossEl.textContent = (net * (1 + OT_VAT_PERCENT / 100)).toFixed(2) + ' лв';
+    grossEl.classList.remove('blank');
+  } else {
+    grossEl.textContent = '—';
+    grossEl.classList.add('blank');
+  }
+}
+function liToggleEmptyNote() {
+  const has = !!document.querySelector('#li-rows .li-row');
+  document.getElementById('li-empty-note').style.display = has ? 'none' : '';
+}
+function liRemoveRow(btn) {
+  btn.closest('.li-row').remove();
+  liToggleEmptyNote();
+  liRenderTotals();
+}
+function liAppendRow(catalogId, name, itemType, hasNcmLink, quantity, price) {
+  document.getElementById('li-empty-note').style.display = 'none';
+  const tbody = document.getElementById('li-rows');
+  const tr = document.createElement('tr');
+  tr.className = 'li-row';
+  const badgeLabel = itemType === 'product' ? 'Продукт' : 'Услуга';
+  tr.innerHTML = `
+    <td>
+      <div class="li-name-cell">
+        <span class="li-name-text"></span>
+        <span class="li-badge ${itemType}">${badgeLabel}</span>
+      </div>
+      <input type="hidden" name="li_catalog_item_id" value="${catalogId || ''}">
+      <input type="hidden" name="li_name" value="">
+      <input type="hidden" name="li_item_type" value="${itemType}">
+      <input type="hidden" name="li_has_ncm_link" value="${hasNcmLink ? '1' : ''}">
+    </td>
+    <td><input type="text" inputmode="decimal" class="li-num li-qty" name="li_quantity" value="${quantity}" oninput="liRecalcRow(this)" onblur="liNormalizeSeparator(this)"></td>
+    <td><input type="text" inputmode="decimal" class="li-num li-price" name="li_price" value="${price}" placeholder="0.00" oninput="liRecalcRow(this)" onblur="liNormalizeSeparator(this)"></td>
+    <td class="li-total">—</td>
+    <td style="text-align:center">
+      <button type="button" class="btn-rm" onclick="liRemoveRow(this)" title="Премахни">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </td>`;
+  tr.querySelector('.li-name-text').textContent = name;
+  tr.querySelector('input[name=li_name]').value = name;
+  tbody.appendChild(tr);
+  liRecalcRow(tr.querySelector('.li-qty'));
+}
+
+function liAddedCatalogIds() {
+  return Array.from(document.querySelectorAll('#li-rows input[name=li_catalog_item_id]'))
+    .map(el => el.value).filter(Boolean);
+}
+function liShowDD() { liFilterDD(); document.getElementById('li-dd').style.display = 'block'; }
+function liFilterDD() {
+  const q = (document.getElementById('li-add-q').value || '').trim().toLowerCase();
+  const added = liAddedCatalogIds();
+  const items = LI_PRICE_CATALOG.filter(c =>
+    !added.includes(String(c.id)) && (!q || c.name.toLowerCase().includes(q))
+  );
+  const dd = document.getElementById('li-dd');
+  if (items.length === 0) {
+    dd.innerHTML = '<div class="li-dd-empty">Няма намерени артикули.</div>';
     return;
   }
-  const net = document.getElementById('ot-price').value;
-  grossField.value = net === '' ? '' : (parseFloat(net.replace(',', '.')) * (1 + OT_VAT_PERCENT / 100)).toFixed(2);
+  dd.innerHTML = items.map(c => `
+    <div class="li-dd-opt" onclick="liAddFromCatalog('${c.id}')">
+      <span style="display:flex;align-items:center;gap:6px;">
+        <span class="li-badge ${c.item_type}">${c.item_type === 'product' ? 'Продукт' : 'Услуга'}</span>
+        <span>${liEsc(c.name)}</span>
+      </span>
+      <span style="color:var(--text-muted);font-size:11.5px;">${c.default_price != null ? c.default_price + ' лв' : '—'}</span>
+    </div>
+  `).join('');
 }
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('li-add-wrap');
+  if (wrap && !wrap.contains(e.target)) document.getElementById('li-dd').style.display = 'none';
+});
+function liAddFromCatalog(id) {
+  const c = LI_PRICE_CATALOG.find(x => String(x.id) === String(id));
+  if (!c) return;
+  liAppendRow(c.id, c.name, c.item_type, !!c.non_chemical_mean_id, '1', c.default_price != null ? String(c.default_price) : '');
+  document.getElementById('li-add-q').value = '';
+  document.getElementById('li-dd').style.display = 'none';
+}
+
+function liNifSetType(el) {
+  document.querySelectorAll('#li-nif-type .li-nif-type-opt').forEach(o => o.classList.remove('on'));
+  el.classList.add('on');
+  // Only the NCM link is product-only — price stays available for both
+  // types (a service may still have a default price).
+  document.getElementById('li-nif-ncm-row').style.display = el.dataset.type === 'product' ? '' : 'none';
+}
+function liOpenNewForm() {
+  document.getElementById('li-dd').style.display = 'none';
+  document.getElementById('li-new-form').style.display = 'block';
+  document.getElementById('li-nif-name').focus();
+}
+function liCloseNewForm() {
+  document.getElementById('li-new-form').style.display = 'none';
+  document.getElementById('li-nif-name').value = '';
+  document.getElementById('li-nif-price').value = '';
+  document.getElementById('li-nif-ncm').value = '';
+  document.getElementById('li-nif-err').style.display = 'none';
+}
+async function liCreateAndAdd() {
+  const nameEl = document.getElementById('li-nif-name');
+  const name = nameEl.value.trim();
+  const errEl = document.getElementById('li-nif-err');
+  if (!name) { errEl.textContent = 'Въведете наименование'; errEl.style.display = 'block'; return; }
+  const typeEl = document.querySelector('#li-nif-type .li-nif-type-opt.on');
+  const itemType = typeEl ? typeEl.dataset.type : 'service';
+  const ncmId = document.getElementById('li-nif-ncm').value;
+  const defaultPrice = document.getElementById('li-nif-price').value;
+  const btn = document.getElementById('li-nif-save');
+  btn.disabled = true;
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('item_type', itemType);
+  if (itemType === 'product' && ncmId) fd.append('non_chemical_mean', ncmId);
+  if (defaultPrice) fd.append('default_price', defaultPrice);
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  try {
+    const r = await fetch('{% url "core:price_catalog_create_inline" %}', {
+      method: 'POST', body: fd, headers: { 'X-CSRFToken': csrf }
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      errEl.textContent = Object.values(data.errors || {}).flat().join(', ') || 'Грешка при създаване';
+      errEl.style.display = 'block'; btn.disabled = false; return;
+    }
+    LI_PRICE_CATALOG.push(data);
+    liAppendRow(data.id, data.name, data.item_type, !!data.non_chemical_mean_id, '1', data.default_price != null ? String(data.default_price) : '');
+    liCloseNewForm();
+  } catch (e) {
+    errEl.textContent = String(e); errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// Compute each existing row's total + the bottom totals on initial render
+// (server only renders "—" placeholders in the total column).
+document.querySelectorAll('#li-rows .li-row .li-qty').forEach(liRecalcRow);
+liRenderTotals();
 
 // С документ / Без документ — short СД/БД switch next to Цена. Plain
 // hidden input (no Alpine on this form) holding the full phrase; this
@@ -373,6 +629,19 @@ function otSyncDocSwitch() {
   document.getElementById('ot-doc-opt-with').classList.toggle('on', val === 'С документ');
   document.getElementById('ot-doc-opt-without').classList.toggle('on', val === 'Без документ');
 }
+// В брой / По банка — same shared-flag pattern, shown in full (not
+// abbreviated) per design decision.
+function otSyncPaymentSwitch() {
+  const val = document.getElementById('ot-payment-type').value;
+  document.getElementById('ot-pay-opt-cash').classList.toggle('on', val === 'В брой');
+  document.getElementById('ot-pay-opt-bank').classList.toggle('on', val === 'По банка');
+}
+function otTogglePaymentType() {
+  const field = document.getElementById('ot-payment-type');
+  field.value = field.value === 'В брой' ? 'По банка' : 'В брой';
+  otSyncPaymentSwitch();
+}
+otSyncPaymentSwitch();
 function otToggleDocStatus() {
   const field = document.getElementById('ot-document-status');
   field.value = field.value === 'С документ' ? 'Без документ' : 'С документ';

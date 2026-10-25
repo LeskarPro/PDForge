@@ -132,3 +132,25 @@ Protocol accuracy
 Price module
 - Added a "СД / БД" (with document / without document) switch next to the price field on both protocols and one-time treatments, for use in upcoming reporting.
 - The "with VAT" toggle moved next to the Price label for easier access (previously on the far side of the field, hard to reach).
+
+v1.5.4 — August 21, 2026 — Price module: line items
+
+Price catalog
+- New "Ценообразуване" (Price catalog) page under Reference data — reusable priced products/services that can be picked from any protocol, template, or one-time treatment.
+- Items can also be created inline, on the spot, from within any of those editors.
+
+Line-item pricing
+- Replaced the single flat price field on protocols, templates, and one-time treatments with a line-item list — each record can now hold several priced items, each with its own quantity and price, with a live running total.
+- Selecting a non-chemical mean with a linked catalog item auto-adds it as a line item; removing the tag never deletes an already-priced line, so a typed price is never silently lost.
+- Added a "В брой / По банка" (Cash / Bank transfer) payment method switch to protocols and one-time treatments.
+- VAT behavior unchanged — the rate is still frozen onto a record the first time VAT is applied, so later changes to the VAT setting never re-price old records.
+
+Migration
+- All existing protocols, templates, and one-time treatments were migrated automatically: old flat prices became a single "Други" (Other) line item, so nothing was lost and nothing needs immediate action.
+- Added a temporary section on the dashboard listing any record that still carries that migrated "Other" line, so they can be broken down into real items over time; the section clears itself and can be removed once the list is empty.
+
+UI polish
+- Item type shown in its own column with thin dividers between columns; item name and type shown in a larger font.
+- Item name no longer bold.
+- "Add new item" forms now ask for the item type before the name.
+- Solid borders on the "add new item" button and inline creation form in the protocol editor.

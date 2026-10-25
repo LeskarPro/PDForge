@@ -444,6 +444,102 @@ class DocumentStatus(models.TextChoices):
     WITHOUT_DOCUMENT = "Без документ", "Без документ"
 
 
+class PaymentType(models.TextChoices):
+    """Cash vs. bank payment — same shared-flag pattern as DocumentStatus,
+    shown in full (not abbreviated) per design decision."""
+    CASH = "В брой", "В брой"
+    BANK = "По банка", "По банка"
+
+
+class PriceCatalogItem(TimeStampedModel):
+    """A billable catalog entry ('Ценообразуване') — either a product tied to
+    a NonChemicalMean, or a standalone service. Reusable across protocols and
+    one-time treatments; each use freezes a name/type snapshot onto its line
+    item (see LineItemBase below), so a hard delete here never breaks a
+    historical line — the FK just goes null and the snapshot carries on."""
+
+    class ItemType(models.TextChoices):
+        PRODUCT = "product", "Продукт"
+        SERVICE = "service", "Услуга"
+
+    name = models.CharField("Наименование", max_length=255)
+    item_type = models.CharField(
+        "Тип", max_length=10, choices=ItemType.choices, default=ItemType.SERVICE,
+    )
+    non_chemical_mean = models.ForeignKey(
+        NonChemicalMean, on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="price_catalog_items", verbose_name="Свързан нехим. продукт",
+    )
+    default_price = models.DecimalField(
+        "Цена по подразбиране (лв)", max_digits=10, decimal_places=2,
+        null=True, blank=True,
+    )
+
+    class Meta:
+        verbose_name = "Артикул за ценообразуване"
+        verbose_name_plural = "Артикули за ценообразуване"
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class LineItemBase(models.Model):
+    """Abstract: a billable line on a Protocol or OneTimeTreatment,
+    referencing a PriceCatalogItem with a name/type snapshot frozen at
+    add-time — same frozen-at-use-time pattern as ProtocolProduct."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    catalog_item = models.ForeignKey(
+        PriceCatalogItem, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="+", verbose_name="Артикул",
+    )
+    quantity = models.DecimalField(
+        "Количество", max_digits=10, decimal_places=2, default=1,
+    )
+    price = models.DecimalField(
+        "Цена / бр. (лв)", max_digits=10, decimal_places=2,
+        null=True, blank=True,
+    )
+    order = models.PositiveSmallIntegerField("Ред", default=0)
+
+    # --- Snapshot of PriceCatalogItem, frozen at add-time ---
+    snapshot_name = models.CharField(max_length=255, blank=True)
+    snapshot_item_type = models.CharField(max_length=10, blank=True)
+    snapshot_has_ncm_link = models.BooleanField(default=False)
+
+    class Meta:
+        abstract = True
+        ordering = ["order"]
+
+    @property
+    def line_total(self):
+        """Net total for this line, or None when price hasn't been filled in
+        yet — kept distinct from a real 0.00 (see mockup 'attention' rows)."""
+        return None if self.price is None else self.quantity * self.price
+
+    def refresh_snapshot(self) -> None:
+        """Copy current PriceCatalogItem field values into snapshot_* fields."""
+        if self.catalog_item_id:
+            self.snapshot_name = self.catalog_item.name
+            self.snapshot_item_type = self.catalog_item.item_type
+            self.snapshot_has_ncm_link = bool(self.catalog_item.non_chemical_mean_id)
+
+    def save(self, *args, **kwargs):
+        # On first save, populate the snapshot from the linked catalog item.
+        # On later saves we leave the snapshot alone (matches ProtocolProduct).
+        # NOTE: can't use "not self.pk" here — id has default=uuid.uuid4, so
+        # pk is already set at instantiation, not just at save. Use
+        # _state.adding instead (same check Protocol.save() uses).
+        if self._state.adding and self.catalog_item_id and not self.snapshot_name:
+            self.refresh_snapshot()
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return self.snapshot_name or "—"
+
+
 def _normalize_tax_fields(instance):
     """Freeze `tax_rate_snapshot` the first time VAT is turned on for a
     record, and clear the VAT fields when it's off. Shared by Protocol and
@@ -554,6 +650,10 @@ class Protocol(TimeStampedModel):
     document_status = models.CharField(
         "Документ", max_length=20,
         choices=DocumentStatus.choices, default=DocumentStatus.WITH_DOCUMENT,
+    )
+    payment_type = models.CharField(
+        "Начин на плащане", max_length=20,
+        choices=PaymentType.choices, default=PaymentType.CASH,
     )
 
     # Template folder — only relevant when is_preset=True
@@ -923,6 +1023,20 @@ class ProtocolProduct(models.Model):
             self.refresh_snapshot()
         super().save(*args, **kwargs)
 
+
+class ProtocolLineItem(LineItemBase):
+    """One billable line on a Protocol's price module (Stage: Price module)."""
+
+    protocol = models.ForeignKey(
+        Protocol, on_delete=models.CASCADE,
+        related_name="line_items", verbose_name="Протокол",
+    )
+
+    class Meta(LineItemBase.Meta):
+        verbose_name = "Позиция в протокол"
+        verbose_name_plural = "Позиции в протокол"
+
+
 class OneTimeTreatment(TimeStampedModel):
     """A DDD job done without a formal protocol (apartments, small basements, etc.)."""
 
@@ -977,6 +1091,10 @@ class OneTimeTreatment(TimeStampedModel):
         "Документ", max_length=20,
         choices=DocumentStatus.choices, default=DocumentStatus.WITH_DOCUMENT,
     )
+    payment_type = models.CharField(
+        "Начин на плащане", max_length=20,
+        choices=PaymentType.choices, default=PaymentType.CASH,
+    )
     notes = models.TextField("Бележки", blank=True)
 
     class Meta:
@@ -1020,6 +1138,19 @@ class OneTimeTreatmentProduct(models.Model):
 
     def __str__(self) -> str:
         return f"{self.product.name} ({self.treatment})"
+
+
+class OneTimeTreatmentLineItem(LineItemBase):
+    """One billable line on a OneTimeTreatment's price module."""
+
+    treatment = models.ForeignKey(
+        OneTimeTreatment, on_delete=models.CASCADE,
+        related_name="line_items", verbose_name="Обработка",
+    )
+
+    class Meta(LineItemBase.Meta):
+        verbose_name = "Позиция в еднократна обработка"
+        verbose_name_plural = "Позиции в еднократна обработка"
 
 
 class OneTimeTreatmentContact(models.Model):
